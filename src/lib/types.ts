@@ -1,0 +1,208 @@
+// RoomLink domain types — Phase 1A
+
+export type PropertyType = "crash_pad" | "co_living" | "midterm" | "room_rental";
+export type BunkType = "top_bunk" | "bottom_bunk" | "single" | "other";
+export type BedStatus = "vacant" | "reserved" | "occupied" | "unavailable";
+export type MemberRole = "owner" | "manager" | "tenant";
+
+export interface Property {
+  id: string;
+  owner_id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  property_type: PropertyType;
+  description: string | null;
+  house_rules: string | null;
+  created_at: string;
+}
+
+export interface Room {
+  id: string;
+  property_id: string;
+  name: string;
+  description: string | null;
+  max_occupancy: number;
+  created_at: string;
+}
+
+export interface Bed {
+  id: string;
+  property_id: string;
+  room_id: string;
+  label: string;
+  bunk_type: BunkType;
+  monthly_rent: number;
+  deposit_amount: number;
+  status: BedStatus;
+  description: string | null;
+  created_at: string;
+}
+
+export interface PropertyMember {
+  id: string;
+  property_id: string;
+  user_id: string;
+  role: MemberRole;
+  created_at: string;
+}
+
+/** Counts of beds per status, used by dashboard + occupancy summaries. */
+export interface BedStatusCounts {
+  total: number;
+  vacant: number;
+  reserved: number;
+  occupied: number;
+  unavailable: number;
+}
+
+/** A room together with its beds (property detail view). */
+export interface RoomWithBeds extends Room {
+  beds: Bed[];
+}
+
+/** Aggregated dashboard metrics. */
+export interface DashboardMetrics {
+  totalProperties: number;
+  totalRooms: number;
+  totalBeds: number;
+  beds: BedStatusCounts;
+  pendingApplications: number;
+  activeReservations: number;
+  rentDue: number;
+  openMaintenance: number;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 1 (web) shared entities — used by web now, mobile later.
+// ---------------------------------------------------------------------------
+
+export type UserRole = "owner" | "manager" | "tenant";
+export type VerificationStatus = "unverified" | "pending" | "verified";
+
+export interface User {
+  id: string;
+  email: string;
+  full_name: string | null;
+  phone: string | null;
+  role: UserRole;
+  verification_status: VerificationStatus;
+  created_at: string;
+}
+
+export type ApplicationStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "withdrawn";
+export type AgreementStatus = "not_started" | "sent" | "signed";
+
+export interface Application {
+  id: string;
+  property_id: string;
+  bed_id: string | null;
+  applicant_id: string | null;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  message: string | null;
+  desired_move_in: string | null;
+  status: ApplicationStatus;
+  agreement_status: AgreementStatus;
+  created_at: string;
+  decided_at: string | null;
+}
+
+export type ReservationStatus = "active" | "cancelled" | "completed";
+export type DepositStatus = "unpaid" | "paid" | "waived" | "refunded";
+export type AccessCodeDelivery = "pending" | "sent" | "delivered";
+
+export interface Reservation {
+  id: string;
+  property_id: string;
+  bed_id: string | null;
+  tenant_id: string;
+  application_id: string | null;
+  status: ReservationStatus;
+  start_date: string | null;
+  end_date: string | null;
+  deposit_amount: number;
+  deposit_status: DepositStatus;
+  deposit_paid_at: string | null;
+  access_code_delivery: AccessCodeDelivery;
+  created_at: string;
+}
+
+export type RentStatus = "due" | "paid" | "overdue" | "waived";
+
+export interface RentCharge {
+  id: string;
+  reservation_id: string | null;
+  tenant_id: string;
+  property_id: string;
+  bed_id: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  due_date: string | null;
+  amount: number;
+  status: RentStatus;
+  paid_at: string | null;
+  created_at: string;
+}
+
+export type PaymentKind = "deposit" | "rent" | "other";
+export type PaymentStatus = "recorded" | "pending" | "failed" | "refunded";
+
+export interface Payment {
+  id: string;
+  tenant_id: string;
+  reservation_id: string | null;
+  rent_charge_id: string | null;
+  property_id: string | null;
+  kind: PaymentKind;
+  amount: number;
+  payment_provider: string;
+  status: PaymentStatus;
+  recorded_at: string;
+}
+
+export interface Announcement {
+  id: string;
+  property_id: string;
+  author_id: string | null;
+  title: string;
+  body: string;
+  created_at: string;
+}
+
+export type MessageSenderRole = "tenant" | "owner" | "manager";
+
+export interface Message {
+  id: string;
+  property_id: string;
+  tenant_id: string;
+  sender_id: string | null;
+  sender_role: MessageSenderRole;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+export type MaintenancePriority = "low" | "normal" | "high" | "urgent";
+export type MaintenanceStatus = "open" | "in_progress" | "resolved" | "closed";
+
+export interface MaintenanceRequest {
+  id: string;
+  property_id: string;
+  tenant_id: string | null;
+  room_id: string | null;
+  bed_id: string | null;
+  title: string;
+  description: string | null;
+  priority: MaintenancePriority;
+  status: MaintenanceStatus;
+  created_at: string;
+  resolved_at: string | null;
+}
