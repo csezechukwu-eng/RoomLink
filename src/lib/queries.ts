@@ -1,12 +1,13 @@
 import "server-only";
 import { getCurrentOwnerId } from "@/lib/auth";
-import { getServiceClient } from "@/lib/supabase/server";
+import { createAuthenticatedClient } from "@/lib/supabase/server";
 import { ok, fail, type Result } from "@/lib/result";
 import type {
   Bed,
   BedStatusCounts,
   DashboardMetrics,
   Property,
+  PropertyMedia,
   Room,
   RoomWithBeds,
 } from "@/lib/types";
@@ -28,7 +29,7 @@ export function tallyBeds(beds: Pick<Bed, "status">[]): BedStatusCounts {
 /** Dashboard metrics: property/room/bed totals + bed status breakdown. */
 export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
 
     const { data: properties, error: pErr } = await supabase
@@ -113,7 +114,7 @@ export async function getProperties(): Promise<
   Result<Array<Property & { roomCount: number; bedCounts: BedStatusCounts }>>
 > {
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
 
     const { data: properties, error: pErr } = await supabase
@@ -165,6 +166,7 @@ export interface PropertyDetail {
   property: Property;
   rooms: RoomWithBeds[];
   bedCounts: BedStatusCounts;
+  media: PropertyMedia[];
 }
 
 /** A single property with its rooms and beds (grouped) for the detail page. */
@@ -172,7 +174,7 @@ export async function getPropertyDetail(
   propertyId: string
 ): Promise<Result<PropertyDetail | null>> {
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
 
     const { data: property, error: pErr } = await supabase
@@ -184,21 +186,40 @@ export async function getPropertyDetail(
     if (pErr) throw pErr;
     if (!property) return ok(null);
 
-    const [{ data: rooms, error: rErr }, { data: beds, error: bErr }] =
-      await Promise.all([
-        supabase
-          .from("rooms")
-          .select("*")
-          .eq("property_id", propertyId)
-          .order("name", { ascending: true }),
-        supabase
-          .from("beds")
-          .select("*")
-          .eq("property_id", propertyId)
-          .order("label", { ascending: true }),
-      ]);
+    const [
+      { data: rooms, error: rErr },
+      { data: beds, error: bErr },
+    ] = await Promise.all([
+      supabase
+        .from("rooms")
+        .select("*")
+        .eq("property_id", propertyId)
+        .order("name", { ascending: true }),
+      supabase
+        .from("beds")
+        .select("*")
+        .eq("property_id", propertyId)
+        .order("label", { ascending: true }),
+    ]);
     if (rErr) throw rErr;
     if (bErr) throw bErr;
+
+    // Fetch media separately - gracefully handle if table doesn't exist yet
+    let media: PropertyMedia[] = [];
+    try {
+      const { data: mediaData, error: mErr } = await supabase
+        .from("property_media")
+        .select("*")
+        .eq("property_id", propertyId)
+        .eq("owner_id", ownerId)
+        .order("media_type")
+        .order("sort_order", { ascending: true });
+      if (!mErr && mediaData) {
+        media = mediaData as PropertyMedia[];
+      }
+    } catch {
+      // property_media table may not exist yet - ignore
+    }
 
     const bedsByRoom = new Map<string, Bed[]>();
     for (const bed of (beds ?? []) as Bed[]) {
@@ -215,7 +236,77 @@ export async function getPropertyDetail(
       property: property as Property,
       rooms: roomsWithBeds,
       bedCounts: tallyBeds((beds ?? []) as Bed[]),
+      media: (media ?? []) as PropertyMedia[],
     });
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** All rooms with their beds, grouped by property for the rooms page. */
+export async function getAllRoomsWithBeds(): Promise<
+  Result<Array<{
+    property: Property;
+    rooms: RoomWithBeds[];
+  }>>
+> {
+  try {
+    const supabase = await createAuthenticatedClient();
+    const ownerId = await getCurrentOwnerId();
+
+    // Get all properties
+    const { data: properties, error: pErr } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("owner_id", ownerId)
+      .order("created_at", { ascending: true });
+    if (pErr) throw pErr;
+
+    const list = (properties ?? []) as Property[];
+    if (list.length === 0) return ok([]);
+
+    const ids = list.map((p) => p.id);
+
+    // Get all rooms and beds for these properties
+    const [{ data: rooms, error: rErr }, { data: beds, error: bErr }] =
+      await Promise.all([
+        supabase
+          .from("rooms")
+          .select("*")
+          .in("property_id", ids)
+          .order("name", { ascending: true }),
+        supabase
+          .from("beds")
+          .select("*")
+          .in("property_id", ids)
+          .order("label", { ascending: true }),
+      ]);
+    if (rErr) throw rErr;
+    if (bErr) throw bErr;
+
+    // Group beds by room
+    const bedsByRoom = new Map<string, Bed[]>();
+    for (const bed of (beds ?? []) as Bed[]) {
+      const arr = bedsByRoom.get(bed.room_id) ?? [];
+      arr.push(bed);
+      bedsByRoom.set(bed.room_id, arr);
+    }
+
+    // Group rooms by property with their beds
+    const roomsByProperty = new Map<string, RoomWithBeds[]>();
+    for (const room of (rooms ?? []) as Room[]) {
+      const arr = roomsByProperty.get(room.property_id) ?? [];
+      arr.push({ ...room, beds: bedsByRoom.get(room.id) ?? [] });
+      roomsByProperty.set(room.property_id, arr);
+    }
+
+    // Build result
+    return ok(
+      list.map((property) => ({
+        property,
+        rooms: roomsByProperty.get(property.id) ?? [],
+      }))
+    );
   } catch (error) {
     return fail(error);
   }

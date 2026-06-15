@@ -1,5 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, MapPin, BedDouble } from "lucide-react";
+import { ArrowRight, MapPin, BedDouble, ImageIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { labelForPropertyType } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
@@ -17,7 +18,23 @@ export function AvailabilityCard({ property }: { property: AvailabilityProperty 
 
   return (
     <Link href={`/availability/${property.id}`} className="group block">
-      <Card className="h-full transition-shadow group-hover:shadow-md">
+      <Card className="h-full overflow-hidden transition-shadow group-hover:shadow-md">
+        {/* Cover Photo */}
+        <div className="relative h-40 bg-gradient-to-br from-slate-100 to-slate-200">
+          {property.coverPhoto?.public_url ? (
+            <Image
+              src={property.coverPhoto.public_url}
+              alt={property.coverPhoto.alt_text || property.name}
+              fill
+              className="object-cover transition-transform group-hover:scale-105"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <ImageIcon className="h-10 w-10 text-slate-300" />
+            </div>
+          )}
+        </div>
         <div className="flex flex-col gap-4 p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-1">

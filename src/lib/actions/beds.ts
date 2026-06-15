@@ -1,7 +1,7 @@
 "use server";
 
 import { getCurrentOwnerId } from "@/lib/auth";
-import { getServiceClient } from "@/lib/supabase/server";
+import { createAuthenticatedClient } from "@/lib/supabase/server";
 import type { BedStatus, BunkType } from "@/lib/types";
 import { BED_STATUSES, BUNK_TYPES } from "@/lib/constants";
 import {
@@ -63,7 +63,7 @@ export async function createBed(
     return errorState("Please fix the highlighted fields.", fieldErrors);
 
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
     await assertPropertyOwned(supabase, propertyId, ownerId);
 
@@ -102,7 +102,7 @@ export async function updateBed(
     return errorState("Please fix the highlighted fields.", fieldErrors);
 
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
     await assertPropertyOwned(supabase, propertyId, ownerId);
 
@@ -138,7 +138,7 @@ export async function deleteBed(
   if (!id || !propertyId) return errorState("Missing bed id.");
 
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
     await assertPropertyOwned(supabase, propertyId, ownerId);
 
@@ -168,7 +168,7 @@ export async function changeBedStatus(
   if (!VALID_STATUS.has(status)) return errorState("Invalid status.");
 
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
     await assertPropertyOwned(supabase, propertyId, ownerId);
 

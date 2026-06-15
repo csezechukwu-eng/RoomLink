@@ -361,7 +361,7 @@ export function MultiStepApplyForm({ bedId }: { bedId: string }) {
               <div className="flex items-start gap-2 rounded-lg bg-indigo-50 p-4 text-sm text-indigo-700">
                 <Info className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
-                  Submitting an application doesn't charge you anything. The host reviews it and, if approved, reserves this bed for you.
+                  Submitting an application doesn&apos;t charge you anything. The host reviews it and, if approved, reserves this bed for you.
                 </span>
               </div>
             </div>

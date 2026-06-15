@@ -2,17 +2,19 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { BedFormModal } from "@/components/forms/BedFormModal";
 import { BedStatusSelect } from "@/components/forms/BedStatusSelect";
 import { ConfirmDeleteButton } from "@/components/forms/ConfirmDeleteButton";
+import { BedPhotosSection } from "@/components/PropertyPhotosSection";
 import { labelForBunkType } from "@/lib/constants";
 import { deleteBed } from "@/lib/actions/beds";
-import type { Bed, Room } from "@/lib/types";
+import type { Bed, PropertyMedia, Room } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 interface BedCardProps {
   bed: Bed;
   rooms: Pick<Room, "id" | "name">[];
+  photos?: PropertyMedia[];
 }
 
-export function BedCard({ bed, rooms }: BedCardProps) {
+export function BedCard({ bed, rooms, photos = [] }: BedCardProps) {
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex items-start justify-between gap-2">
@@ -40,6 +42,15 @@ export function BedCard({ bed, rooms }: BedCardProps) {
       {bed.description ? (
         <p className="text-xs text-slate-500">{bed.description}</p>
       ) : null}
+
+      {/* Bed photos */}
+      <BedPhotosSection
+        propertyId={bed.property_id}
+        roomId={bed.room_id}
+        bedId={bed.id}
+        bedLabel={bed.label}
+        photos={photos}
+      />
 
       <div className="mt-1 border-t border-slate-100 pt-3">
         <BedStatusSelect

@@ -1,13 +1,14 @@
 import "server-only";
 import { getServiceClient } from "@/lib/supabase/server";
 import { ok, fail, type Result } from "@/lib/result";
-import type { Bed, Property, Room, RoomWithBeds } from "@/lib/types";
+import type { Bed, Property, PropertyMedia, Room, RoomWithBeds } from "@/lib/types";
 
 export interface AvailabilityProperty extends Property {
   totalBeds: number;
   vacantBeds: number;
   minRent: number | null;
   maxRent: number | null;
+  coverPhoto: PropertyMedia | null;
 }
 
 export interface AvailabilityDetail {
@@ -15,6 +16,7 @@ export interface AvailabilityDetail {
   rooms: RoomWithBeds[];
   totalBeds: number;
   vacantBeds: number;
+  media: PropertyMedia[];
 }
 
 export interface BedForApplication {
@@ -45,6 +47,22 @@ export async function getAvailableProperties(): Promise<
       .in("property_id", ids);
     if (bErr) throw bErr;
 
+    // Fetch cover photos separately - gracefully handle if table doesn't exist yet
+    let coverPhotos: PropertyMedia[] = [];
+    try {
+      const { data: mediaData, error: mErr } = await supabase
+        .from("property_media")
+        .select("*")
+        .in("property_id", ids)
+        .eq("media_type", "property")
+        .eq("is_cover", true);
+      if (!mErr && mediaData) {
+        coverPhotos = mediaData as PropertyMedia[];
+      }
+    } catch {
+      // property_media table may not exist yet - ignore
+    }
+
     const byProp = new Map<
       string,
       { total: number; vacant: number; rents: number[] }
@@ -59,6 +77,12 @@ export async function getAvailableProperties(): Promise<
       byProp.set(b.property_id, agg);
     }
 
+    // Map cover photos by property
+    const coverByProp = new Map<string, PropertyMedia>();
+    for (const photo of (coverPhotos ?? []) as PropertyMedia[]) {
+      coverByProp.set(photo.property_id, photo);
+    }
+
     return ok(
       list.map((p) => {
         const agg = byProp.get(p.id) ?? { total: 0, vacant: 0, rents: [] };
@@ -68,6 +92,7 @@ export async function getAvailableProperties(): Promise<
           vacantBeds: agg.vacant,
           minRent: agg.rents.length ? Math.min(...agg.rents) : null,
           maxRent: agg.rents.length ? Math.max(...agg.rents) : null,
+          coverPhoto: coverByProp.get(p.id) ?? null,
         };
       })
     );
@@ -106,6 +131,22 @@ export async function getAvailabilityDetail(
     if (rErr) throw rErr;
     if (bErr) throw bErr;
 
+    // Fetch media separately - gracefully handle if table doesn't exist yet
+    let media: PropertyMedia[] = [];
+    try {
+      const { data: mediaData, error: mErr } = await supabase
+        .from("property_media")
+        .select("*")
+        .eq("property_id", propertyId)
+        .order("media_type")
+        .order("sort_order", { ascending: true });
+      if (!mErr && mediaData) {
+        media = mediaData as PropertyMedia[];
+      }
+    } catch {
+      // property_media table may not exist yet - ignore
+    }
+
     const allBeds = (beds ?? []) as Bed[];
     const bedsByRoom = new Map<string, Bed[]>();
     for (const bed of allBeds) {
@@ -123,6 +164,7 @@ export async function getAvailabilityDetail(
       rooms: roomsWithBeds,
       totalBeds: allBeds.length,
       vacantBeds: allBeds.filter((b) => b.status === "vacant").length,
+      media: (media ?? []) as PropertyMedia[],
     });
   } catch (error) {
     return fail(error);

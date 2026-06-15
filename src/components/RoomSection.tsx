@@ -4,21 +4,38 @@ import { EmptyState } from "@/components/EmptyState";
 import { RoomFormModal } from "@/components/forms/RoomFormModal";
 import { BedFormModal } from "@/components/forms/BedFormModal";
 import { ConfirmDeleteButton } from "@/components/forms/ConfirmDeleteButton";
+import { RoomPhotosSection } from "@/components/PropertyPhotosSection";
 import { deleteRoom } from "@/lib/actions/rooms";
-import type { Room, RoomWithBeds } from "@/lib/types";
+import type { PropertyMedia, Room, RoomWithBeds } from "@/lib/types";
 
 interface RoomSectionProps {
   room: RoomWithBeds;
   rooms: Pick<Room, "id" | "name">[];
   propertyId: string;
+  media?: PropertyMedia[];
 }
 
-export function RoomSection({ room, rooms, propertyId }: RoomSectionProps) {
+export function RoomSection({ room, rooms, propertyId, media = [] }: RoomSectionProps) {
   const beds = room.beds;
   const occupied = beds.filter((b) => b.status === "occupied").length;
   const filled = beds.filter(
     (b) => b.status === "occupied" || b.status === "reserved"
   ).length;
+
+  // Filter media for this room and its beds
+  const roomMedia = media.filter(
+    (m) => m.media_type === "room" && m.room_id === room.id
+  );
+  const bedMediaMap = new Map<string, PropertyMedia[]>();
+  media
+    .filter((m) => m.media_type === "bed" && m.room_id === room.id)
+    .forEach((m) => {
+      if (m.bed_id) {
+        const existing = bedMediaMap.get(m.bed_id) ?? [];
+        existing.push(m);
+        bedMediaMap.set(m.bed_id, existing);
+      }
+    });
 
   return (
     <section className="rounded-xl border border-slate-200 bg-slate-50/60">
@@ -70,6 +87,14 @@ export function RoomSection({ room, rooms, propertyId }: RoomSectionProps) {
       </header>
 
       <div className="p-4">
+        {/* Room photos */}
+        <RoomPhotosSection
+          propertyId={propertyId}
+          roomId={room.id}
+          roomName={room.name}
+          photos={roomMedia}
+        />
+
         {beds.length === 0 ? (
           <EmptyState
             icon={<BedDouble className="h-5 w-5" />}
@@ -87,9 +112,14 @@ export function RoomSection({ room, rooms, propertyId }: RoomSectionProps) {
             className="border-slate-200 bg-white"
           />
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {beds.map((bed) => (
-              <BedCard key={bed.id} bed={bed} rooms={rooms} />
+              <BedCard
+                key={bed.id}
+                bed={bed}
+                rooms={rooms}
+                photos={bedMediaMap.get(bed.id) ?? []}
+              />
             ))}
           </div>
         )}

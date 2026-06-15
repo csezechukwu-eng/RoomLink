@@ -43,7 +43,13 @@ export function isServiceRoleConfigured(): boolean {
 
 /**
  * Service Role Client - bypasses RLS.
+ *
+ * @deprecated For new code, import from "@/lib/supabase/admin" instead.
+ * This function is kept for backward compatibility with services that
+ * haven't been converted to use authenticated client yet.
+ *
  * Use only for admin operations that require elevated privileges.
+ * Never use for normal landlord dashboard reads/writes.
  * Never expose to client-side code.
  */
 export function getServiceClient(): SupabaseClient {

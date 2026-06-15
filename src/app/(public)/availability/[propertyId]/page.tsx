@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -9,7 +10,7 @@ import {
   WashingMachine,
   Car,
   ChevronDown,
-  ChevronUp,
+  ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { getAvailabilityDetail } from "@/lib/services/availability";
 import { labelForBunkType } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
+import type { PropertyMedia } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +40,8 @@ export default async function AvailabilityDetailPage({
   }
   if (!result.data) notFound();
 
-  const { property, rooms, totalBeds, vacantBeds } = result.data;
+  const { property, rooms, totalBeds, vacantBeds, media } = result.data;
+  const propertyPhotos = media.filter((m) => m.media_type === "property");
   const location = [property.address, property.city, property.state, property.zip]
     .filter(Boolean)
     .join(", ");
@@ -58,7 +61,7 @@ export default async function AvailabilityDetailPage({
       </div>
 
       {/* Photo Gallery */}
-      <PhotoGallery />
+      <PhotoGallery photos={propertyPhotos} />
 
       {/* Amenities */}
       <div className="flex flex-wrap gap-4 text-sm">
@@ -179,29 +182,83 @@ function BackLink() {
   );
 }
 
-function PhotoGallery() {
+function PhotoGallery({ photos }: { photos: PropertyMedia[] }) {
+  // Show placeholder if no photos
+  if (photos.length === 0) {
+    return (
+      <div className="flex h-64 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-200">
+        <div className="text-center">
+          <ImageIcon className="mx-auto h-12 w-12 text-slate-400" />
+          <p className="mt-2 text-sm text-slate-500">No photos yet</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Sort to put cover photo first
+  const sortedPhotos = [...photos].sort((a, b) => {
+    if (a.is_cover && !b.is_cover) return -1;
+    if (!a.is_cover && b.is_cover) return 1;
+    return a.sort_order - b.sort_order;
+  });
+
+  const mainPhoto = sortedPhotos[0];
+  const smallPhotos = sortedPhotos.slice(1, 5);
+  const remainingCount = sortedPhotos.length - 5;
+
   return (
     <div className="grid gap-2 sm:grid-cols-4 sm:grid-rows-2">
       {/* Main large image */}
       <div className="relative sm:col-span-2 sm:row-span-2">
-        <div className="h-64 rounded-xl bg-gradient-to-br from-slate-200 to-slate-300 sm:h-full" />
-      </div>
-      {/* Smaller images */}
-      <div className="hidden sm:block">
-        <div className="h-32 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200" />
-      </div>
-      <div className="hidden sm:block">
-        <div className="h-32 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200" />
-      </div>
-      <div className="hidden sm:block">
-        <div className="h-32 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200" />
-      </div>
-      <div className="hidden sm:block relative">
-        <div className="h-32 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200" />
-        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-slate-900/60">
-          <span className="text-lg font-semibold text-white">+12</span>
+        <div className="relative h-64 overflow-hidden rounded-xl sm:h-full">
+          {mainPhoto.public_url ? (
+            <Image
+              src={mainPhoto.public_url}
+              alt={mainPhoto.alt_text || "Property photo"}
+              fill
+              className="object-cover"
+              sizes="(max-width: 640px) 100vw, 50vw"
+              priority
+            />
+          ) : (
+            <div className="h-full bg-gradient-to-br from-slate-200 to-slate-300" />
+          )}
         </div>
       </div>
+      {/* Smaller images */}
+      {smallPhotos.map((photo, index) => (
+        <div key={photo.id} className="hidden sm:block">
+          <div className="relative h-32 overflow-hidden rounded-xl">
+            {photo.public_url ? (
+              <Image
+                src={photo.public_url}
+                alt={photo.alt_text || "Property photo"}
+                fill
+                className="object-cover"
+                sizes="25vw"
+              />
+            ) : (
+              <div className="h-full bg-gradient-to-br from-slate-100 to-slate-200" />
+            )}
+            {/* Show remaining count on last visible small photo */}
+            {index === smallPhotos.length - 1 && remainingCount > 0 && (
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60">
+                <span className="text-lg font-semibold text-white">
+                  +{remainingCount}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+      {/* Fill empty slots with placeholders if less than 4 small photos */}
+      {Array.from({ length: Math.max(0, 4 - smallPhotos.length) }).map(
+        (_, index) => (
+          <div key={`placeholder-${index}`} className="hidden sm:block">
+            <div className="h-32 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200" />
+          </div>
+        )
+      )}
     </div>
   );
 }

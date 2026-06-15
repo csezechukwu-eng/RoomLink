@@ -206,3 +206,27 @@ export interface MaintenanceRequest {
   created_at: string;
   resolved_at: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 1C: Property Media
+// ---------------------------------------------------------------------------
+
+export type MediaType = "property" | "room" | "bed";
+
+export interface PropertyMedia {
+  id: string;
+  owner_id: string;
+  property_id: string;
+  room_id: string | null;
+  bed_id: string | null;
+  media_type: MediaType;
+  storage_bucket: string;
+  storage_path: string;
+  public_url: string | null;
+  alt_text: string | null;
+  caption: string | null;
+  is_cover: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}

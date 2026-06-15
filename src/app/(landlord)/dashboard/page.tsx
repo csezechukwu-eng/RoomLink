@@ -6,12 +6,11 @@ import {
   CalendarClock,
   ChevronDown,
   Building,
-  Plus,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { getDashboardMetrics, getProperties } from "@/lib/queries";
 import { getCurrentUser } from "@/lib/auth";
+import { PropertyFormModal } from "@/components/forms/PropertyFormModal";
 
 export const dynamic = "force-dynamic";
 
@@ -73,12 +72,9 @@ export default async function DashboardPage() {
             Create your first crash pad to get started. Once you add properties,
             rooms, and beds, you&apos;ll see your dashboard come to life.
           </p>
-          <Link href="/dashboard/properties/new" className="mt-6">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Create Your First Property
-            </Button>
-          </Link>
+          <div className="mt-6">
+            <PropertyFormModal mode="create" triggerLabel="Create Your First Property" />
+          </div>
         </Card>
       </div>
     );

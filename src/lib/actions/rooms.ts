@@ -1,7 +1,7 @@
 "use server";
 
 import { getCurrentOwnerId } from "@/lib/auth";
-import { getServiceClient } from "@/lib/supabase/server";
+import { createAuthenticatedClient } from "@/lib/supabase/server";
 import {
   type ActionState,
   assertPropertyOwned,
@@ -45,7 +45,7 @@ export async function createRoom(
     return errorState("Please fix the highlighted fields.", fieldErrors);
 
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
     await assertPropertyOwned(supabase, propertyId, ownerId);
 
@@ -74,7 +74,7 @@ export async function updateRoom(
     return errorState("Please fix the highlighted fields.", fieldErrors);
 
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
     await assertPropertyOwned(supabase, propertyId, ownerId);
 
@@ -102,7 +102,7 @@ export async function deleteRoom(
   if (!id || !propertyId) return errorState("Missing room id.");
 
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
     await assertPropertyOwned(supabase, propertyId, ownerId);
 

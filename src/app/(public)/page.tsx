@@ -102,7 +102,7 @@ export default async function LandingPage() {
             Everything You Need to Manage Your Property
           </h2>
           <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-            From bed tracking to tenant communication, we've built the tools that crash pad operators need.
+            From bed tracking to tenant communication, we&apos;ve built the tools that crash pad operators need.
           </p>
         </div>
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
@@ -181,7 +181,7 @@ export default async function LandingPage() {
           Ready to simplify your property management?
         </h2>
         <p className="mt-4 text-lg text-slate-600">
-          Join hundreds of crash pad operators who've made the switch.
+          Join hundreds of crash pad operators who&apos;ve made the switch.
         </p>
         <div className="mt-8 flex justify-center gap-4">
           <Link href="/availability">
@@ -308,7 +308,7 @@ function TestimonialCard({
   return (
     <Card className="p-8">
       <blockquote className="text-lg text-slate-700 leading-relaxed">
-        <span className="text-4xl text-slate-300 leading-none">"</span>
+        <span className="text-4xl text-slate-300 leading-none">&quot;</span>
         {quote}
       </blockquote>
       <div className="mt-6 flex items-center gap-3">

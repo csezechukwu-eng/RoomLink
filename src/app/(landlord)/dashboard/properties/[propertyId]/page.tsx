@@ -11,6 +11,7 @@ import { PropertyFormModal } from "@/components/forms/PropertyFormModal";
 import { RoomFormModal } from "@/components/forms/RoomFormModal";
 import { BedFormModal } from "@/components/forms/BedFormModal";
 import { ConfirmDeleteButton } from "@/components/forms/ConfirmDeleteButton";
+import { PropertyPhotosSection } from "@/components/PropertyPhotosSection";
 import { deleteProperty } from "@/lib/actions/properties";
 import { getPropertyDetail } from "@/lib/queries";
 import { labelForPropertyType } from "@/lib/constants";
@@ -39,7 +40,7 @@ export default async function PropertyDetailPage({
 
   if (!result.data) notFound();
 
-  const { property, rooms, bedCounts } = result.data;
+  const { property, rooms, bedCounts, media } = result.data;
   const roomOptions = rooms.map((r) => ({ id: r.id, name: r.name }));
   const location = [property.address, property.city, property.state, property.zip]
     .filter(Boolean)
@@ -116,6 +117,9 @@ export default async function PropertyDetailPage({
         />
       </div>
 
+      {/* Property photos */}
+      <PropertyPhotosSection propertyId={property.id} photos={media} />
+
       {/* About / house rules */}
       {property.description || property.house_rules ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -164,6 +168,7 @@ export default async function PropertyDetailPage({
                 room={room}
                 rooms={roomOptions}
                 propertyId={property.id}
+                media={media}
               />
             ))}
           </div>

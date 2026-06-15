@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentOwnerId } from "@/lib/auth";
-import { getServiceClient } from "@/lib/supabase/server";
+import { createAuthenticatedClient } from "@/lib/supabase/server";
 import type { PropertyType } from "@/lib/types";
 import { PROPERTY_TYPES } from "@/lib/constants";
 import {
@@ -52,17 +52,38 @@ export async function createProperty(
 
   let newId: string | null = null;
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
+
+    // Debug: Check what auth.uid() returns from Supabase's perspective
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    console.log("[createProperty] ownerId from getCurrentOwnerId:", ownerId);
+    console.log("[createProperty] auth.uid from supabase.auth.getUser:", authUser?.id);
+    console.log("[createProperty] IDs match:", ownerId === authUser?.id);
+
     const { data, error } = await supabase
       .from("properties")
       .insert({ ...values, owner_id: ownerId })
       .select("id")
       .single();
-    if (error) throw error;
+
+    console.log("[createProperty] Insert result - data:", data, "error:", error);
+
+    if (error) {
+      console.error("[createProperty] Insert error:", error);
+      console.error("[createProperty] Error code:", error.code);
+      console.error("[createProperty] Error details:", error.details);
+      console.error("[createProperty] Error hint:", error.hint);
+      throw error;
+    }
+    if (!data) {
+      console.error("[createProperty] No data returned from insert");
+      return errorState("Failed to create property - no data returned");
+    }
     newId = data.id as string;
     revalidateLandlord(newId);
   } catch (error) {
+    console.error("[createProperty] Caught error:", error);
     return errorState(messageFrom(error));
   }
 
@@ -82,7 +103,7 @@ export async function updateProperty(
     return errorState("Please fix the highlighted fields.", fieldErrors);
 
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
     await assertPropertyOwned(supabase, id, ownerId);
 
@@ -109,7 +130,7 @@ export async function deleteProperty(
   if (!id) return errorState("Missing property id.");
 
   try {
-    const supabase = getServiceClient();
+    const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
     await assertPropertyOwned(supabase, id, ownerId);
 

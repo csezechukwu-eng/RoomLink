@@ -552,7 +552,7 @@ function SecuritySettings() {
 
       <Card className="p-6">
         <h2 className="text-lg font-semibold text-slate-900">Active Sessions</h2>
-        <p className="mt-1 text-sm text-slate-500">Manage devices where you're logged in.</p>
+        <p className="mt-1 text-sm text-slate-500">Manage devices where you&apos;re logged in.</p>
 
         <div className="mt-6 space-y-4">
           <div className="flex items-center justify-between rounded-lg border border-slate-200 p-4">
