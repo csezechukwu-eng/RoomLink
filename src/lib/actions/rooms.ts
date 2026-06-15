@@ -46,7 +46,8 @@ export async function createRoom(
 
   try {
     const supabase = getServiceClient();
-    await assertPropertyOwned(supabase, propertyId, getCurrentOwnerId());
+    const ownerId = await getCurrentOwnerId();
+    await assertPropertyOwned(supabase, propertyId, ownerId);
 
     const { error } = await supabase
       .from("rooms")
@@ -74,7 +75,8 @@ export async function updateRoom(
 
   try {
     const supabase = getServiceClient();
-    await assertPropertyOwned(supabase, propertyId, getCurrentOwnerId());
+    const ownerId = await getCurrentOwnerId();
+    await assertPropertyOwned(supabase, propertyId, ownerId);
 
     const { error } = await supabase
       .from("rooms")
@@ -101,7 +103,8 @@ export async function deleteRoom(
 
   try {
     const supabase = getServiceClient();
-    await assertPropertyOwned(supabase, propertyId, getCurrentOwnerId());
+    const ownerId = await getCurrentOwnerId();
+    await assertPropertyOwned(supabase, propertyId, ownerId);
 
     const { count, error: countErr } = await supabase
       .from("beds")

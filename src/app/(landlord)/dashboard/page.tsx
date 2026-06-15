@@ -5,27 +5,34 @@ import {
   Wrench,
   CalendarClock,
   ChevronDown,
+  Building,
+  Plus,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { ErrorState } from "@/components/ErrorState";
+import { Button } from "@/components/ui/button";
 import { getDashboardMetrics, getProperties } from "@/lib/queries";
-import { formatCurrency } from "@/lib/utils";
+import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  // Try to fetch real data, fall back to mock data for UI preview
+  // Get current user for personalized greeting
+  const user = await getCurrentUser();
+  const userName = user?.user_metadata?.full_name?.split(" ")[0] || "there";
+
+  // Try to fetch real data
   let metrics = {
-    totalBeds: 16,
-    totalRooms: 4,
-    totalProperties: 1,
-    beds: { vacant: 1, reserved: 3, occupied: 12, unavailable: 0 },
-    pendingApplications: 4,
-    activeReservations: 3,
-    rentDue: 2,
-    openMaintenance: 1,
+    totalBeds: 0,
+    totalRooms: 0,
+    totalProperties: 0,
+    beds: { total: 0, vacant: 0, reserved: 0, occupied: 0, unavailable: 0 },
+    pendingApplications: 0,
+    activeReservations: 0,
+    rentDue: 0,
+    openMaintenance: 0,
   };
-  let selectedPropertyName = "Charlotte Flight Crew Crash Pad";
+  let selectedPropertyName = "";
+  let hasProperties = false;
 
   try {
     const [metricsResult, propertiesResult] = await Promise.all([
@@ -38,9 +45,43 @@ export default async function DashboardPage() {
     }
     if (propertiesResult.data && propertiesResult.data.length > 0) {
       selectedPropertyName = propertiesResult.data[0].name;
+      hasProperties = true;
     }
   } catch {
-    // Use mock data if database is not configured
+    // Show empty state if database is not configured or error occurs
+  }
+
+  // Show empty state for new accounts with no properties
+  if (!hasProperties) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-slate-500">Welcome, {userName}!</p>
+        </div>
+
+        {/* Empty State */}
+        <Card className="flex flex-col items-center justify-center py-16 px-6 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50">
+            <Building className="h-8 w-8 text-indigo-600" />
+          </div>
+          <h2 className="mt-6 text-xl font-semibold text-slate-900">
+            You have no properties yet
+          </h2>
+          <p className="mt-2 max-w-md text-slate-500">
+            Create your first crash pad to get started. Once you add properties,
+            rooms, and beds, you&apos;ll see your dashboard come to life.
+          </p>
+          <Link href="/dashboard/properties/new" className="mt-6">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Your First Property
+            </Button>
+          </Link>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -49,7 +90,7 @@ export default async function DashboardPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-500">Welcome back, Marcus!</p>
+          <p className="text-slate-500">Welcome back, {userName}!</p>
         </div>
         <button className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
           {selectedPropertyName}

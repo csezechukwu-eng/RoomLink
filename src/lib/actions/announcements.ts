@@ -25,9 +25,10 @@ export async function createAnnouncementAction(
   if (Object.keys(fieldErrors).length > 0)
     return errorState("Please fix the highlighted fields.", fieldErrors);
 
+  const ownerId = await getCurrentOwnerId();
   const result = await createAnnouncement({
     propertyId,
-    authorId: getCurrentOwnerId(),
+    authorId: ownerId,
     title,
     body,
   });

@@ -21,10 +21,11 @@ export async function sendOwnerMessageAction(
   if (!propertyId || !tenantId) return errorState("Missing thread.");
   if (!body) return errorState("Message can't be empty.");
 
+  const ownerId = await getCurrentOwnerId();
   const result = await sendMessage({
     propertyId,
     tenantId,
-    senderId: getCurrentOwnerId(),
+    senderId: ownerId,
     senderRole: "owner",
     body,
   });

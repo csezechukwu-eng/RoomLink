@@ -53,9 +53,10 @@ export async function createProperty(
   let newId: string | null = null;
   try {
     const supabase = getServiceClient();
+    const ownerId = await getCurrentOwnerId();
     const { data, error } = await supabase
       .from("properties")
-      .insert({ ...values, owner_id: getCurrentOwnerId() })
+      .insert({ ...values, owner_id: ownerId })
       .select("id")
       .single();
     if (error) throw error;
@@ -82,7 +83,7 @@ export async function updateProperty(
 
   try {
     const supabase = getServiceClient();
-    const ownerId = getCurrentOwnerId();
+    const ownerId = await getCurrentOwnerId();
     await assertPropertyOwned(supabase, id, ownerId);
 
     const { error } = await supabase
@@ -109,7 +110,7 @@ export async function deleteProperty(
 
   try {
     const supabase = getServiceClient();
-    const ownerId = getCurrentOwnerId();
+    const ownerId = await getCurrentOwnerId();
     await assertPropertyOwned(supabase, id, ownerId);
 
     const { count, error: countErr } = await supabase

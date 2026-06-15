@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import {
   LayoutDashboard,
   Building2,
@@ -15,6 +16,7 @@ import {
   Settings,
 } from "lucide-react";
 import { Sidebar, type SidebarItem } from "@/components/nav/Sidebar";
+import { signOut } from "@/lib/actions/auth";
 
 const items: SidebarItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -35,15 +37,20 @@ const bottomItems: SidebarItem[] = [
 ];
 
 export function LandlordNav() {
+  const [, startTransition] = useTransition();
+
+  const handleLogout = () => {
+    startTransition(async () => {
+      await signOut();
+    });
+  };
+
   return (
     <Sidebar
       brand={{ label: "Room Link", href: "/dashboard" }}
       items={items}
       bottomItems={bottomItems}
-      onLogout={() => {
-        // TODO: Implement logout
-        window.location.href = "/";
-      }}
+      onLogout={handleLogout}
     />
   );
 }

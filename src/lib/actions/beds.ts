@@ -64,7 +64,8 @@ export async function createBed(
 
   try {
     const supabase = getServiceClient();
-    await assertPropertyOwned(supabase, propertyId, getCurrentOwnerId());
+    const ownerId = await getCurrentOwnerId();
+    await assertPropertyOwned(supabase, propertyId, ownerId);
 
     // Ensure the chosen room belongs to this property.
     const { data: room, error: roomErr } = await supabase
@@ -102,7 +103,8 @@ export async function updateBed(
 
   try {
     const supabase = getServiceClient();
-    await assertPropertyOwned(supabase, propertyId, getCurrentOwnerId());
+    const ownerId = await getCurrentOwnerId();
+    await assertPropertyOwned(supabase, propertyId, ownerId);
 
     const { data: room, error: roomErr } = await supabase
       .from("rooms")
@@ -137,7 +139,8 @@ export async function deleteBed(
 
   try {
     const supabase = getServiceClient();
-    await assertPropertyOwned(supabase, propertyId, getCurrentOwnerId());
+    const ownerId = await getCurrentOwnerId();
+    await assertPropertyOwned(supabase, propertyId, ownerId);
 
     const { error } = await supabase
       .from("beds")
@@ -166,7 +169,8 @@ export async function changeBedStatus(
 
   try {
     const supabase = getServiceClient();
-    await assertPropertyOwned(supabase, propertyId, getCurrentOwnerId());
+    const ownerId = await getCurrentOwnerId();
+    await assertPropertyOwned(supabase, propertyId, ownerId);
 
     const { error } = await supabase
       .from("beds")

@@ -29,7 +29,7 @@ export function tallyBeds(beds: Pick<Bed, "status">[]): BedStatusCounts {
 export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
   try {
     const supabase = getServiceClient();
-    const ownerId = getCurrentOwnerId();
+    const ownerId = await getCurrentOwnerId();
 
     const { data: properties, error: pErr } = await supabase
       .from("properties")
@@ -114,7 +114,7 @@ export async function getProperties(): Promise<
 > {
   try {
     const supabase = getServiceClient();
-    const ownerId = getCurrentOwnerId();
+    const ownerId = await getCurrentOwnerId();
 
     const { data: properties, error: pErr } = await supabase
       .from("properties")
@@ -173,7 +173,7 @@ export async function getPropertyDetail(
 ): Promise<Result<PropertyDetail | null>> {
   try {
     const supabase = getServiceClient();
-    const ownerId = getCurrentOwnerId();
+    const ownerId = await getCurrentOwnerId();
 
     const { data: property, error: pErr } = await supabase
       .from("properties")
