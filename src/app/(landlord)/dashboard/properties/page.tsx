@@ -30,6 +30,8 @@ export default async function PropertiesPage() {
     rentDue: 0,
     overdueRent: 0,
     openMaintenance: 0,
+    availableNow: 0,
+    freeingSoon: 0,
   };
 
   // Show empty state if no properties

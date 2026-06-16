@@ -39,6 +39,11 @@ export interface Bed {
   deposit_amount: number;
   status: BedStatus;
   description: string | null;
+  /** Date a vacant bed becomes available. null/past = available now. */
+  available_from: string | null;
+  /** Optional stay-length guardrails (short/mid/long filtering). */
+  min_stay_days: number | null;
+  max_stay_days: number | null;
   created_at: string;
 }
 
@@ -75,6 +80,10 @@ export interface DashboardMetrics {
   rentDue: number;
   overdueRent: number;
   openMaintenance: number;
+  /** Vacant beds available today (available_from null or past). */
+  availableNow: number;
+  /** Beds whose active reservation ends within the "soon" window (30d). */
+  freeingSoon: number;
 }
 
 // ---------------------------------------------------------------------------

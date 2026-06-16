@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { Building, ClipboardList, Activity } from "lucide-react";
+import {
+  Building,
+  ClipboardList,
+  Activity,
+  CalendarClock,
+  ArrowRight,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { HostDashboardStats } from "@/components/host/HostDashboardStats";
@@ -21,6 +27,8 @@ const EMPTY_METRICS: DashboardMetrics = {
   rentDue: 0,
   overdueRent: 0,
   openMaintenance: 0,
+  availableNow: 0,
+  freeingSoon: 0,
 };
 
 export default async function DashboardPage() {
@@ -91,6 +99,36 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* Live availability banner */}
+      <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50">
+            <CalendarClock className="h-5 w-5 text-emerald-600" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Live availability</p>
+            <p className="text-sm text-slate-500">
+              <span className="font-semibold text-emerald-600">
+                {metrics.availableNow}
+              </span>{" "}
+              {metrics.availableNow === 1 ? "bed" : "beds"} open now
+              <span className="px-1.5 text-slate-300">·</span>
+              <span className="font-semibold text-amber-600">
+                {metrics.freeingSoon}
+              </span>{" "}
+              freeing up in 30 days
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/dashboard/properties"
+          className="inline-flex items-center gap-1 self-start text-sm font-medium text-indigo-600 hover:text-indigo-700 sm:self-auto"
+        >
+          Manage availability
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </Card>
 
       {/* Overview stats */}
       <HostDashboardStats metrics={metrics} />

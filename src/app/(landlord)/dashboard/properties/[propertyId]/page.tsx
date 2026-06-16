@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CalendarClock } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
 import { PropertyPhotosSection } from "@/components/PropertyPhotosSection";
 import { PropertyOperationsHeader } from "@/components/host/PropertyOperationsHeader";
@@ -13,6 +13,7 @@ import { PropertyMaintenanceSnapshot } from "@/components/host/PropertyMaintenan
 import { PropertyRulesPanel } from "@/components/host/PropertyRulesPanel";
 import { getPropertyWorkspace } from "@/lib/queries";
 import { computeNeedsAttention } from "@/lib/needsAttention";
+import { computeBedAvailability, type BedAvailability } from "@/lib/bedAvailability";
 
 export const dynamic = "force-dynamic";
 
@@ -35,8 +36,16 @@ export default async function PropertyDetailPage({
 
   if (!result.data) notFound();
 
-  const { property, rooms, bedCounts, media, applications, rentCharges, maintenance } =
-    result.data;
+  const {
+    property,
+    rooms,
+    bedCounts,
+    media,
+    applications,
+    rentCharges,
+    maintenance,
+    reservationEndByBed,
+  } = result.data;
   const roomOptions = rooms.map((r) => ({ id: r.id, name: r.name }));
 
   const pendingApplications = applications.filter(
@@ -44,6 +53,21 @@ export default async function PropertyDetailPage({
   ).length;
   const openMaintenance = maintenance.filter(
     (m) => m.status === "open" || m.status === "in_progress"
+  ).length;
+
+  // Derive per-bed availability once and reuse for badges + filtering + counts.
+  const availabilityByBed: Record<string, BedAvailability> = {};
+  for (const room of rooms) {
+    for (const bed of room.beds) {
+      availabilityByBed[bed.id] = computeBedAvailability(bed, {
+        reservationEndDate: reservationEndByBed[bed.id] ?? null,
+      });
+    }
+  }
+  const availabilityValues = Object.values(availabilityByBed);
+  const openNow = availabilityValues.filter((a) => a.state === "open_now").length;
+  const freeingSoon = availabilityValues.filter(
+    (a) => a.state === "frees_soon" || a.state === "opens_soon"
   ).length;
 
   const issues = computeNeedsAttention(result.data);
@@ -74,12 +98,27 @@ export default async function PropertyDetailPage({
           </div>
 
           {/* C. Rooms & Beds */}
-          <RoomsBedsManager
-            rooms={rooms}
-            roomOptions={roomOptions}
-            propertyId={property.id}
-            media={media}
-          />
+          <div className="space-y-3">
+            {bedCounts.total > 0 && (
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm">
+                <CalendarClock className="h-4 w-4 text-emerald-600" />
+                <span className="text-slate-600">
+                  <span className="font-semibold text-emerald-600">{openNow}</span>{" "}
+                  open now
+                  <span className="px-1.5 text-slate-300">·</span>
+                  <span className="font-semibold text-amber-600">{freeingSoon}</span>{" "}
+                  available soon
+                </span>
+              </div>
+            )}
+            <RoomsBedsManager
+              rooms={rooms}
+              roomOptions={roomOptions}
+              propertyId={property.id}
+              media={media}
+              availabilityByBed={availabilityByBed}
+            />
+          </div>
 
           {/* D. Applications */}
           <PropertyApplicationsPanel applications={applications} />

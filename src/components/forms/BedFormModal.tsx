@@ -197,6 +197,64 @@ export function BedFormModal({
             </FormField>
           </div>
 
+          {/* Availability (Phase 1: live availability) */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+            <p className="text-sm font-medium text-slate-700">Availability</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Optional. Controls when this bed shows as available and stay limits.
+            </p>
+            <div className="mt-3 space-y-4">
+              <FormField
+                label="Available from"
+                htmlFor="bed-available-from"
+                error={fieldErrors.available_from}
+              >
+                <Input
+                  id="bed-available-from"
+                  name="available_from"
+                  type="date"
+                  defaultValue={bed?.available_from ?? ""}
+                />
+              </FormField>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  label="Min stay (days)"
+                  htmlFor="bed-min-stay"
+                  error={fieldErrors.min_stay_days}
+                >
+                  <Input
+                    id="bed-min-stay"
+                    name="min_stay_days"
+                    type="number"
+                    min={1}
+                    step="1"
+                    inputMode="numeric"
+                    defaultValue={bed?.min_stay_days ?? ""}
+                    placeholder="e.g. 30"
+                    aria-invalid={Boolean(fieldErrors.min_stay_days)}
+                  />
+                </FormField>
+                <FormField
+                  label="Max stay (days)"
+                  htmlFor="bed-max-stay"
+                  error={fieldErrors.max_stay_days}
+                >
+                  <Input
+                    id="bed-max-stay"
+                    name="max_stay_days"
+                    type="number"
+                    min={1}
+                    step="1"
+                    inputMode="numeric"
+                    defaultValue={bed?.max_stay_days ?? ""}
+                    placeholder="e.g. 180"
+                    aria-invalid={Boolean(fieldErrors.max_stay_days)}
+                  />
+                </FormField>
+              </div>
+            </div>
+          </div>
+
           <FormField label="Description" htmlFor="bed-description">
             <Textarea
               id="bed-description"

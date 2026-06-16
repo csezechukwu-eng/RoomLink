@@ -11,6 +11,7 @@ import { RoomPhotosSection } from "@/components/PropertyPhotosSection";
 import { deleteRoom } from "@/lib/actions/rooms";
 import { cn } from "@/lib/utils";
 import type { PropertyMedia, Room, RoomWithBeds } from "@/lib/types";
+import type { BedAvailability } from "@/lib/bedAvailability";
 
 interface RoomAccordionCardProps {
   room: RoomWithBeds;
@@ -18,6 +19,8 @@ interface RoomAccordionCardProps {
   propertyId: string;
   media?: PropertyMedia[];
   defaultExpanded?: boolean;
+  /** bed_id -> derived availability, for per-bed availability badges. */
+  availabilityByBed?: Record<string, BedAvailability>;
 }
 
 export function RoomAccordionCard({
@@ -26,6 +29,7 @@ export function RoomAccordionCard({
   propertyId,
   media = [],
   defaultExpanded = false,
+  availabilityByBed = {},
 }: RoomAccordionCardProps) {
   const [isExpanded, setIsExpanded] = React.useState(defaultExpanded);
   const contentId = `room-content-${room.id}`;
@@ -218,6 +222,7 @@ export function RoomAccordionCard({
                   bed={bed}
                   rooms={rooms}
                   photos={bedMediaMap.get(bed.id) ?? []}
+                  availability={availabilityByBed[bed.id]}
                 />
               ))}
             </div>

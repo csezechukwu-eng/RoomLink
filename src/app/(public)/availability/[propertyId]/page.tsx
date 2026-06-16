@@ -18,6 +18,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { getAvailabilityDetail } from "@/lib/services/availability";
 import { labelForBunkType } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
+import { computeBedAvailability } from "@/lib/bedAvailability";
 import type { PropertyMedia } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -142,7 +143,7 @@ export default async function AvailabilityDetailPage({
                           {bed.status === "vacant" ? (
                             <>
                               <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                                Available
+                                {computeBedAvailability(bed).label}
                               </span>
                               <Link href={`/apply/${bed.id}`}>
                                 <Button size="sm">Apply</Button>

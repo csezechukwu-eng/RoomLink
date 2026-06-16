@@ -26,6 +26,8 @@ function readBedForm(formData: FormData) {
   const status = str(formData, "status") as BedStatus;
   const monthly_rent = num(formData, "monthly_rent");
   const deposit_amount = num(formData, "deposit_amount");
+  const min_stay_days = num(formData, "min_stay_days");
+  const max_stay_days = num(formData, "max_stay_days");
 
   const fieldErrors: Record<string, string> = {};
   if (!label) fieldErrors.label = "Label is required.";
@@ -36,6 +38,12 @@ function readBedForm(formData: FormData) {
     fieldErrors.monthly_rent = "Rent can't be negative.";
   if (deposit_amount !== null && deposit_amount < 0)
     fieldErrors.deposit_amount = "Deposit can't be negative.";
+  if (min_stay_days !== null && min_stay_days <= 0)
+    fieldErrors.min_stay_days = "Minimum stay must be at least 1 day.";
+  if (max_stay_days !== null && max_stay_days <= 0)
+    fieldErrors.max_stay_days = "Maximum stay must be at least 1 day.";
+  if (min_stay_days !== null && max_stay_days !== null && max_stay_days < min_stay_days)
+    fieldErrors.max_stay_days = "Maximum stay can't be less than the minimum.";
 
   return {
     room_id,
@@ -47,6 +55,9 @@ function readBedForm(formData: FormData) {
       monthly_rent: monthly_rent ?? 0,
       deposit_amount: deposit_amount ?? 0,
       description: optionalStr(formData, "description"),
+      available_from: optionalStr(formData, "available_from"),
+      min_stay_days,
+      max_stay_days,
     },
   };
 }

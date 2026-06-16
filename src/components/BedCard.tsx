@@ -1,4 +1,5 @@
 import { StatusBadge } from "@/components/StatusBadge";
+import { AvailabilityBadge } from "@/components/AvailabilityBadge";
 import { BedFormModal } from "@/components/forms/BedFormModal";
 import { BedStatusSelect } from "@/components/forms/BedStatusSelect";
 import { ConfirmDeleteButton } from "@/components/forms/ConfirmDeleteButton";
@@ -6,15 +7,23 @@ import { BedPhotosSection } from "@/components/PropertyPhotosSection";
 import { labelForBunkType } from "@/lib/constants";
 import { deleteBed } from "@/lib/actions/beds";
 import type { Bed, PropertyMedia, Room } from "@/lib/types";
+import type { BedAvailability } from "@/lib/bedAvailability";
 import { formatCurrency } from "@/lib/utils";
 
 interface BedCardProps {
   bed: Bed;
   rooms: Pick<Room, "id" | "name">[];
   photos?: PropertyMedia[];
+  availability?: BedAvailability;
 }
 
-export function BedCard({ bed, rooms, photos = [] }: BedCardProps) {
+export function BedCard({ bed, rooms, photos = [], availability }: BedCardProps) {
+  // Only surface the availability badge when it adds a date the status doesn't
+  // already convey (opening on a future date, or freeing up soon).
+  const showAvailability =
+    availability &&
+    (availability.state === "opens_soon" || availability.state === "frees_soon");
+
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex items-start justify-between gap-2">
@@ -24,7 +33,10 @@ export function BedCard({ bed, rooms, photos = [] }: BedCardProps) {
             {labelForBunkType(bed.bunk_type)}
           </p>
         </div>
-        <StatusBadge status={bed.status} />
+        <div className="flex flex-col items-end gap-1">
+          <StatusBadge status={bed.status} />
+          {showAvailability && <AvailabilityBadge availability={availability} />}
+        </div>
       </div>
 
       <div className="flex items-center justify-between text-sm">

@@ -7,12 +7,14 @@ import { EmptyState } from "@/components/EmptyState";
 import { RoomAccordionCard } from "@/components/RoomAccordionCard";
 import { RoomFormModal } from "@/components/forms/RoomFormModal";
 import type { BedStatus, PropertyMedia, Room, RoomWithBeds } from "@/lib/types";
+import type { BedAvailability } from "@/lib/bedAvailability";
 
-type Filter = "all" | BedStatus | "setup";
+type Filter = "all" | BedStatus | "setup" | "available_soon";
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "vacant", label: "Vacant" },
+  { value: "available_soon", label: "Available soon" },
   { value: "reserved", label: "Reserved" },
   { value: "occupied", label: "Occupied" },
   { value: "unavailable", label: "Unavailable" },
@@ -24,6 +26,7 @@ interface RoomsBedsManagerProps {
   roomOptions: Pick<Room, "id" | "name">[];
   propertyId: string;
   media: PropertyMedia[];
+  availabilityByBed?: Record<string, BedAvailability>;
 }
 
 export function RoomsBedsManager({
@@ -31,6 +34,7 @@ export function RoomsBedsManager({
   roomOptions,
   propertyId,
   media,
+  availabilityByBed = {},
 }: RoomsBedsManagerProps) {
   const [filter, setFilter] = React.useState<Filter>("all");
   const [search, setSearch] = React.useState("");
@@ -60,7 +64,7 @@ export function RoomsBedsManager({
     .map((room) => {
       const roomMatches = q ? room.name.toLowerCase().includes(q) : false;
       const beds = room.beds.filter((bed) => {
-        // Status / setup filter
+        // Status / setup / availability filter
         if (filter === "setup") {
           const missingSetup =
             !bed.monthly_rent ||
@@ -69,6 +73,9 @@ export function RoomsBedsManager({
             bed.deposit_amount <= 0 ||
             !bedHasPhotos(bed.id);
           if (!missingSetup) return false;
+        } else if (filter === "available_soon") {
+          const state = availabilityByBed[bed.id]?.state;
+          if (state !== "opens_soon" && state !== "frees_soon") return false;
         } else if (filter !== "all" && bed.status !== filter) {
           return false;
         }
@@ -146,6 +153,7 @@ export function RoomsBedsManager({
                     rooms={roomOptions}
                     propertyId={propertyId}
                     media={media}
+                    availabilityByBed={availabilityByBed}
                     defaultExpanded={
                       openRoomId
                         ? room.id === openRoomId

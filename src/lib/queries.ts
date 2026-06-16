@@ -26,6 +26,7 @@ import {
   listMaintenance,
   type MaintenanceWithRefs,
 } from "@/lib/services/maintenance";
+import { todayISO, isoDaysFromToday, SOON_WINDOW_DAYS } from "@/lib/bedAvailability";
 
 export type { Result };
 
@@ -65,8 +66,13 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
         rentDue: 0,
         overdueRent: 0,
         openMaintenance: 0,
+        availableNow: 0,
+        freeingSoon: 0,
       });
     }
+
+    const today = todayISO();
+    const soon = isoDaysFromToday(SOON_WINDOW_DAYS);
 
     const [
       { count: roomCount, error: rErr },
@@ -76,12 +82,16 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
       { count: rentDue, error: rentErr },
       { count: overdueRent, error: overdueErr },
       { count: openMaintenance, error: mErr },
+      { count: freeingSoon, error: freeErr },
     ] = await Promise.all([
       supabase
         .from("rooms")
         .select("id", { count: "exact", head: true })
         .in("property_id", propertyIds),
-      supabase.from("beds").select("status").in("property_id", propertyIds),
+      supabase
+        .from("beds")
+        .select("status, available_from")
+        .in("property_id", propertyIds),
       // "Pending" = awaiting a landlord decision. Migration 0007 replaced the
       // legacy "pending" status with "submitted"/"under_review".
       supabase
@@ -109,6 +119,14 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
         .select("id", { count: "exact", head: true })
         .in("property_id", propertyIds)
         .in("status", ["open", "in_progress"]),
+      // Beds freeing up soon: active reservations ending within the window.
+      supabase
+        .from("reservations")
+        .select("id", { count: "exact", head: true })
+        .in("property_id", propertyIds)
+        .eq("status", "active")
+        .gte("end_date", today)
+        .lte("end_date", soon),
     ]);
     if (rErr) throw rErr;
     if (bErr) throw bErr;
@@ -117,8 +135,14 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
     if (rentErr) throw rentErr;
     if (overdueErr) throw overdueErr;
     if (mErr) throw mErr;
+    if (freeErr) throw freeErr;
 
     const counts = tallyBeds(beds ?? []);
+    const availableNow = (beds ?? []).filter(
+      (b) =>
+        b.status === "vacant" &&
+        (!b.available_from || b.available_from <= today)
+    ).length;
     return ok({
       totalProperties: propertyIds.length,
       totalRooms: roomCount ?? 0,
@@ -129,6 +153,8 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
       rentDue: rentDue ?? 0,
       overdueRent: overdueRent ?? 0,
       openMaintenance: openMaintenance ?? 0,
+      availableNow,
+      freeingSoon: freeingSoon ?? 0,
     });
   } catch (error) {
     return fail(error);
@@ -245,6 +271,8 @@ export interface PropertyDetail {
   rooms: RoomWithBeds[];
   bedCounts: BedStatusCounts;
   media: PropertyMedia[];
+  /** bed_id -> end_date of its active reservation (for "frees up soon"). */
+  reservationEndByBed: Record<string, string>;
 }
 
 /** A single property with its rooms and beds (grouped) for the detail page. */
@@ -267,6 +295,7 @@ export async function getPropertyDetail(
     const [
       { data: rooms, error: rErr },
       { data: beds, error: bErr },
+      { data: activeReservations, error: resErr },
     ] = await Promise.all([
       supabase
         .from("rooms")
@@ -278,9 +307,20 @@ export async function getPropertyDetail(
         .select("*")
         .eq("property_id", propertyId)
         .order("label", { ascending: true }),
+      supabase
+        .from("reservations")
+        .select("bed_id, end_date")
+        .eq("property_id", propertyId)
+        .eq("status", "active"),
     ]);
     if (rErr) throw rErr;
     if (bErr) throw bErr;
+    if (resErr) throw resErr;
+
+    const reservationEndByBed: Record<string, string> = {};
+    for (const r of activeReservations ?? []) {
+      if (r.bed_id && r.end_date) reservationEndByBed[r.bed_id] = r.end_date;
+    }
 
     // Fetch media separately - gracefully handle if table doesn't exist yet
     let media: PropertyMedia[] = [];
@@ -315,6 +355,7 @@ export async function getPropertyDetail(
       rooms: roomsWithBeds,
       bedCounts: tallyBeds((beds ?? []) as Bed[]),
       media: (media ?? []) as PropertyMedia[],
+      reservationEndByBed,
     });
   } catch (error) {
     return fail(error);
