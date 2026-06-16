@@ -1,19 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin, DoorOpen, ScrollText } from "lucide-react";
-import { PageHeader } from "@/components/PageHeader";
-import { SummaryCard } from "@/components/SummaryCard";
-import { RoomAccordionCard } from "@/components/RoomAccordionCard";
-import { EmptyState } from "@/components/EmptyState";
+import { ArrowLeft } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
-import { Card } from "@/components/ui/card";
-import { PropertyFormModal } from "@/components/forms/PropertyFormModal";
-import { RoomFormModal } from "@/components/forms/RoomFormModal";
-import { ConfirmDeleteButton } from "@/components/forms/ConfirmDeleteButton";
 import { PropertyPhotosSection } from "@/components/PropertyPhotosSection";
-import { deleteProperty } from "@/lib/actions/properties";
-import { getPropertyDetail } from "@/lib/queries";
-import { labelForPropertyType } from "@/lib/constants";
+import { PropertyOperationsHeader } from "@/components/host/PropertyOperationsHeader";
+import { PropertyOperationsStats } from "@/components/host/PropertyOperationsStats";
+import { NeedsAttentionPanel } from "@/components/host/NeedsAttentionPanel";
+import { RoomsBedsManager } from "@/components/host/RoomsBedsManager";
+import { PropertyApplicationsPanel } from "@/components/host/PropertyApplicationsPanel";
+import { PropertyPaymentsSnapshot } from "@/components/host/PropertyPaymentsSnapshot";
+import { PropertyMaintenanceSnapshot } from "@/components/host/PropertyMaintenanceSnapshot";
+import { PropertyRulesPanel } from "@/components/host/PropertyRulesPanel";
+import { getPropertyWorkspace } from "@/lib/queries";
+import { computeNeedsAttention } from "@/lib/needsAttention";
 
 export const dynamic = "force-dynamic";
 
@@ -23,148 +22,77 @@ export default async function PropertyDetailPage({
   params: Promise<{ propertyId: string }>;
 }) {
   const { propertyId } = await params;
-  const result = await getPropertyDetail(propertyId);
+  const result = await getPropertyWorkspace(propertyId);
 
   if (result.error !== null) {
     return (
       <div className="space-y-6">
         <BackLink />
-        <ErrorState
-          title="Couldn't load this property"
-          message={result.error}
-        />
+        <ErrorState title="Couldn't load this property" message={result.error} />
       </div>
     );
   }
 
   if (!result.data) notFound();
 
-  const { property, rooms, bedCounts, media } = result.data;
+  const { property, rooms, bedCounts, media, applications, rentCharges, maintenance } =
+    result.data;
   const roomOptions = rooms.map((r) => ({ id: r.id, name: r.name }));
-  const location = [property.address, property.city, property.state, property.zip]
-    .filter(Boolean)
-    .join(", ");
+
+  const pendingApplications = applications.filter(
+    (a) => a.status === "submitted" || a.status === "under_review"
+  ).length;
+  const openMaintenance = maintenance.filter(
+    (m) => m.status === "open" || m.status === "in_progress"
+  ).length;
+
+  const issues = computeNeedsAttention(result.data);
 
   return (
     <div className="space-y-6">
-      <BackLink />
+      <PropertyOperationsHeader property={property} roomCount={rooms.length} />
 
-      <PageHeader
-        title={property.name}
-        description={location || undefined}
-        actions={
-          <>
-            {/* Add Bed is now inside each room card - not in the header */}
-            <RoomFormModal mode="create" propertyId={property.id} />
-            <PropertyFormModal mode="edit" property={property} />
-            {rooms.length === 0 ? (
-              <ConfirmDeleteButton
-                action={deleteProperty}
-                fields={{ id: property.id }}
-                title="Delete property"
-                description={`Delete "${property.name}"? This can't be undone.`}
-                triggerLabel="Delete"
-                triggerVariant="outline"
-              />
-            ) : null}
-          </>
-        }
+      <PropertyOperationsStats
+        bedCounts={bedCounts}
+        pendingApplications={pendingApplications}
+        openMaintenance={openMaintenance}
       />
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
-          {labelForPropertyType(property.property_type)}
-        </span>
-        {location ? (
-          <span className="inline-flex items-center gap-1.5 text-slate-500">
-            <MapPin className="h-3.5 w-3.5" />
-            {location}
-          </span>
-        ) : null}
-      </div>
-
-      {/* Bed status summary for this property */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <SummaryCard label="Total beds" value={bedCounts.total} />
-        <SummaryCard
-          label="Vacant"
-          value={bedCounts.vacant}
-          accentClassName="bg-emerald-500"
-        />
-        <SummaryCard
-          label="Reserved"
-          value={bedCounts.reserved}
-          accentClassName="bg-blue-500"
-        />
-        <SummaryCard
-          label="Occupied"
-          value={bedCounts.occupied}
-          accentClassName="bg-slate-700"
-        />
-        <SummaryCard
-          label="Unavailable"
-          value={bedCounts.unavailable}
-          accentClassName="bg-slate-300"
-        />
-      </div>
-
-      {/* Property photos */}
-      <PropertyPhotosSection propertyId={property.id} photos={media} />
-
-      {/* About / house rules */}
-      {property.description || property.house_rules ? (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {property.description ? (
-            <Card className="p-5">
-              <h3 className="text-sm font-semibold text-slate-900">About</h3>
-              <p className="mt-2 whitespace-pre-line text-sm text-slate-600">
-                {property.description}
-              </p>
-            </Card>
-          ) : null}
-          {property.house_rules ? (
-            <Card className="p-5">
-              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-                <ScrollText className="h-4 w-4 text-slate-400" />
-                House rules
-              </h3>
-              <p className="mt-2 whitespace-pre-line text-sm text-slate-600">
-                {property.house_rules}
-              </p>
-            </Card>
-          ) : null}
-        </div>
-      ) : null}
-
-      {/* Rooms + beds */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Rooms &amp; beds
-          </h2>
-        </div>
-
-        {rooms.length === 0 ? (
-          <EmptyState
-            icon={<DoorOpen className="h-5 w-5" />}
-            title="No rooms yet"
-            description="Add a room, then start placing beds inside it."
-            action={<RoomFormModal mode="create" propertyId={property.id} />}
-          />
-        ) : (
-          <div className="space-y-4">
-            {rooms.map((room, index) => (
-              <RoomAccordionCard
-                key={room.id}
-                room={room}
-                rooms={roomOptions}
-                propertyId={property.id}
-                media={media}
-                defaultExpanded={index === 0}
-              />
-            ))}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Needs Attention — right column on desktop, top on mobile */}
+        <aside className="space-y-6 lg:order-2 lg:col-span-1">
+          <div className="lg:sticky lg:top-6">
+            <NeedsAttentionPanel issues={issues} />
           </div>
-        )}
+        </aside>
+
+        {/* Main operations workspace */}
+        <div className="space-y-8 lg:order-1 lg:col-span-2">
+          {/* B. Property Photos */}
+          <div id="photos" className="scroll-mt-24">
+            <PropertyPhotosSection propertyId={property.id} photos={media} />
+          </div>
+
+          {/* C. Rooms & Beds */}
+          <RoomsBedsManager
+            rooms={rooms}
+            roomOptions={roomOptions}
+            propertyId={property.id}
+            media={media}
+          />
+
+          {/* D. Applications */}
+          <PropertyApplicationsPanel applications={applications} />
+
+          {/* E. Rent & Payment snapshot */}
+          <PropertyPaymentsSnapshot charges={rentCharges} />
+
+          {/* F. Maintenance */}
+          <PropertyMaintenanceSnapshot requests={maintenance} />
+
+          {/* G + H. Messages/Notes + House Rules / Check-in */}
+          <PropertyRulesPanel property={property} />
+        </div>
       </div>
     </div>
   );
@@ -177,7 +105,7 @@ function BackLink() {
       className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
     >
       <ArrowLeft className="h-4 w-4" />
-      All properties
+      Back to Properties
     </Link>
   );
 }

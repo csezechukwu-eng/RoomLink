@@ -3,13 +3,12 @@ import {
   BedDouble,
   Users,
   DoorOpen,
-  DollarSign,
+  CalendarCheck,
   Building,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PropertyFormModal } from "@/components/forms/PropertyFormModal";
 import { getProperties, getDashboardMetrics } from "@/lib/queries";
-import { formatCurrency } from "@/lib/utils";
 import { PropertiesClient } from "./PropertiesClient";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +28,7 @@ export default async function PropertiesPage() {
     pendingApplications: 0,
     activeReservations: 0,
     rentDue: 0,
+    overdueRent: 0,
     openMaintenance: 0,
   };
 
@@ -36,29 +36,28 @@ export default async function PropertiesPage() {
   if (properties.length === 0) {
     return (
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Properties</h1>
-            <p className="text-slate-500">Manage all of your crash pads and room-rental properties.</p>
+            <p className="text-slate-500">
+              Manage your properties, rooms, beds, and availability.
+            </p>
           </div>
           <PropertyFormModal mode="create" triggerLabel="Add Property" />
         </div>
 
-        {/* Empty State */}
-        <Card className="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <Card className="flex flex-col items-center justify-center px-6 py-16 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50">
             <Building className="h-8 w-8 text-indigo-600" />
           </div>
           <h2 className="mt-6 text-xl font-semibold text-slate-900">
-            No properties yet
+            Add your first property
           </h2>
           <p className="mt-2 max-w-md text-slate-500">
-            Create your first property to get started. Once you add properties,
-            rooms, and beds, you&apos;ll see them here.
+            Start by creating a property, then add rooms and beds.
           </p>
           <div className="mt-6">
-            <PropertyFormModal mode="create" triggerLabel="Create Your First Property" />
+            <PropertyFormModal mode="create" triggerLabel="Add Property" />
           </div>
         </Card>
       </div>
@@ -67,91 +66,103 @@ export default async function PropertiesPage() {
 
   // Transform properties for the client component
   const propertyData = properties.map((p) => {
-    // Get cover photo URL if available
     const coverPhoto = p.media.find(
       (m) => m.media_type === "property" && m.is_cover
     );
     const firstPhoto = p.media.find((m) => m.media_type === "property");
     const imageUrl = coverPhoto?.public_url || firstPhoto?.public_url || null;
+    const propertyPhotoCount = p.media.filter(
+      (m) => m.media_type === "property"
+    ).length;
+
+    // Real "needs setup" signal: no rooms, no beds, or no property photos.
+    const needsSetup =
+      p.roomCount === 0 || p.bedCounts.total === 0 || propertyPhotoCount === 0;
 
     return {
       id: p.id,
       name: p.name,
       address: [p.address, p.city, p.state, p.zip].filter(Boolean).join(", "),
       image: imageUrl,
-      status: "active" as const,
       is_hidden: p.is_hidden ?? false,
+      property_type: p.property_type,
+      // Raw fields preserved so the inline Edit form doesn't blank them out.
+      edit: {
+        id: p.id,
+        name: p.name,
+        property_type: p.property_type,
+        address: p.address,
+        city: p.city,
+        state: p.state,
+        zip: p.zip,
+        description: p.description,
+        house_rules: p.house_rules,
+      },
+      rooms: p.roomCount,
       beds: p.bedCounts.total,
       occupied: p.bedCounts.occupied,
       reserved: p.bedCounts.reserved,
       available: p.bedCounts.vacant,
-      revenue: 0, // Will be populated when we add rent tracking
-      property_type: p.property_type,
-      description: p.description,
-      house_rules: p.house_rules,
+      unavailable: p.bedCounts.unavailable,
+      pendingApplications: p.pendingApplications,
+      openMaintenance: p.openMaintenance,
+      needsSetup,
       photos: p.media,
     };
   });
 
-  const totals = {
-    properties: properties.length,
-    totalBeds: metrics.totalBeds,
-    occupied: metrics.beds.occupied,
-    vacant: metrics.beds.vacant,
-    revenue: 0, // Will be populated when we add rent tracking
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Properties</h1>
-          <p className="text-slate-500">Manage all of your crash pads and room-rental properties.</p>
+          <p className="text-slate-500">
+            Manage your properties, rooms, beds, and availability.
+          </p>
         </div>
         <PropertyFormModal mode="create" triggerLabel="Add Property" />
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      {/* Portfolio summary */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <StatCard
           icon={<Building2 className="h-5 w-5" />}
           label="Properties"
-          value={totals.properties}
+          value={metrics.totalProperties}
           iconBg="bg-indigo-50"
           iconColor="text-indigo-600"
         />
         <StatCard
           icon={<BedDouble className="h-5 w-5" />}
           label="Total Beds"
-          value={totals.totalBeds}
+          value={metrics.totalBeds}
           iconBg="bg-blue-50"
           iconColor="text-blue-600"
         />
         <StatCard
-          icon={<Users className="h-5 w-5" />}
-          label="Occupied"
-          value={totals.occupied}
-          iconBg="bg-amber-50"
-          iconColor="text-amber-600"
-        />
-        <StatCard
           icon={<DoorOpen className="h-5 w-5" />}
           label="Vacant"
-          value={totals.vacant}
+          value={metrics.beds.vacant}
           iconBg="bg-emerald-50"
           iconColor="text-emerald-600"
         />
         <StatCard
-          icon={<DollarSign className="h-5 w-5" />}
-          label="Monthly Revenue"
-          value={formatCurrency(totals.revenue)}
-          iconBg="bg-green-50"
-          iconColor="text-green-600"
+          icon={<CalendarCheck className="h-5 w-5" />}
+          label="Reserved"
+          value={metrics.beds.reserved}
+          iconBg="bg-amber-50"
+          iconColor="text-amber-600"
+        />
+        <StatCard
+          icon={<Users className="h-5 w-5" />}
+          label="Occupied"
+          value={metrics.beds.occupied}
+          iconBg="bg-slate-100"
+          iconColor="text-slate-600"
         />
       </div>
 
-      {/* Client-side interactive content */}
       <PropertiesClient properties={propertyData} />
     </div>
   );
@@ -171,8 +182,8 @@ function StatCard({
   iconColor: string;
 }) {
   return (
-    <Card className="flex items-center gap-4 p-4">
-      <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconBg}`}>
+    <Card className="flex items-center gap-3 p-4">
+      <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconBg}`}>
         <span className={iconColor}>{icon}</span>
       </div>
       <div>

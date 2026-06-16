@@ -73,6 +73,7 @@ export interface DashboardMetrics {
   pendingApplications: number;
   activeReservations: number;
   rentDue: number;
+  overdueRent: number;
   openMaintenance: number;
 }
 

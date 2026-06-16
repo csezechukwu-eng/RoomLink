@@ -18,6 +18,14 @@ import {
   getApplicationById,
   type ApplicationWithRefs,
 } from "@/lib/services/applications";
+import {
+  listRentCharges,
+  type RentChargeWithRefs,
+} from "@/lib/services/rent";
+import {
+  listMaintenance,
+  type MaintenanceWithRefs,
+} from "@/lib/services/maintenance";
 
 export type { Result };
 
@@ -55,6 +63,7 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
         pendingApplications: 0,
         activeReservations: 0,
         rentDue: 0,
+        overdueRent: 0,
         openMaintenance: 0,
       });
     }
@@ -65,6 +74,7 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
       { count: pendingApplications, error: aErr },
       { count: activeReservations, error: resErr },
       { count: rentDue, error: rentErr },
+      { count: overdueRent, error: overdueErr },
       { count: openMaintenance, error: mErr },
     ] = await Promise.all([
       supabase
@@ -72,11 +82,13 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
         .select("id", { count: "exact", head: true })
         .in("property_id", propertyIds),
       supabase.from("beds").select("status").in("property_id", propertyIds),
+      // "Pending" = awaiting a landlord decision. Migration 0007 replaced the
+      // legacy "pending" status with "submitted"/"under_review".
       supabase
         .from("applications")
         .select("id", { count: "exact", head: true })
         .in("property_id", propertyIds)
-        .eq("status", "pending"),
+        .in("status", ["submitted", "under_review"]),
       supabase
         .from("reservations")
         .select("id", { count: "exact", head: true })
@@ -88,6 +100,11 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
         .in("property_id", propertyIds)
         .in("status", ["due", "overdue"]),
       supabase
+        .from("rent_charges")
+        .select("id", { count: "exact", head: true })
+        .in("property_id", propertyIds)
+        .eq("status", "overdue"),
+      supabase
         .from("maintenance_requests")
         .select("id", { count: "exact", head: true })
         .in("property_id", propertyIds)
@@ -98,6 +115,7 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
     if (aErr) throw aErr;
     if (resErr) throw resErr;
     if (rentErr) throw rentErr;
+    if (overdueErr) throw overdueErr;
     if (mErr) throw mErr;
 
     const counts = tallyBeds(beds ?? []);
@@ -109,6 +127,7 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
       pendingApplications: pendingApplications ?? 0,
       activeReservations: activeReservations ?? 0,
       rentDue: rentDue ?? 0,
+      overdueRent: overdueRent ?? 0,
       openMaintenance: openMaintenance ?? 0,
     });
   } catch (error) {
@@ -116,10 +135,16 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
   }
 }
 
+export interface PropertyListItem extends Property {
+  roomCount: number;
+  bedCounts: BedStatusCounts;
+  media: PropertyMedia[];
+  pendingApplications: number;
+  openMaintenance: number;
+}
+
 /** All properties for the current landlord, with per-property bed counts and media. */
-export async function getProperties(): Promise<
-  Result<Array<Property & { roomCount: number; bedCounts: BedStatusCounts; media: PropertyMedia[] }>>
-> {
+export async function getProperties(): Promise<Result<PropertyListItem[]>> {
   try {
     const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
@@ -135,16 +160,29 @@ export async function getProperties(): Promise<
     if (list.length === 0) return ok([]);
 
     const ids = list.map((p) => p.id);
-    const [{ data: rooms, error: rErr }, { data: beds, error: bErr }] =
-      await Promise.all([
-        supabase.from("rooms").select("id, property_id").in("property_id", ids),
-        supabase
-          .from("beds")
-          .select("status, property_id")
-          .in("property_id", ids),
-      ]);
+    const [
+      { data: rooms, error: rErr },
+      { data: beds, error: bErr },
+      { data: apps, error: aErr },
+      { data: maint, error: mtErr },
+    ] = await Promise.all([
+      supabase.from("rooms").select("id, property_id").in("property_id", ids),
+      supabase.from("beds").select("status, property_id").in("property_id", ids),
+      supabase
+        .from("applications")
+        .select("property_id")
+        .in("property_id", ids)
+        .in("status", ["submitted", "under_review"]),
+      supabase
+        .from("maintenance_requests")
+        .select("property_id")
+        .in("property_id", ids)
+        .in("status", ["open", "in_progress"]),
+    ]);
     if (rErr) throw rErr;
     if (bErr) throw bErr;
+    if (aErr) throw aErr;
+    if (mtErr) throw mtErr;
 
     // Fetch media for all properties - gracefully handle if table doesn't exist
     let allMedia: PropertyMedia[] = [];
@@ -178,6 +216,14 @@ export async function getProperties(): Promise<
       arr.push(m);
       mediaByProp.set(m.property_id, arr);
     }
+    const appsByProp = new Map<string, number>();
+    for (const a of apps ?? []) {
+      appsByProp.set(a.property_id, (appsByProp.get(a.property_id) ?? 0) + 1);
+    }
+    const maintByProp = new Map<string, number>();
+    for (const m of maint ?? []) {
+      maintByProp.set(m.property_id, (maintByProp.get(m.property_id) ?? 0) + 1);
+    }
 
     return ok(
       list.map((p) => ({
@@ -185,6 +231,8 @@ export async function getProperties(): Promise<
         roomCount: roomsByProp.get(p.id) ?? 0,
         bedCounts: tallyBeds(bedsByProp.get(p.id) ?? []),
         media: mediaByProp.get(p.id) ?? [],
+        pendingApplications: appsByProp.get(p.id) ?? 0,
+        openMaintenance: maintByProp.get(p.id) ?? 0,
       }))
     );
   } catch (error) {
@@ -267,6 +315,43 @@ export async function getPropertyDetail(
       rooms: roomsWithBeds,
       bedCounts: tallyBeds((beds ?? []) as Bed[]),
       media: (media ?? []) as PropertyMedia[],
+    });
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export interface PropertyWorkspace extends PropertyDetail {
+  applications: ApplicationWithRefs[];
+  rentCharges: RentChargeWithRefs[];
+  maintenance: MaintenanceWithRefs[];
+}
+
+/**
+ * Full operations workspace for a single property: detail + applications,
+ * rent charges, and maintenance scoped to that property. Ownership is verified
+ * before any of the (service-role) list helpers are called.
+ */
+export async function getPropertyWorkspace(
+  propertyId: string
+): Promise<Result<PropertyWorkspace | null>> {
+  try {
+    const detailResult = await getPropertyDetail(propertyId);
+    if (detailResult.error !== null) return fail(detailResult.error);
+    if (!detailResult.data) return ok(null);
+
+    // Ownership has been verified by getPropertyDetail; safe to scope by property.
+    const [appsResult, rentResult, maintResult] = await Promise.all([
+      listApplications({ propertyId }),
+      listRentCharges({ propertyId }),
+      listMaintenance({ propertyId }),
+    ]);
+
+    return ok({
+      ...detailResult.data,
+      applications: appsResult.data ?? [],
+      rentCharges: rentResult.data ?? [],
+      maintenance: maintResult.data ?? [],
     });
   } catch (error) {
     return fail(error);
