@@ -2,12 +2,16 @@ import type {
   ApplicationStatus,
   BedStatus,
   BunkType,
+  CommuterStatus,
   DepositStatus,
+  EmploymentStatus,
+  GovernmentIdStatus,
   MaintenancePriority,
   MaintenanceStatus,
   PropertyType,
   RentStatus,
   ReservationStatus,
+  SmokingStatus,
 } from "@/lib/types";
 
 interface Option<T extends string> {
@@ -92,9 +96,12 @@ const TONE = {
 } as const;
 
 export const APPLICATION_STATUS_STYLES: Record<ApplicationStatus, Tone> = {
-  pending: { label: "Pending", badge: TONE.amber },
+  draft: { label: "Draft", badge: TONE.gray },
+  submitted: { label: "Submitted", badge: TONE.amber },
+  under_review: { label: "Under Review", badge: TONE.blue },
   approved: { label: "Approved", badge: TONE.green },
   rejected: { label: "Rejected", badge: TONE.red },
+  waitlisted: { label: "Waitlisted", badge: TONE.indigo },
   withdrawn: { label: "Withdrawn", badge: TONE.gray },
 };
 
@@ -153,3 +160,106 @@ export const MAINTENANCE_PRIORITIES: Option<MaintenancePriority>[] = [
   { value: "high", label: "High" },
   { value: "urgent", label: "Urgent" },
 ];
+
+// ---------------------------------------------------------------------------
+// Application Form Constants — Step 4: Tenant Applications
+// ---------------------------------------------------------------------------
+
+export const APPLICATION_STATUSES: Option<ApplicationStatus>[] = [
+  { value: "draft", label: "Draft" },
+  { value: "submitted", label: "Submitted" },
+  { value: "under_review", label: "Under Review" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+  { value: "waitlisted", label: "Waitlisted" },
+  { value: "withdrawn", label: "Withdrawn" },
+];
+
+export const COMMUTER_STATUSES: Option<CommuterStatus>[] = [
+  { value: "local_resident", label: "Local Resident" },
+  { value: "travel_nurse", label: "Travel Nurse / Healthcare Traveler" },
+  { value: "airline_crew", label: "Airline Crew" },
+  { value: "student", label: "Student" },
+  { value: "contract_worker", label: "Contract Worker" },
+  { value: "out_of_state_commuter", label: "Out-of-State Commuter" },
+  { value: "weekly_commuter", label: "Weekly Commuter" },
+  { value: "temporary_relocation", label: "Temporary Relocation" },
+  { value: "other", label: "Other" },
+];
+
+export const EMPLOYMENT_STATUSES: Option<EmploymentStatus>[] = [
+  { value: "employed_full_time", label: "Employed Full-Time" },
+  { value: "employed_part_time", label: "Employed Part-Time" },
+  { value: "self_employed", label: "Self-Employed" },
+  { value: "unemployed", label: "Unemployed" },
+  { value: "student", label: "Student" },
+  { value: "retired", label: "Retired" },
+  { value: "other", label: "Other" },
+];
+
+export const GOVERNMENT_ID_STATUSES: Option<GovernmentIdStatus>[] = [
+  { value: "not_uploaded", label: "Not Uploaded" },
+  { value: "pending", label: "Pending Review" },
+  { value: "uploaded", label: "Uploaded" },
+];
+
+export const SMOKING_STATUSES: Option<SmokingStatus>[] = [
+  { value: "non_smoker", label: "Non-Smoker" },
+  { value: "smoker", label: "Smoker" },
+  { value: "former_smoker", label: "Former Smoker" },
+  { value: "vaper", label: "Vaper" },
+];
+
+export const LENGTH_OF_STAY_OPTIONS: Option<string>[] = [
+  { value: "1_week", label: "1 Week" },
+  { value: "2_weeks", label: "2 Weeks" },
+  { value: "1_month", label: "1 Month" },
+  { value: "2_months", label: "2 Months" },
+  { value: "3_months", label: "3 Months" },
+  { value: "6_months", label: "6 Months" },
+  { value: "1_year", label: "1 Year" },
+  { value: "indefinite", label: "Indefinite / Long-Term" },
+];
+
+export const REFERRAL_SOURCES: Option<string>[] = [
+  { value: "google", label: "Google Search" },
+  { value: "facebook", label: "Facebook" },
+  { value: "instagram", label: "Instagram" },
+  { value: "friend", label: "Friend / Word of Mouth" },
+  { value: "coworker", label: "Coworker" },
+  { value: "employer", label: "Employer" },
+  { value: "craigslist", label: "Craigslist" },
+  { value: "other", label: "Other" },
+];
+
+export const PAYMENT_METHODS: Option<string>[] = [
+  { value: "bank_transfer", label: "Bank Transfer / ACH" },
+  { value: "credit_card", label: "Credit Card" },
+  { value: "debit_card", label: "Debit Card" },
+  { value: "check", label: "Check" },
+  { value: "cash", label: "Cash" },
+  { value: "venmo", label: "Venmo" },
+  { value: "zelle", label: "Zelle" },
+  { value: "paypal", label: "PayPal" },
+];
+
+// Helper functions for labels
+export function labelForCommuterStatus(value: CommuterStatus): string {
+  return COMMUTER_STATUSES.find((t) => t.value === value)?.label ?? value;
+}
+
+export function labelForEmploymentStatus(value: EmploymentStatus): string {
+  return EMPLOYMENT_STATUSES.find((t) => t.value === value)?.label ?? value;
+}
+
+export function labelForApplicationStatus(value: ApplicationStatus): string {
+  return APPLICATION_STATUSES.find((t) => t.value === value)?.label ?? value;
+}
+
+export function labelForGovernmentIdStatus(value: GovernmentIdStatus): string {
+  return GOVERNMENT_ID_STATUSES.find((t) => t.value === value)?.label ?? value;
+}
+
+export function labelForSmokingStatus(value: SmokingStatus): string {
+  return SMOKING_STATUSES.find((t) => t.value === value)?.label ?? value;
+}

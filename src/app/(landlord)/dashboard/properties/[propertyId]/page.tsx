@@ -3,13 +3,12 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin, DoorOpen, ScrollText } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { SummaryCard } from "@/components/SummaryCard";
-import { RoomSection } from "@/components/RoomSection";
+import { RoomAccordionCard } from "@/components/RoomAccordionCard";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { Card } from "@/components/ui/card";
 import { PropertyFormModal } from "@/components/forms/PropertyFormModal";
 import { RoomFormModal } from "@/components/forms/RoomFormModal";
-import { BedFormModal } from "@/components/forms/BedFormModal";
 import { ConfirmDeleteButton } from "@/components/forms/ConfirmDeleteButton";
 import { PropertyPhotosSection } from "@/components/PropertyPhotosSection";
 import { deleteProperty } from "@/lib/actions/properties";
@@ -55,15 +54,7 @@ export default async function PropertyDetailPage({
         description={location || undefined}
         actions={
           <>
-            {rooms.length > 0 ? (
-              <BedFormModal
-                mode="create"
-                propertyId={property.id}
-                rooms={roomOptions}
-                triggerLabel="Add Bed"
-                triggerVariant="primary"
-              />
-            ) : null}
+            {/* Add Bed is now inside each room card - not in the header */}
             <RoomFormModal mode="create" propertyId={property.id} />
             <PropertyFormModal mode="edit" property={property} />
             {rooms.length === 0 ? (
@@ -162,13 +153,14 @@ export default async function PropertyDetailPage({
           />
         ) : (
           <div className="space-y-4">
-            {rooms.map((room) => (
-              <RoomSection
+            {rooms.map((room, index) => (
+              <RoomAccordionCard
                 key={room.id}
                 room={room}
                 rooms={roomOptions}
                 propertyId={property.id}
                 media={media}
+                defaultExpanded={index === 0}
               />
             ))}
           </div>

@@ -40,7 +40,7 @@ export function ApplicationCard({ application }: { application: ApplicationWithR
                 : ""}
             </p>
           </div>
-          {application.status === "pending" ? (
+          {["submitted", "under_review"].includes(application.status) ? (
             <ApplicationActions applicationId={application.id} />
           ) : null}
         </div>

@@ -49,13 +49,15 @@ export async function createRoom(
     const ownerId = await getCurrentOwnerId();
     await assertPropertyOwned(supabase, propertyId, ownerId);
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("rooms")
-      .insert({ ...values, property_id: propertyId });
+      .insert({ ...values, property_id: propertyId })
+      .select("id")
+      .single();
     if (error) throw error;
 
     revalidateLandlord(propertyId);
-    return successState("Room added.");
+    return successState("Room added.", { id: data.id });
   } catch (error) {
     return errorState(messageFrom(error));
   }

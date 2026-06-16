@@ -16,6 +16,7 @@ export interface Property {
   property_type: PropertyType;
   description: string | null;
   house_rules: string | null;
+  is_hidden: boolean;
   created_at: string;
 }
 
@@ -93,26 +94,102 @@ export interface User {
 }
 
 export type ApplicationStatus =
-  | "pending"
+  | "draft"
+  | "submitted"
+  | "under_review"
   | "approved"
   | "rejected"
+  | "waitlisted"
   | "withdrawn";
+
 export type AgreementStatus = "not_started" | "sent" | "signed";
+
+export type CommuterStatus =
+  | "local_resident"
+  | "travel_nurse"
+  | "airline_crew"
+  | "student"
+  | "contract_worker"
+  | "out_of_state_commuter"
+  | "weekly_commuter"
+  | "temporary_relocation"
+  | "other";
+
+export type EmploymentStatus =
+  | "employed_full_time"
+  | "employed_part_time"
+  | "self_employed"
+  | "unemployed"
+  | "student"
+  | "retired"
+  | "other";
+
+export type GovernmentIdStatus = "uploaded" | "not_uploaded" | "pending";
+
+export type SmokingStatus = "non_smoker" | "smoker" | "former_smoker" | "vaper";
 
 export interface Application {
   id: string;
   property_id: string;
   bed_id: string | null;
+  desired_room_id: string | null;
   applicant_id: string | null;
-  full_name: string;
+
+  // Personal Information
+  first_name: string;
+  last_name: string | null;
+  full_name: string; // Legacy field, kept for backwards compatibility
   email: string;
   phone: string | null;
-  message: string | null;
+
+  // Stay Details
   desired_move_in: string | null;
+  length_of_stay: string | null;
+  reason_for_stay: string | null;
+
+  // Commuter Status
+  commuter_status: CommuterStatus | null;
+  commuter_status_other: string | null;
+
+  // Employment & Income
+  employment_status: EmploymentStatus | null;
+  employer_name: string | null;
+  monthly_income: number | null;
+
+  // Emergency Contact
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+
+  // Additional Details (optional)
+  current_address: string | null;
+  referral_source: string | null;
+  preferred_payment_method: string | null;
+  vehicle_info: string | null;
+  pet_info: string | null;
+  smoking_status: SmokingStatus | null;
+
+  // ID & Background
+  government_id_status: GovernmentIdStatus | null;
+  background_check_consent: boolean;
+
+  // Notes
+  message: string | null; // Legacy field
+  tenant_notes: string | null;
+  internal_notes: string | null; // Landlord-only notes
+
+  // Status & Timestamps
   status: ApplicationStatus;
   agreement_status: AgreementStatus;
   created_at: string;
+  updated_at: string;
   decided_at: string | null;
+}
+
+/** Application with joined property/room/bed details for display */
+export interface ApplicationWithDetails extends Application {
+  property?: Property;
+  room?: Room;
+  bed?: Bed;
 }
 
 export type ReservationStatus = "active" | "cancelled" | "completed";

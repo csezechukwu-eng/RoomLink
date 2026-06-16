@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Info } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MultiStepApplyForm } from "@/components/forms/MultiStepApplyForm";
-import { getBedForApplication } from "@/lib/services/availability";
+import { ApplicationForm } from "@/components/forms/ApplicationForm";
+import { getBedForApplication, getAvailabilityDetail } from "@/lib/services/availability";
 import { labelForBunkType } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 
@@ -26,6 +26,10 @@ export default async function ApplyPage({
   if (!result.data) notFound();
 
   const { bed, property, room } = result.data;
+
+  // Get full property details with all rooms for the form
+  const detailResult = await getAvailabilityDetail(property.id);
+  const rooms = detailResult.data?.rooms ?? [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -56,7 +60,11 @@ export default async function ApplyPage({
       </Card>
 
       {bed.status === "vacant" ? (
-        <MultiStepApplyForm bedId={bed.id} />
+        <ApplicationForm
+          property={property}
+          rooms={rooms}
+          selectedBedId={bed.id}
+        />
       ) : (
         <EmptyState
           title="This bed is no longer available"

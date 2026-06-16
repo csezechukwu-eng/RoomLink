@@ -3,7 +3,15 @@ import { getServiceClient } from "@/lib/supabase/server";
 import { ok, fail, type Result } from "@/lib/result";
 import { upsertApplicantByEmail } from "@/lib/services/users";
 import { setBedStatus } from "@/lib/services/beds";
-import type { Application, ApplicationStatus, Bed } from "@/lib/types";
+import type {
+  Application,
+  ApplicationStatus,
+  Bed,
+  CommuterStatus,
+  EmploymentStatus,
+  GovernmentIdStatus,
+  SmokingStatus,
+} from "@/lib/types";
 
 export interface ApplicationWithRefs extends Application {
   property_name: string | null;
@@ -13,12 +21,48 @@ export interface ApplicationWithRefs extends Application {
 }
 
 export interface SubmitApplicationInput {
-  bedId: string;
-  fullName: string;
+  // Required for bed-specific application
+  bedId?: string | null;
+  // Or property/room selection
+  propertyId?: string;
+  roomId?: string | null;
+
+  // Personal Information (required)
+  firstName: string;
+  lastName: string;
   email: string;
-  phone?: string | null;
-  message?: string | null;
-  desiredMoveIn?: string | null;
+  phone: string;
+
+  // Stay Details (required)
+  desiredMoveIn: string;
+  lengthOfStay: string;
+  reasonForStay: string;
+
+  // Commuter Status (required)
+  commuterStatus: CommuterStatus;
+  commuterStatusOther?: string | null;
+
+  // Employment (required)
+  employmentStatus: EmploymentStatus;
+  employerName: string;
+  monthlyIncome: number;
+
+  // Emergency Contact (required)
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+
+  // ID & Background (required)
+  governmentIdStatus: GovernmentIdStatus;
+  backgroundCheckConsent: boolean;
+
+  // Additional Details (optional)
+  currentAddress?: string | null;
+  referralSource?: string | null;
+  preferredPaymentMethod?: string | null;
+  vehicleInfo?: string | null;
+  petInfo?: string | null;
+  smokingStatus?: SmokingStatus | null;
+  tenantNotes?: string | null;
 }
 
 function monthBounds(d = new Date()) {
@@ -28,48 +72,167 @@ function monthBounds(d = new Date()) {
   return { start: iso(start), end: iso(end) };
 }
 
-/** Public: submit an application for a vacant bed. Creates/links a tenant. */
+/** Public: submit an application. Creates/links a tenant. */
 export async function submitApplication(
   input: SubmitApplicationInput
 ): Promise<Result<{ applicationId: string; tenantId: string }>> {
   try {
     const supabase = getServiceClient();
 
-    const { data: bed, error: bErr } = await supabase
-      .from("beds")
-      .select("*")
-      .eq("id", input.bedId)
-      .maybeSingle();
-    if (bErr) throw bErr;
-    if (!bed) return fail("That bed could not be found.");
-    if ((bed as Bed).status !== "vacant")
-      return fail("This bed is no longer available to apply for.");
+    // Determine property_id from bed or direct property selection
+    let propertyId = input.propertyId;
+    const bedId = input.bedId || null;
+    let roomId = input.roomId || null;
 
+    if (bedId) {
+      const { data: bed, error: bErr } = await supabase
+        .from("beds")
+        .select("*, rooms(property_id)")
+        .eq("id", bedId)
+        .maybeSingle();
+      if (bErr) throw bErr;
+      if (!bed) return fail("That bed could not be found.");
+      if ((bed as Bed).status !== "vacant")
+        return fail("This bed is no longer available to apply for.");
+      propertyId = (bed as Bed).property_id;
+      roomId = (bed as Bed).room_id;
+    } else if (!propertyId) {
+      return fail("Please select a property or bed to apply for.");
+    }
+
+    // Create or find the applicant user
     const applicant = await upsertApplicantByEmail({
       email: input.email,
-      fullName: input.fullName,
-      phone: input.phone ?? null,
+      fullName: `${input.firstName} ${input.lastName}`.trim(),
+      phone: input.phone,
     });
     if (applicant.error !== null) return fail(applicant.error);
 
+    // Create the application with all fields
     const { data: application, error: aErr } = await supabase
       .from("applications")
       .insert({
-        property_id: (bed as Bed).property_id,
-        bed_id: (bed as Bed).id,
+        property_id: propertyId,
+        bed_id: bedId,
+        desired_room_id: roomId,
         applicant_id: applicant.data.id,
-        full_name: input.fullName,
+
+        // Personal Information
+        first_name: input.firstName,
+        last_name: input.lastName,
+        full_name: `${input.firstName} ${input.lastName}`.trim(),
         email: input.email.toLowerCase(),
-        phone: input.phone ?? null,
-        message: input.message ?? null,
-        desired_move_in: input.desiredMoveIn || null,
-        status: "pending",
+        phone: input.phone,
+
+        // Stay Details
+        desired_move_in: input.desiredMoveIn,
+        length_of_stay: input.lengthOfStay,
+        reason_for_stay: input.reasonForStay,
+
+        // Commuter Status
+        commuter_status: input.commuterStatus,
+        commuter_status_other: input.commuterStatusOther || null,
+
+        // Employment
+        employment_status: input.employmentStatus,
+        employer_name: input.employerName,
+        monthly_income: input.monthlyIncome,
+
+        // Emergency Contact
+        emergency_contact_name: input.emergencyContactName,
+        emergency_contact_phone: input.emergencyContactPhone,
+
+        // ID & Background
+        government_id_status: input.governmentIdStatus,
+        background_check_consent: input.backgroundCheckConsent,
+
+        // Additional Details
+        current_address: input.currentAddress || null,
+        referral_source: input.referralSource || null,
+        preferred_payment_method: input.preferredPaymentMethod || null,
+        vehicle_info: input.vehicleInfo || null,
+        pet_info: input.petInfo || null,
+        smoking_status: input.smokingStatus || null,
+        tenant_notes: input.tenantNotes || null,
+
+        // Status
+        status: "submitted",
       })
       .select("id")
       .single();
     if (aErr) throw aErr;
 
     return ok({ applicationId: application.id, tenantId: applicant.data.id });
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Get a single application by ID with property/room/bed details. */
+export async function getApplicationById(
+  applicationId: string
+): Promise<Result<ApplicationWithRefs | null>> {
+  try {
+    const supabase = getServiceClient();
+
+    const { data: app, error: aErr } = await supabase
+      .from("applications")
+      .select("*")
+      .eq("id", applicationId)
+      .maybeSingle();
+    if (aErr) throw aErr;
+    if (!app) return ok(null);
+
+    const application = app as Application;
+
+    // Get property name
+    const { data: property } = await supabase
+      .from("properties")
+      .select("name")
+      .eq("id", application.property_id)
+      .maybeSingle();
+
+    // Get bed and room details if bed_id exists
+    let bedLabel: string | null = null;
+    let roomName: string | null = null;
+    let monthlyRent: number | null = null;
+
+    if (application.bed_id) {
+      const { data: bed } = await supabase
+        .from("beds")
+        .select("label, monthly_rent, room_id")
+        .eq("id", application.bed_id)
+        .maybeSingle();
+
+      if (bed) {
+        bedLabel = bed.label;
+        monthlyRent = bed.monthly_rent;
+
+        if (bed.room_id) {
+          const { data: room } = await supabase
+            .from("rooms")
+            .select("name")
+            .eq("id", bed.room_id)
+            .maybeSingle();
+          roomName = room?.name ?? null;
+        }
+      }
+    } else if (application.desired_room_id) {
+      const { data: room } = await supabase
+        .from("rooms")
+        .select("name")
+        .eq("id", application.desired_room_id)
+        .maybeSingle();
+      roomName = room?.name ?? null;
+    }
+
+    return ok({
+      ...application,
+      property_name: property?.name ?? null,
+      bed_label: bedLabel,
+      room_name: roomName,
+      monthly_rent: monthlyRent,
+    });
   } catch (error) {
     return fail(error);
   }
@@ -84,6 +247,7 @@ export async function listApplications(opts: {
   propertyId?: string;
   applicantId?: string;
   status?: ApplicationStatus;
+  search?: string;
 }): Promise<Result<ApplicationWithRefs[]>> {
   try {
     const supabase = getServiceClient();
@@ -116,8 +280,22 @@ export async function listApplications(opts: {
 
     const { data: apps, error: aErr } = await query;
     if (aErr) throw aErr;
-    const applications = (apps ?? []) as Application[];
+    let applications = (apps ?? []) as Application[];
     if (applications.length === 0) return ok([]);
+
+    // Apply search filter (client-side for flexibility)
+    if (opts.search) {
+      const searchLower = opts.search.toLowerCase();
+      applications = applications.filter(
+        (a) =>
+          a.first_name?.toLowerCase().includes(searchLower) ||
+          a.last_name?.toLowerCase().includes(searchLower) ||
+          a.full_name?.toLowerCase().includes(searchLower) ||
+          a.email?.toLowerCase().includes(searchLower) ||
+          a.phone?.toLowerCase().includes(searchLower) ||
+          a.commuter_status?.toLowerCase().includes(searchLower)
+      );
+    }
 
     // Enrich with property name + bed/room labels via lookup maps.
     const propertyIdsFromApps = [
@@ -126,6 +304,10 @@ export async function listApplications(opts: {
     const bedIds = [
       ...new Set(applications.map((a) => a.bed_id).filter(Boolean)),
     ] as string[];
+    const roomIds = [
+      ...new Set(applications.map((a) => a.desired_room_id).filter(Boolean)),
+    ] as string[];
+
     const [{ data: props }, { data: beds }] = await Promise.all([
       supabase.from("properties").select("id, name").in("id", propertyIdsFromApps),
       bedIds.length
@@ -136,15 +318,18 @@ export async function listApplications(opts: {
         : Promise.resolve({ data: [] as { id: string }[] }),
     ]);
 
-    const roomIds = [
-      ...new Set(
-        (beds ?? [])
+    // Collect all room IDs from beds and direct room selections
+    const allRoomIds = [
+      ...new Set([
+        ...roomIds,
+        ...(beds ?? [])
           .map((b) => (b as { room_id?: string }).room_id)
-          .filter(Boolean)
-      ),
+          .filter(Boolean),
+      ]),
     ] as string[];
-    const { data: rooms } = roomIds.length
-      ? await supabase.from("rooms").select("id, name").in("id", roomIds)
+
+    const { data: rooms } = allRoomIds.length
+      ? await supabase.from("rooms").select("id, name").in("id", allRoomIds)
       : { data: [] as { id: string; name: string }[] };
 
     const propName = new Map((props ?? []).map((p) => [p.id, p.name]));
@@ -163,7 +348,12 @@ export async function listApplications(opts: {
           ...a,
           property_name: propName.get(a.property_id) ?? null,
           bed_label: bed?.label ?? null,
-          room_name: bed?.room_id ? roomName.get(bed.room_id) ?? null : null,
+          room_name:
+            bed?.room_id
+              ? roomName.get(bed.room_id) ?? null
+              : a.desired_room_id
+              ? roomName.get(a.desired_room_id) ?? null
+              : null,
           monthly_rent: bed?.monthly_rent ?? null,
         };
       })
@@ -178,6 +368,70 @@ export async function getTenantApplications(
   tenantId: string
 ): Promise<Result<ApplicationWithRefs[]>> {
   return listApplications({ applicantId: tenantId });
+}
+
+/** Update application status (landlord action). */
+export async function updateApplicationStatus(
+  applicationId: string,
+  newStatus: ApplicationStatus
+): Promise<Result<null>> {
+  try {
+    const supabase = getServiceClient();
+
+    const { data: app, error: aErr } = await supabase
+      .from("applications")
+      .select("status")
+      .eq("id", applicationId)
+      .maybeSingle();
+    if (aErr) throw aErr;
+    if (!app) return fail("Application not found.");
+
+    const currentStatus = app.status as ApplicationStatus;
+
+    // Validate status transitions
+    const decidedStatuses: ApplicationStatus[] = ["approved", "rejected", "withdrawn"];
+    if (decidedStatuses.includes(currentStatus) && newStatus !== "under_review") {
+      // Allow reopening to under_review, but not direct changes between decided states
+      if (decidedStatuses.includes(newStatus)) {
+        return fail(`Cannot change status from ${currentStatus} to ${newStatus}.`);
+      }
+    }
+
+    const updateData: Record<string, unknown> = { status: newStatus };
+    if (["approved", "rejected", "waitlisted"].includes(newStatus)) {
+      updateData.decided_at = new Date().toISOString();
+    }
+
+    const { error } = await supabase
+      .from("applications")
+      .update(updateData)
+      .eq("id", applicationId);
+    if (error) throw error;
+
+    return ok(null);
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Add or update internal notes (landlord only). */
+export async function updateInternalNotes(
+  applicationId: string,
+  notes: string
+): Promise<Result<null>> {
+  try {
+    const supabase = getServiceClient();
+
+    const { error } = await supabase
+      .from("applications")
+      .update({ internal_notes: notes })
+      .eq("id", applicationId);
+    if (error) throw error;
+
+    return ok(null);
+  } catch (error) {
+    return fail(error);
+  }
 }
 
 /**
@@ -198,8 +452,11 @@ export async function approveApplication(
     if (aErr) throw aErr;
     if (!app) return fail("Application not found.");
     const application = app as Application;
-    if (application.status !== "pending")
-      return fail("This application has already been decided.");
+
+    // Allow approval from submitted, under_review, or waitlisted
+    const approvableStatuses: ApplicationStatus[] = ["submitted", "under_review", "waitlisted"];
+    if (!approvableStatuses.includes(application.status))
+      return fail("This application cannot be approved from its current status.");
     if (!application.applicant_id)
       return fail("Application has no linked applicant.");
     if (!application.bed_id)
@@ -230,7 +487,7 @@ export async function approveApplication(
         tenant_id: application.applicant_id,
         application_id: application.id,
         status: "active",
-        start_date: new Date().toISOString().slice(0, 10),
+        start_date: application.desired_move_in || new Date().toISOString().slice(0, 10),
         deposit_amount: typedBed.deposit_amount,
         deposit_status: "unpaid",
       })
@@ -265,7 +522,7 @@ export async function approveApplication(
       .from("applications")
       .update({ status: "rejected", decided_at: now })
       .eq("bed_id", typedBed.id)
-      .eq("status", "pending");
+      .in("status", ["submitted", "under_review", "waitlisted"]);
     if (rejErr) throw rejErr;
 
     return ok({ reservationId: reservation.id });
@@ -274,7 +531,7 @@ export async function approveApplication(
   }
 }
 
-/** Reject a pending application. */
+/** Reject an application. */
 export async function rejectApplication(
   applicationId: string
 ): Promise<Result<null>> {
@@ -287,12 +544,43 @@ export async function rejectApplication(
       .maybeSingle();
     if (aErr) throw aErr;
     if (!app) return fail("Application not found.");
-    if (app.status !== "pending")
-      return fail("This application has already been decided.");
+
+    const rejectableStatuses: ApplicationStatus[] = ["submitted", "under_review", "waitlisted"];
+    if (!rejectableStatuses.includes(app.status as ApplicationStatus))
+      return fail("This application cannot be rejected from its current status.");
 
     const { error } = await supabase
       .from("applications")
       .update({ status: "rejected", decided_at: new Date().toISOString() })
+      .eq("id", applicationId);
+    if (error) throw error;
+    return ok(null);
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Waitlist an application. */
+export async function waitlistApplication(
+  applicationId: string
+): Promise<Result<null>> {
+  try {
+    const supabase = getServiceClient();
+    const { data: app, error: aErr } = await supabase
+      .from("applications")
+      .select("status")
+      .eq("id", applicationId)
+      .maybeSingle();
+    if (aErr) throw aErr;
+    if (!app) return fail("Application not found.");
+
+    const waitlistableStatuses: ApplicationStatus[] = ["submitted", "under_review"];
+    if (!waitlistableStatuses.includes(app.status as ApplicationStatus))
+      return fail("This application cannot be waitlisted from its current status.");
+
+    const { error } = await supabase
+      .from("applications")
+      .update({ status: "waitlisted", decided_at: new Date().toISOString() })
       .eq("id", applicationId);
     if (error) throw error;
     return ok(null);

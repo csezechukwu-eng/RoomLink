@@ -66,21 +66,32 @@ export default async function PropertiesPage() {
   }
 
   // Transform properties for the client component
-  const propertyData = properties.map((p) => ({
-    id: p.id,
-    name: p.name,
-    address: [p.address, p.city, p.state, p.zip].filter(Boolean).join(", "),
-    image: null as string | null, // Will be populated when we add photo support
-    status: "active" as const,
-    beds: p.bedCounts.total,
-    occupied: p.bedCounts.occupied,
-    reserved: p.bedCounts.reserved,
-    available: p.bedCounts.vacant,
-    revenue: 0, // Will be populated when we add rent tracking
-    property_type: p.property_type,
-    description: p.description,
-    house_rules: p.house_rules,
-  }));
+  const propertyData = properties.map((p) => {
+    // Get cover photo URL if available
+    const coverPhoto = p.media.find(
+      (m) => m.media_type === "property" && m.is_cover
+    );
+    const firstPhoto = p.media.find((m) => m.media_type === "property");
+    const imageUrl = coverPhoto?.public_url || firstPhoto?.public_url || null;
+
+    return {
+      id: p.id,
+      name: p.name,
+      address: [p.address, p.city, p.state, p.zip].filter(Boolean).join(", "),
+      image: imageUrl,
+      status: "active" as const,
+      is_hidden: p.is_hidden ?? false,
+      beds: p.bedCounts.total,
+      occupied: p.bedCounts.occupied,
+      reserved: p.bedCounts.reserved,
+      available: p.bedCounts.vacant,
+      revenue: 0, // Will be populated when we add rent tracking
+      property_type: p.property_type,
+      description: p.description,
+      house_rules: p.house_rules,
+      photos: p.media,
+    };
+  });
 
   const totals = {
     properties: properties.length,

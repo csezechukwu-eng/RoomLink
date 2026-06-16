@@ -4,7 +4,6 @@ import { useTransition } from "react";
 import {
   LayoutDashboard,
   Building2,
-  BedDouble,
   ClipboardList,
   CalendarCheck,
   DollarSign,
@@ -18,10 +17,11 @@ import {
 import { Sidebar, type SidebarItem } from "@/components/nav/Sidebar";
 import { signOut } from "@/lib/actions/auth";
 
+// Note: Rooms & Beds are now managed inside each property detail page
+// (/dashboard/properties/[propertyId]) rather than as a standalone nav item.
 const items: SidebarItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/properties", label: "Properties", icon: Building2 },
-  { href: "/dashboard/rooms", label: "Rooms & Beds", icon: BedDouble },
   { href: "/dashboard/applications", label: "Applications", icon: ClipboardList },
   { href: "/dashboard/reservations", label: "Reservations", icon: CalendarCheck },
   { href: "/dashboard/rent", label: "Rent & Payments", icon: DollarSign },

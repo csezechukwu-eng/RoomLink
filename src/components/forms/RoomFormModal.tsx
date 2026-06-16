@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Camera } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,14 +11,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormField } from "@/components/FormField";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import { FormAlert } from "@/components/forms/FormAlert";
+import { PhotoUpload } from "@/components/PhotoUpload";
 import { initialActionState } from "@/lib/actions/types";
 import { createRoom, updateRoom } from "@/lib/actions/rooms";
-import type { Room } from "@/lib/types";
+import { uploadMedia, deleteMedia, setCoverMedia } from "@/lib/actions/media";
+import type { Room, PropertyMedia } from "@/lib/types";
 
 interface RoomFormModalProps {
   mode: "create" | "edit";
   propertyId: string;
   room?: Room;
+  photos?: PropertyMedia[];
   triggerVariant?: "primary" | "outline" | "secondary" | "ghost";
   triggerLabel?: string;
   iconOnly?: boolean;
@@ -28,6 +31,7 @@ export function RoomFormModal({
   mode,
   propertyId,
   room,
+  photos = [],
   triggerVariant = mode === "create" ? "outline" : "ghost",
   triggerLabel,
   iconOnly,
@@ -44,8 +48,37 @@ export function RoomFormModal({
     }
   }, [state, open, router]);
 
+  const handleUpload = async (formData: FormData) => {
+    const result = await uploadMedia({ status: "idle" }, formData);
+    if (result.status === "success") {
+      router.refresh();
+    }
+    return result;
+  };
+
+  const handleDelete = async (formData: FormData) => {
+    const result = await deleteMedia({ status: "idle" }, formData);
+    if (result.status === "success") {
+      router.refresh();
+    }
+    return result;
+  };
+
+  const handleSetCover = async (formData: FormData) => {
+    const result = await setCoverMedia({ status: "idle" }, formData);
+    if (result.status === "success") {
+      router.refresh();
+    }
+    return result;
+  };
+
   const label = triggerLabel ?? (mode === "create" ? "Add Room" : "Edit");
   const fieldErrors = state.fieldErrors ?? {};
+
+  // Filter photos for this room (edit mode only)
+  const roomPhotos = room
+    ? photos.filter((p) => p.media_type === "room" && p.room_id === room.id)
+    : [];
 
   return (
     <>
@@ -117,6 +150,28 @@ export function RoomFormModal({
               placeholder="Front bedroom, two bunks…"
             />
           </FormField>
+
+          {/* Photo section for edit mode only */}
+          {mode === "edit" && room && (
+            <div className="border-t border-slate-200 pt-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Camera className="h-4 w-4 text-slate-400" />
+                <h4 className="text-sm font-medium text-slate-700">
+                  Room Photos
+                </h4>
+              </div>
+              <PhotoUpload
+                propertyId={propertyId}
+                mediaType="room"
+                roomId={room.id}
+                existingPhotos={roomPhotos}
+                onUpload={handleUpload}
+                onDelete={handleDelete}
+                onSetCover={handleSetCover}
+                maxPhotos={5}
+              />
+            </div>
+          )}
 
           <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button

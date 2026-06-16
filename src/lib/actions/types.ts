@@ -7,12 +7,16 @@ export type ActionState = {
   status: "idle" | "success" | "error";
   message?: string;
   fieldErrors?: Record<string, string>;
+  data?: { id?: string } & Record<string, unknown>;
 };
 
 export const initialActionState: ActionState = { status: "idle" };
 
-export function successState(message?: string): ActionState {
-  return { status: "success", message };
+export function successState(
+  message?: string,
+  data?: ActionState["data"]
+): ActionState {
+  return { status: "success", message, data };
 }
 
 export function errorState(

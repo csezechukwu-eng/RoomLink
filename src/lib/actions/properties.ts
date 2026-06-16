@@ -159,3 +159,31 @@ export async function deleteProperty(
   revalidateLandlord();
   redirect("/dashboard/properties");
 }
+
+/** Toggle property visibility (hidden/visible). */
+export async function togglePropertyVisibility(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = str(formData, "id");
+  const isHidden = str(formData, "is_hidden") === "true";
+  if (!id) return errorState("Missing property id.");
+
+  try {
+    const supabase = await createAuthenticatedClient();
+    const ownerId = await getCurrentOwnerId();
+    await assertPropertyOwned(supabase, id, ownerId);
+
+    const { error } = await supabase
+      .from("properties")
+      .update({ is_hidden: isHidden })
+      .eq("id", id)
+      .eq("owner_id", ownerId);
+    if (error) throw error;
+
+    revalidateLandlord(id);
+    return successState(isHidden ? "Property hidden." : "Property visible.");
+  } catch (error) {
+    return errorState(messageFrom(error));
+  }
+}
