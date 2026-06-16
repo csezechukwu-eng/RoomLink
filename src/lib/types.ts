@@ -317,3 +317,41 @@ export interface PropertyMedia {
   created_at: string;
   updated_at: string;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 4: Leases (DocuSign eSignature)
+// ---------------------------------------------------------------------------
+
+export type LeaseSource = "template" | "upload";
+export type LeaseStatus =
+  | "draft"
+  | "sent"
+  | "delivered"
+  | "completed"
+  | "declined"
+  | "voided";
+
+export interface Lease {
+  id: string;
+  property_id: string;
+  room_id: string | null;
+  bed_id: string | null;
+  tenant_id: string | null;
+  application_id: string | null;
+  reservation_id: string | null;
+  source: LeaseSource;
+  provider: string;
+  envelope_id: string | null;
+  status: LeaseStatus;
+  tenant_name: string | null;
+  tenant_email: string | null;
+  monthly_rent: number | null;
+  deposit_amount: number | null;
+  lease_start: string | null;
+  lease_end: string | null;
+  signed_pdf_url: string | null;
+  sent_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
