@@ -31,6 +31,12 @@ export function RoomAccordionCard({
   const contentId = `room-content-${room.id}`;
   const headerId = `room-header-${room.id}`;
 
+  // Open (never force-close) when this room becomes the targeted one, e.g.
+  // after a "Fix" link in the Needs Attention panel scrolls to it.
+  React.useEffect(() => {
+    if (defaultExpanded) setIsExpanded(true);
+  }, [defaultExpanded]);
+
   const beds = room.beds;
   const totalBeds = beds.length;
   const vacant = beds.filter((b) => b.status === "vacant").length;

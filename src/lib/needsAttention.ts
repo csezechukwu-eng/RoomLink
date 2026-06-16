@@ -14,9 +14,7 @@ export interface AttentionIssue {
     | "bed_reserved"
     | "property_no_photos"
     | "room_no_beds"
-    | "bed_no_photos"
-    | "bed_missing_rent"
-    | "bed_missing_deposit";
+    | "bed_setup";
   title: string;
   description: string;
   /** Human-readable location, e.g. "Room A · Top Bunk 1". */
@@ -144,43 +142,26 @@ export function computeNeedsAttention(
           actionLabel: "Open",
         });
       }
-      if (!bed.monthly_rent || bed.monthly_rent <= 0) {
-        issues.push({
-          id: `bed-rent-${bed.id}`,
-          severity: "setup",
-          kind: "bed_missing_rent",
-          title: "Missing rent amount",
-          description: "Set a monthly rent so this bed can be rented.",
-          location: loc,
-          href: `#room-${room.id}`,
-          actionLabel: "Fix",
-        });
-      }
-      if (!bed.deposit_amount || bed.deposit_amount <= 0) {
-        issues.push({
-          id: `bed-deposit-${bed.id}`,
-          severity: "setup",
-          kind: "bed_missing_deposit",
-          title: "Missing deposit amount",
-          description: "Set a deposit for this bed.",
-          location: loc,
-          href: `#room-${room.id}`,
-          actionLabel: "Fix",
-        });
-      }
+      // Consolidate a bed's setup gaps into a single calm row so one
+      // under-configured bed doesn't flood the panel with duplicates.
+      const missing: string[] = [];
+      if (!bed.monthly_rent || bed.monthly_rent <= 0) missing.push("rent");
+      if (!bed.deposit_amount || bed.deposit_amount <= 0) missing.push("deposit");
       const bedPhotos = media.filter(
         (m) => m.media_type === "bed" && m.bed_id === bed.id
       );
-      if (bedPhotos.length === 0) {
+      if (bedPhotos.length === 0) missing.push("photos");
+
+      if (missing.length > 0) {
         issues.push({
-          id: `bed-photos-${bed.id}`,
+          id: `bed-setup-${bed.id}`,
           severity: "setup",
-          kind: "bed_no_photos",
-          title: "Bed has no photos",
-          description: "Add a photo to help applicants choose this bed.",
+          kind: "bed_setup",
+          title: "Finish bed setup",
+          description: `Add ${missing.join(", ")} for this bed.`,
           location: loc,
           href: `#room-${room.id}`,
-          actionLabel: "Add photo",
+          actionLabel: "Fix",
         });
       }
     }

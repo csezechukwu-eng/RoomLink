@@ -8,6 +8,7 @@ import {
   BedDouble,
   DollarSign,
   Ban,
+  Settings2,
   CheckCircle2,
   ArrowRight,
   type LucideIcon,
@@ -27,9 +28,7 @@ const KIND_ICONS: Record<AttentionIssue["kind"], LucideIcon> = {
   bed_reserved: CalendarCheck,
   property_no_photos: ImageIcon,
   room_no_beds: BedDouble,
-  bed_no_photos: ImageIcon,
-  bed_missing_rent: DollarSign,
-  bed_missing_deposit: DollarSign,
+  bed_setup: Settings2,
 };
 
 const GROUP_ORDER: IssueSeverity[] = ["urgent", "review", "setup"];

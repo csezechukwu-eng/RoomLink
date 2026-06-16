@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/StatusPill";
-import { EmptyState } from "@/components/EmptyState";
 import {
   MAINTENANCE_PRIORITY_STYLES,
   MAINTENANCE_STATUS_STYLES,
@@ -39,10 +38,9 @@ export function PropertyMaintenanceSnapshot({
       </div>
 
       {requests.length === 0 ? (
-        <EmptyState
-          title="No maintenance requests"
-          description="No maintenance requests for this property."
-        />
+        <Card className="p-5 text-sm text-slate-500">
+          No maintenance requests for this property.
+        </Card>
       ) : (
         <Card className="divide-y divide-slate-100">
           {requests.map((req) => {

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { CalendarDays, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/StatusPill";
-import { EmptyState } from "@/components/EmptyState";
 import { APPLICATION_STATUS_STYLES, labelForCommuterStatus } from "@/lib/constants";
 import type { ApplicationWithRefs } from "@/lib/services/applications";
 
@@ -38,10 +37,9 @@ export function PropertyApplicationsPanel({
       </div>
 
       {applications.length === 0 ? (
-        <EmptyState
-          title="No applications yet"
-          description="No applications for this property yet."
-        />
+        <Card className="p-5 text-sm text-slate-500">
+          No applications for this property yet.
+        </Card>
       ) : (
         <Card className="divide-y divide-slate-100">
           {applications.map((app) => {
