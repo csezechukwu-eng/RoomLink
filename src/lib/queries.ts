@@ -88,9 +88,12 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
         .from("rooms")
         .select("id", { count: "exact", head: true })
         .in("property_id", propertyIds),
+      // select("*") (not "status, available_from") so the dashboard still works
+      // before migration 0008 is applied — available_from is simply undefined
+      // then, and availableNow falls back to "all vacant beds".
       supabase
         .from("beds")
-        .select("status, available_from")
+        .select("*")
         .in("property_id", propertyIds),
       // "Pending" = awaiting a landlord decision. Migration 0007 replaced the
       // legacy "pending" status with "submitted"/"under_review".
