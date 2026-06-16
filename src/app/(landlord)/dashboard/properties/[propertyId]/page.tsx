@@ -7,6 +7,8 @@ import { PropertyOperationsHeader } from "@/components/host/PropertyOperationsHe
 import { PropertyOperationsStats } from "@/components/host/PropertyOperationsStats";
 import { NeedsAttentionPanel } from "@/components/host/NeedsAttentionPanel";
 import { RoomsBedsManager } from "@/components/host/RoomsBedsManager";
+import { TenantRoster } from "@/components/host/TenantRoster";
+import { MoveBoard } from "@/components/host/MoveBoard";
 import { PropertyApplicationsPanel } from "@/components/host/PropertyApplicationsPanel";
 import { PropertyPaymentsSnapshot } from "@/components/host/PropertyPaymentsSnapshot";
 import { PropertyMaintenanceSnapshot } from "@/components/host/PropertyMaintenanceSnapshot";
@@ -45,6 +47,7 @@ export default async function PropertyDetailPage({
     rentCharges,
     maintenance,
     reservationEndByBed,
+    roster,
   } = result.data;
   const roomOptions = rooms.map((r) => ({ id: r.id, name: r.name }));
 
@@ -119,6 +122,29 @@ export default async function PropertyDetailPage({
               availabilityByBed={availabilityByBed}
             />
           </div>
+
+          {/* C2. Tenants (roster + turnover) */}
+          <section id="tenants" className="scroll-mt-24 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                Tenants
+              </h2>
+              {roster.length > 0 && (
+                <Link
+                  href="/dashboard/tenants"
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  All tenants
+                </Link>
+              )}
+            </div>
+            {roster.length > 0 && <MoveBoard entries={roster} />}
+            <TenantRoster
+              entries={roster}
+              limit={6}
+              viewAllHref="/dashboard/tenants"
+            />
+          </section>
 
           {/* D. Applications */}
           <PropertyApplicationsPanel applications={applications} />

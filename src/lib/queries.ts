@@ -26,6 +26,7 @@ import {
   listMaintenance,
   type MaintenanceWithRefs,
 } from "@/lib/services/maintenance";
+import { listRoster, type RosterEntry } from "@/lib/services/tenants";
 import { todayISO, isoDaysFromToday, SOON_WINDOW_DAYS } from "@/lib/bedAvailability";
 
 export type { Result };
@@ -369,6 +370,7 @@ export interface PropertyWorkspace extends PropertyDetail {
   applications: ApplicationWithRefs[];
   rentCharges: RentChargeWithRefs[];
   maintenance: MaintenanceWithRefs[];
+  roster: RosterEntry[];
 }
 
 /**
@@ -385,10 +387,11 @@ export async function getPropertyWorkspace(
     if (!detailResult.data) return ok(null);
 
     // Ownership has been verified by getPropertyDetail; safe to scope by property.
-    const [appsResult, rentResult, maintResult] = await Promise.all([
+    const [appsResult, rentResult, maintResult, rosterResult] = await Promise.all([
       listApplications({ propertyId }),
       listRentCharges({ propertyId }),
       listMaintenance({ propertyId }),
+      listRoster({ propertyId }),
     ]);
 
     return ok({
@@ -396,7 +399,20 @@ export async function getPropertyWorkspace(
       applications: appsResult.data ?? [],
       rentCharges: rentResult.data ?? [],
       maintenance: maintResult.data ?? [],
+      roster: rosterResult.data ?? [],
     });
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export type { RosterEntry };
+
+/** Tenant roster across all of the current landlord's properties. */
+export async function getRoster(): Promise<Result<RosterEntry[]>> {
+  try {
+    const ownerId = await getCurrentOwnerId();
+    return listRoster({ ownerId });
   } catch (error) {
     return fail(error);
   }
