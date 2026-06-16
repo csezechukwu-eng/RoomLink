@@ -34,6 +34,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // LOCAL DEMO PREVIEW ONLY — never active in production. Mirrors the demo
+  // bypass in lib/auth.ts so the host UI is viewable without a real session.
+  if (
+    process.env.DEMO_MODE === "true" &&
+    process.env.NODE_ENV !== "production"
+  ) {
+    return NextResponse.next();
+  }
+
   // Create a response to modify
   let response = NextResponse.next({
     request: {
