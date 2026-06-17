@@ -16,9 +16,15 @@ export function signerClientId(leaseId: string, role: "tenant" | "landlord") {
   return `${leaseId}:${role}`;
 }
 
-function fmtMoney(n: number | null | undefined): string {
+function fmtNum(n: number | null | undefined): string {
   if (n == null) return "";
-  return `$${Number(n).toFixed(2)}`;
+  return Number(n).toFixed(2);
+}
+
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : iso;
 }
 
 /** Existing lease for an application (most recent), or null. */
@@ -124,17 +130,21 @@ export async function createLeaseForApplication(input: {
     if (lErr) throw lErr;
     const lease = leaseRow as Lease;
 
+    // Keys MUST match the template field Data Labels exactly. These match the
+    // labels in the user's Short-Term Bed Rental Agreement template. The "$" is
+    // already literal in the template, so rent/deposit are sent as plain numbers.
     const tabs: LeaseTabs = {
-      PropertyName: prop?.name ?? "",
-      PropertyAddress: address,
-      RoomName: roomName ?? "",
-      BedLabel: bed?.label ?? "",
-      MonthlyRent: fmtMoney(bed?.monthly_rent),
-      DepositAmount: fmtMoney(bed?.deposit_amount),
-      LeaseStart: application.desired_move_in ?? "",
-      TenantName: tenantName,
-      LandlordName: input.landlord.name,
-      GoverningState: prop?.state ?? "",
+      "Property Name": prop?.name ?? "",
+      "Property Address": address,
+      Room: roomName ?? "",
+      Bed: bed?.label ?? "",
+      "Effective Date": fmtDate(application.desired_move_in),
+      "Monthly / 30-Day Rent": fmtNum(bed?.monthly_rent),
+      "Security Deposit": fmtNum(bed?.deposit_amount),
+      LandlordLegalName: input.landlord.name,
+      TenantLegalName: tenantName,
+      "Tenant Email": application.email,
+      "Governing Law": prop?.state ?? "",
     };
 
     const sent = await sendEnvelopeFromTemplate({

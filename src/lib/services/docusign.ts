@@ -80,19 +80,8 @@ function apiBase(): string {
   return `${base}/v2.1/accounts/${process.env.DOCUSIGN_ACCOUNT_ID}`;
 }
 
-export interface LeaseTabs {
-  PropertyName?: string;
-  PropertyAddress?: string;
-  RoomName?: string;
-  BedLabel?: string;
-  MonthlyRent?: string;
-  DepositAmount?: string;
-  LeaseStart?: string;
-  LeaseEnd?: string;
-  TenantName?: string;
-  LandlordName?: string;
-  GoverningState?: string;
-}
+/** tabLabel -> value. Keys must match the template field Data Labels exactly. */
+export type LeaseTabs = Record<string, string | undefined>;
 
 export interface SendLeaseInput {
   templateId: string;
