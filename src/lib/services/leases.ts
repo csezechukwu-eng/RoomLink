@@ -133,6 +133,8 @@ export async function createLeaseForApplication(input: {
       DepositAmount: fmtMoney(bed?.deposit_amount),
       LeaseStart: application.desired_move_in ?? "",
       TenantName: tenantName,
+      LandlordName: input.landlord.name,
+      GoverningState: prop?.state ?? "",
     };
 
     const sent = await sendEnvelopeFromTemplate({

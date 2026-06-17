@@ -90,6 +90,8 @@ export interface LeaseTabs {
   LeaseStart?: string;
   LeaseEnd?: string;
   TenantName?: string;
+  LandlordName?: string;
+  GoverningState?: string;
 }
 
 export interface SendLeaseInput {
