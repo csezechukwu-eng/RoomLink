@@ -100,6 +100,9 @@ export interface User {
   phone: string | null;
   role: UserRole;
   verification_status: VerificationStatus;
+  /** Base64-encoded PNG signature for landlords */
+  signature_data: string | null;
+  signature_updated_at: string | null;
   created_at: string;
 }
 
@@ -352,6 +355,12 @@ export interface Lease {
   signed_pdf_url: string | null;
   sent_at: string | null;
   completed_at: string | null;
+  /** Base64-encoded PNG of landlord signature */
+  landlord_signature_data: string | null;
+  landlord_signed_at: string | null;
+  /** Base64-encoded PNG of tenant signature */
+  tenant_signature_data: string | null;
+  tenant_signed_at: string | null;
   created_at: string;
   updated_at: string;
 }

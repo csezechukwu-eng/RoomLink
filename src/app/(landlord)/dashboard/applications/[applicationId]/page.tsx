@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
-import { LeasePanel } from "@/components/host/LeasePanel";
+import { LeasePanelClient } from "@/components/host/LeasePanelClient";
 import { getApplicationDetail } from "@/lib/queries";
 import { getLeaseForApplication, isDocuSignConfigured } from "@/lib/services/leases";
 import { ApplicationDetailClient } from "./ApplicationDetailClient";
@@ -37,7 +37,7 @@ export default async function ApplicationDetailPage({
 
       <ApplicationDetailClient application={application} />
 
-      <LeasePanel
+      <LeasePanelClient
         application={application}
         lease={leaseResult.data ?? null}
         docusignConfigured={isDocuSignConfigured()}
