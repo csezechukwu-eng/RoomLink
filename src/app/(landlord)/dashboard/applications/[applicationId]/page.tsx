@@ -2,9 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
-import { LeasePanelClient } from "@/components/host/LeasePanelClient";
+import { PrepareLeaseCard } from "@/components/host/PrepareLeaseCard";
 import { getApplicationDetail } from "@/lib/queries";
-import { getLeaseForApplication, isDocuSignConfigured } from "@/lib/services/leases";
+import { getApplicationLeaseContext } from "@/lib/services/leaseDocuments";
 import { ApplicationDetailClient } from "./ApplicationDetailClient";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export default async function ApplicationDetailPage({
   if (!result.data) notFound();
 
   const application = result.data;
-  const leaseResult = await getLeaseForApplication(applicationId);
+  const leaseCtx = await getApplicationLeaseContext(applicationId);
 
   return (
     <div className="space-y-6">
@@ -37,12 +37,11 @@ export default async function ApplicationDetailPage({
 
       <ApplicationDetailClient application={application} />
 
-      <LeasePanelClient
-        application={application}
-        lease={leaseResult.data ?? null}
-        docusignConfigured={isDocuSignConfigured()}
-        templateConfigured={Boolean(process.env.DOCUSIGN_TEMPLATE_ID)}
-      />
+      {/* Phase 1 lease workflow: prepare (upload) a lease for an approved applicant.
+          A separate in-app signing flow lives under /dashboard/leases. */}
+      <div id="lease">
+        <PrepareLeaseCard context={leaseCtx.data ?? null} />
+      </div>
     </div>
   );
 }

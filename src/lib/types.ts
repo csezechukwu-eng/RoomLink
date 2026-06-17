@@ -364,3 +364,49 @@ export interface Lease {
   created_at: string;
   updated_at: string;
 }
+
+// ---------------------------------------------------------------------------
+// Lease Documents (uploaded PDF lease prep — landlord workflow, Phase 1)
+// ---------------------------------------------------------------------------
+
+export type LeaseDocumentStatus = "draft" | "preparing" | "cancelled";
+export type LeaseTermType = "month_to_month" | "fixed_term" | "short_term_bed";
+
+export interface LeasePropertySnapshot {
+  name: string | null;
+  address: string | null;
+}
+export interface LeaseRoomSnapshot {
+  name: string | null;
+}
+export interface LeaseBedSnapshot {
+  label: string | null;
+}
+export interface LeaseTenantSnapshot {
+  name: string | null;
+  email: string | null;
+}
+
+export interface LeaseDocument {
+  id: string;
+  owner_id: string;
+  property_id: string;
+  room_id: string | null;
+  bed_id: string | null;
+  tenant_id: string | null;
+  application_id: string | null;
+  title: string;
+  status: LeaseDocumentStatus;
+  original_file_path: string | null;
+  lease_start_date: string | null;
+  lease_end_date: string | null;
+  lease_term_type: LeaseTermType | null;
+  monthly_rent_snapshot: number | null;
+  deposit_amount_snapshot: number | null;
+  property_snapshot: LeasePropertySnapshot | null;
+  room_snapshot: LeaseRoomSnapshot | null;
+  bed_snapshot: LeaseBedSnapshot | null;
+  tenant_snapshot: LeaseTenantSnapshot | null;
+  created_at: string;
+  updated_at: string;
+}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ArrowRight } from "lucide-react";
+import { CalendarDays, ArrowRight, FileSignature } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/StatusPill";
 import { APPLICATION_STATUS_STYLES, labelForCommuterStatus } from "@/lib/constants";
@@ -68,13 +68,23 @@ export function PropertyApplicationsPanel({
                     )}
                   </div>
                 </div>
-                <Link
-                  href={`/dashboard/applications/${app.id}`}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Review
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+                {app.status === "approved" ? (
+                  <Link
+                    href={`/dashboard/applications/${app.id}#lease`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+                  >
+                    <FileSignature className="h-3.5 w-3.5" />
+                    Prepare Lease
+                  </Link>
+                ) : (
+                  <Link
+                    href={`/dashboard/applications/${app.id}`}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Review
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                )}
               </div>
             );
           })}
