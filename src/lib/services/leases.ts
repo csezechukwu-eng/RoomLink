@@ -21,6 +21,11 @@ function fmtNum(n: number | null | undefined): string {
   return Number(n).toFixed(2);
 }
 
+function fmtMoney(n: number | null | undefined): string {
+  if (n == null) return "";
+  return `$${Number(n).toFixed(2)}`;
+}
+
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "";
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
