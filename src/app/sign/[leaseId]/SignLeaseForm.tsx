@@ -3,7 +3,7 @@
 import { useState, useActionState } from "react";
 import { Check, FileSignature } from "lucide-react";
 import { SignaturePad } from "@/components/SignaturePad";
-import { signLeaseAsTenantAction } from "@/lib/actions/leases";
+import { signLeaseAsTenant } from "@/lib/actions/leaseDocuments";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
 export function SignLeaseForm({ leaseId, tenantName }: Props) {
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [state, formAction, isPending] = useActionState(signLeaseAsTenantAction, { status: "idle" });
+  const [state, formAction, isPending] = useActionState(signLeaseAsTenant, { status: "idle" });
 
   const handleSignatureCapture = (data: string) => {
     setSignatureData(data);
@@ -25,7 +25,7 @@ export function SignLeaseForm({ leaseId, tenantName }: Props) {
     if (!signatureData || !agreedToTerms) return;
 
     const formData = new FormData();
-    formData.set("lease_id", leaseId);
+    formData.set("id", leaseId);
     formData.set("signature_data", signatureData);
     formAction(formData);
   };

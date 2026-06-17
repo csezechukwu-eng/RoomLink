@@ -1,4 +1,4 @@
-import { CheckCircle2, BedDouble, ClipboardList, FileSignature, ExternalLink } from "lucide-react";
+import { CheckCircle2, BedDouble, ClipboardList, FileSignature } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
@@ -8,14 +8,14 @@ import { Card } from "@/components/ui/card";
 import { getCurrentTenantId } from "@/lib/auth";
 import { getTenantApplications } from "@/lib/services/applications";
 import { getTenantReservation } from "@/lib/services/reservations";
-import { getTenantLeases, type LeaseWithRefs } from "@/lib/services/leases";
+import { getTenantLeaseDocuments } from "@/lib/services/leaseDocuments";
 import {
   APPLICATION_STATUS_STYLES,
   DEPOSIT_STATUS_STYLES,
   RESERVATION_STATUS_STYLES,
 } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
-import type { LeaseStatus } from "@/lib/types";
+import type { LeaseDocumentStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -28,13 +28,12 @@ function formatDate(value: string | null): string | null {
   });
 }
 
-const LEASE_STATUS_STYLES: Record<LeaseStatus, { label: string; badge: string }> = {
+const LEASE_STATUS_STYLES: Record<LeaseDocumentStatus, { label: string; badge: string }> = {
   draft: { label: "Draft", badge: "bg-slate-100 text-slate-600" },
-  sent: { label: "Awaiting Signature", badge: "bg-amber-50 text-amber-700" },
-  delivered: { label: "Opened", badge: "bg-blue-50 text-blue-700" },
+  preparing: { label: "Preparing", badge: "bg-slate-100 text-slate-600" },
+  out_for_signature: { label: "Awaiting Signature", badge: "bg-amber-50 text-amber-700" },
   completed: { label: "Signed", badge: "bg-emerald-50 text-emerald-700" },
-  declined: { label: "Declined", badge: "bg-red-50 text-red-700" },
-  voided: { label: "Voided", badge: "bg-slate-100 text-slate-500" },
+  cancelled: { label: "Cancelled", badge: "bg-slate-100 text-slate-500" },
 };
 
 export default async function TenantStatusPage({
@@ -47,7 +46,7 @@ export default async function TenantStatusPage({
   const [appsResult, reservationResult, leasesResult] = await Promise.all([
     getTenantApplications(tenantId),
     getTenantReservation(tenantId),
-    getTenantLeases(tenantId),
+    getTenantLeaseDocuments(tenantId),
   ]);
 
   if (appsResult.error !== null || reservationResult.error !== null || leasesResult.error !== null) {
@@ -184,9 +183,12 @@ export default async function TenantStatusPage({
         ) : (
           <div className="space-y-3">
             {leases.map((lease) => {
-              const line = [lease.room_name, lease.bed_label].filter(Boolean).join(" · ");
-              const style = LEASE_STATUS_STYLES[lease.status];
-              const canSign = lease.status === "sent" || lease.status === "delivered";
+              const line = [lease.room_snapshot?.name, lease.bed_snapshot?.label]
+                .filter(Boolean)
+                .join(" · ");
+              const style = LEASE_STATUS_STYLES[lease.status] ?? LEASE_STATUS_STYLES.draft;
+              const canSign =
+                lease.status === "out_for_signature" && !lease.tenant_signed_at;
 
               return (
                 <Card key={lease.id} className="p-5">
@@ -201,13 +203,13 @@ export default async function TenantStatusPage({
                         </p>
                         <p className="text-sm text-slate-500">
                           {line || "Bed rental agreement"}
-                          {lease.monthly_rent !== null
-                            ? ` · ${formatCurrency(lease.monthly_rent)}/mo`
+                          {lease.monthly_rent_snapshot !== null
+                            ? ` · ${formatCurrency(lease.monthly_rent_snapshot)}/mo`
                             : ""}
                         </p>
-                        {lease.lease_start && (
+                        {lease.lease_start_date && (
                           <p className="text-sm text-slate-500">
-                            Starts {formatDate(lease.lease_start)}
+                            Starts {formatDate(lease.lease_start_date)}
                           </p>
                         )}
                       </div>
@@ -220,31 +222,19 @@ export default async function TenantStatusPage({
                       <div className="flex items-center gap-2 text-sm text-emerald-700">
                         <CheckCircle2 className="h-4 w-4" />
                         <span>Lease signed successfully</span>
-                        {lease.signed_pdf_url && (
-                          <a
-                            href={lease.signed_pdf_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 font-medium text-indigo-600 hover:text-indigo-700"
-                          >
-                            View PDF <ExternalLink className="h-3 w-3" />
-                          </a>
-                        )}
                       </div>
                     ) : canSign ? (
                       <Link
-                        href={`/api/leases/${lease.id}/sign?role=tenant`}
+                        href={`/sign/${lease.id}`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
                       >
                         <FileSignature className="h-4 w-4" />
                         Sign Lease
                       </Link>
-                    ) : lease.status === "declined" ? (
-                      <p className="text-sm text-red-600">This lease was declined.</p>
-                    ) : lease.status === "voided" ? (
-                      <p className="text-sm text-slate-500">This lease was voided by the landlord.</p>
                     ) : (
-                      <p className="text-sm text-slate-500">Waiting for landlord to send the lease.</p>
+                      <p className="text-sm text-slate-500">
+                        Waiting for the landlord to send the lease.
+                      </p>
                     )}
                   </div>
                 </Card>

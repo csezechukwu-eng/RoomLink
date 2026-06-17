@@ -10,6 +10,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { ConfirmDeleteButton } from "@/components/forms/ConfirmDeleteButton";
 import { ReplaceLeasePdfModal } from "@/components/host/ReplaceLeasePdfModal";
+import { LeaseSigningPanel } from "@/components/host/LeaseSigningPanel";
 import {
   getLeaseDocument,
   getLeaseDocumentSignedUrl,
@@ -23,6 +24,8 @@ export const dynamic = "force-dynamic";
 const STATUS: Record<string, { label: string; badge: string }> = {
   draft: { label: "Draft", badge: "bg-slate-100 text-slate-600" },
   preparing: { label: "Preparing", badge: "bg-amber-50 text-amber-700" },
+  out_for_signature: { label: "Out for signature", badge: "bg-blue-50 text-blue-700" },
+  completed: { label: "Signed", badge: "bg-emerald-50 text-emerald-700" },
   cancelled: { label: "Cancelled", badge: "bg-slate-100 text-slate-500" },
 };
 
@@ -61,7 +64,11 @@ export default async function LeaseDocumentPage({
 
   const doc = result.data;
   const status = STATUS[doc.status] ?? STATUS.draft;
-  const editable = doc.status === "draft" || doc.status === "preparing";
+  const canReplace = doc.status === "draft" || doc.status === "preparing";
+  const canCancel =
+    doc.status === "draft" ||
+    doc.status === "preparing" ||
+    doc.status === "out_for_signature";
 
   const urlResult = await getLeaseDocumentSignedUrl(leaseDocumentId);
   const pdfUrl = urlResult.error === null ? urlResult.data : null;
@@ -95,8 +102,8 @@ export default async function LeaseDocumentPage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {editable && <ReplaceLeasePdfModal leaseDocumentId={doc.id} />}
-          {editable && (
+          {canReplace && <ReplaceLeasePdfModal leaseDocumentId={doc.id} />}
+          {canCancel && (
             <ConfirmDeleteButton
               action={cancelLeaseDocument}
               fields={{ id: doc.id }}
@@ -203,27 +210,18 @@ export default async function LeaseDocumentPage({
             </p>
           </Section>
 
-          <Section title="Next step">
-            <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50">
-                <Layers className="h-4 w-4 text-indigo-600" />
-              </span>
-              <div>
-                <p className="text-sm font-medium text-slate-900">Add fillable fields</p>
-                <p className="mt-0.5 text-sm text-slate-500">
-                  Field placement will be built in the next phase.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              disabled
-              className="mt-4 w-full cursor-not-allowed rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-400"
-              title="Coming in the next phase"
-            >
-              Continue to Prepare Fields (coming next)
-            </button>
-            {/* TODO (Phase 2): field placement. TODO (later): tenant signing. */}
+          <Section title="Signing">
+            <LeaseSigningPanel
+              leaseDocumentId={doc.id}
+              status={doc.status}
+              landlordSigned={Boolean(doc.landlord_signed_at)}
+              tenantSigned={Boolean(doc.tenant_signed_at)}
+            />
+            <p className="mt-4 flex items-start gap-2 border-t border-slate-100 pt-3 text-xs text-slate-400">
+              <Layers className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              Drag-and-drop field placement on the PDF is coming in a later phase;
+              for now signatures are captured and the lease is marked executed.
+            </p>
           </Section>
         </div>
       </div>

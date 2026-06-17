@@ -5,6 +5,9 @@ import {
   createLeaseDocument,
   cancelLeaseDocument as cancelLeaseDocumentService,
   replaceLeaseDocumentFile,
+  sendLeaseDocumentForSignature,
+  signLeaseDocumentAsLandlord,
+  signLeaseDocumentAsTenant,
 } from "@/lib/services/leaseDocuments";
 import type { LeaseTermType } from "@/lib/types";
 import {
@@ -94,6 +97,47 @@ export async function replaceLeasePdf(
 
   revalidateApp();
   return successState("Lease PDF replaced.");
+}
+
+/** Landlord: send a prepared lease out for signature. */
+export async function sendLeaseForSignature(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = str(formData, "id");
+  if (!id) return errorState("Missing lease document id.");
+  const result = await sendLeaseDocumentForSignature(id);
+  if (result.error !== null) return errorState(result.error);
+  revalidateApp();
+  return successState("Lease sent for signature.");
+}
+
+/** Landlord: sign a lease with the saved signature. */
+export async function signLeaseAsLandlord(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = str(formData, "id");
+  if (!id) return errorState("Missing lease document id.");
+  const result = await signLeaseDocumentAsLandlord(id);
+  if (result.error !== null) return errorState(result.error);
+  revalidateApp();
+  return successState("Lease signed.");
+}
+
+/** Tenant (link-based): sign a lease with a drawn signature. */
+export async function signLeaseAsTenant(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = str(formData, "id");
+  const signatureData = str(formData, "signature_data");
+  if (!id) return errorState("Missing lease id.");
+  if (!signatureData) return errorState("Please provide your signature.");
+  const result = await signLeaseDocumentAsTenant(id, signatureData);
+  if (result.error !== null) return errorState(result.error);
+  revalidateApp();
+  return successState("Lease signed successfully.");
 }
 
 /** Landlord: cancel a draft/preparing lease document. */

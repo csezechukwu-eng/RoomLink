@@ -369,7 +369,12 @@ export interface Lease {
 // Lease Documents (uploaded PDF lease prep — landlord workflow, Phase 1)
 // ---------------------------------------------------------------------------
 
-export type LeaseDocumentStatus = "draft" | "preparing" | "cancelled";
+export type LeaseDocumentStatus =
+  | "draft"
+  | "preparing"
+  | "out_for_signature"
+  | "completed"
+  | "cancelled";
 export type LeaseTermType = "month_to_month" | "fixed_term" | "short_term_bed";
 
 export interface LeasePropertySnapshot {
@@ -407,6 +412,13 @@ export interface LeaseDocument {
   room_snapshot: LeaseRoomSnapshot | null;
   bed_snapshot: LeaseBedSnapshot | null;
   tenant_snapshot: LeaseTenantSnapshot | null;
+  // In-app signing
+  landlord_signature_data: string | null;
+  landlord_signed_at: string | null;
+  tenant_signature_data: string | null;
+  tenant_signed_at: string | null;
+  sent_at: string | null;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,33 +1,11 @@
-import { notFound, redirect } from "next/navigation";
-import { getServiceClient } from "@/lib/supabase/server";
-import type { Lease } from "@/lib/types";
+import { notFound } from "next/navigation";
+import { getLeaseDocumentForSigning } from "@/lib/services/leaseDocuments";
 import { SignLeaseForm } from "./SignLeaseForm";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ leaseId: string }>;
-}
-
-async function getLease(leaseId: string): Promise<Lease | null> {
-  const supabase = getServiceClient();
-  const { data } = await supabase
-    .from("leases")
-    .select("*")
-    .eq("id", leaseId)
-    .maybeSingle();
-  return (data as Lease) ?? null;
-}
-
-async function getPropertyName(propertyId: string): Promise<string> {
-  const supabase = getServiceClient();
-  const { data } = await supabase
-    .from("properties")
-    .select("name, address, city, state")
-    .eq("id", propertyId)
-    .maybeSingle();
-  if (!data) return "Property";
-  return data.name || [data.address, data.city, data.state].filter(Boolean).join(", ") || "Property";
 }
 
 function formatDate(value: string | null): string {
@@ -51,64 +29,43 @@ function formatCurrency(amount: number | null): string {
 
 export default async function SignLeasePage({ params }: Props) {
   const { leaseId } = await params;
-  const lease = await getLease(leaseId);
+  const result = await getLeaseDocumentForSigning(leaseId);
+  const lease = result.error === null ? result.data : null;
 
-  if (!lease) {
-    notFound();
-  }
+  if (!lease) notFound();
 
-  // Already signed - show confirmation
+  const tenantName = lease.tenant_snapshot?.name || "Tenant";
+
+  // Already signed by tenant.
   if (lease.tenant_signed_at) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-4">
-        <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-lg">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-            <svg className="h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">Already Signed</h1>
-          <p className="mt-2 text-slate-600">
-            You have already signed this lease agreement on {formatDate(lease.tenant_signed_at)}.
+      <CenteredCard tone="emerald" title="Already signed">
+        You signed this lease on {formatDate(lease.tenant_signed_at)}.
+        {lease.status === "completed" && (
+          <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
+            This lease is fully executed — both parties have signed.
           </p>
-          {lease.status === "completed" && (
-            <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
-              This lease is fully executed. Both parties have signed.
-            </p>
-          )}
-        </div>
-      </div>
+        )}
+      </CenteredCard>
     );
   }
 
-  // Lease not in signable state
-  if (lease.status !== "sent" && lease.status !== "delivered") {
+  // Not in a signable state.
+  if (lease.status !== "out_for_signature") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-4">
-        <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-lg">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
-            <svg className="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">Lease Not Available</h1>
-          <p className="mt-2 text-slate-600">
-            This lease is not currently available for signing. Please contact your landlord.
-          </p>
-        </div>
-      </div>
+      <CenteredCard tone="amber" title="Lease not available">
+        This lease isn&apos;t currently available for signing. Please contact your
+        landlord.
+      </CenteredCard>
     );
   }
-
-  const propertyName = await getPropertyName(lease.property_id);
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-3xl px-4 py-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white">
               RL
             </div>
             <div>
@@ -119,53 +76,35 @@ export default async function SignLeasePage({ params }: Props) {
         </div>
       </header>
 
-      {/* Content */}
       <main className="mx-auto max-w-3xl px-4 py-8">
-        {/* Welcome */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-900">
-            Hello, {lease.tenant_name || "Tenant"}
-          </h2>
+          <h2 className="text-2xl font-bold text-slate-900">Hello, {tenantName}</h2>
           <p className="mt-2 text-slate-600">
-            Please review the lease agreement below and sign to complete.
+            Please review the lease below and sign to complete.
           </p>
         </div>
 
-        {/* Lease Details Card */}
         <div className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">Lease Agreement Details</h3>
-
+          <h3 className="text-lg font-semibold text-slate-900">Lease details</h3>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div>
-              <p className="text-sm text-slate-500">Property</p>
-              <p className="font-medium text-slate-900">{propertyName}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Tenant</p>
-              <p className="font-medium text-slate-900">{lease.tenant_name || "—"}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Monthly Rent</p>
-              <p className="font-medium text-slate-900">{formatCurrency(lease.monthly_rent)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Security Deposit</p>
-              <p className="font-medium text-slate-900">{formatCurrency(lease.deposit_amount)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Lease Start</p>
-              <p className="font-medium text-slate-900">{formatDate(lease.lease_start)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Lease End</p>
-              <p className="font-medium text-slate-900">{formatDate(lease.lease_end)}</p>
-            </div>
+            <Detail label="Property" value={lease.property_name ?? lease.property_snapshot?.name ?? "—"} />
+            <Detail
+              label="Room / Bed"
+              value={
+                [lease.room_snapshot?.name, lease.bed_snapshot?.label]
+                  .filter(Boolean)
+                  .join(" · ") || "—"
+              }
+            />
+            <Detail label="Monthly rent" value={formatCurrency(lease.monthly_rent_snapshot)} />
+            <Detail label="Security deposit" value={formatCurrency(lease.deposit_amount_snapshot)} />
+            <Detail label="Lease start" value={formatDate(lease.lease_start_date)} />
+            <Detail label="Lease end" value={formatDate(lease.lease_end_date)} />
           </div>
 
-          {/* Landlord Signature */}
           {lease.landlord_signature_data && (
             <div className="mt-6 border-t border-slate-100 pt-6">
-              <p className="text-sm text-slate-500">Landlord Signature</p>
+              <p className="text-sm text-slate-500">Landlord signature</p>
               <div className="mt-2 flex items-center gap-3">
                 <div className="rounded-lg bg-slate-50 p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -175,25 +114,58 @@ export default async function SignLeasePage({ params }: Props) {
                     className="h-12 object-contain"
                   />
                 </div>
-                <div className="text-sm text-slate-500">
+                <span className="text-sm text-slate-500">
                   Signed {formatDate(lease.landlord_signed_at)}
-                </div>
+                </span>
               </div>
             </div>
           )}
         </div>
 
-        {/* Sign Form */}
-        <SignLeaseForm leaseId={lease.id} tenantName={lease.tenant_name || "Tenant"} />
+        <SignLeaseForm leaseId={lease.id} tenantName={tenantName} />
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-slate-200 bg-white py-6">
         <div className="mx-auto max-w-3xl px-4 text-center text-sm text-slate-500">
-          <p>By signing this agreement, you agree to the terms and conditions of the lease.</p>
+          <p>By signing, you agree to the terms of this lease agreement.</p>
           <p className="mt-2">Room Link &copy; {new Date().getFullYear()}</p>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-sm text-slate-500">{label}</p>
+      <p className="font-medium text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function CenteredCard({
+  tone,
+  title,
+  children,
+}: {
+  tone: "emerald" | "amber";
+  title: string;
+  children: React.ReactNode;
+}) {
+  const ring =
+    tone === "emerald" ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600";
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-8 text-center shadow-lg">
+        <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${ring}`}>
+          <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
+        <div className="mt-2 text-slate-600">{children}</div>
+      </div>
     </div>
   );
 }

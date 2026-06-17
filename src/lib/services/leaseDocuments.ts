@@ -281,6 +281,203 @@ export async function replaceLeaseDocumentFile(
   }
 }
 
+export interface LeaseDocumentWithProperty extends LeaseDocument {
+  property_name: string | null;
+}
+
+/** All of the current owner's lease documents (newest first) with property name. */
+export async function listLeaseDocuments(): Promise<
+  Result<LeaseDocumentWithProperty[]>
+> {
+  try {
+    const ownerId = await getCurrentOwnerId();
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+      .from("lease_documents")
+      .select("*")
+      .eq("owner_id", ownerId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    const rows = (data ?? []) as LeaseDocument[];
+    if (rows.length === 0) return ok([]);
+
+    const propertyIds = [...new Set(rows.map((r) => r.property_id))];
+    const { data: props } = await supabase
+      .from("properties")
+      .select("id, name")
+      .in("id", propertyIds);
+    const propName = new Map((props ?? []).map((p) => [p.id, p.name]));
+    return ok(
+      rows.map((r) => ({ ...r, property_name: propName.get(r.property_id) ?? null }))
+    );
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Tenant portal: lease documents assigned to a tenant (newest first). */
+export async function getTenantLeaseDocuments(
+  tenantId: string
+): Promise<Result<LeaseDocumentWithProperty[]>> {
+  try {
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+      .from("lease_documents")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .neq("status", "cancelled")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    const rows = (data ?? []) as LeaseDocument[];
+    if (rows.length === 0) return ok([]);
+    const propertyIds = [...new Set(rows.map((r) => r.property_id))];
+    const { data: props } = await supabase
+      .from("properties")
+      .select("id, name")
+      .in("id", propertyIds);
+    const propName = new Map((props ?? []).map((p) => [p.id, p.name]));
+    return ok(
+      rows.map((r) => ({ ...r, property_name: propName.get(r.property_id) ?? null }))
+    );
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Public (link-based) fetch of a lease document for the tenant signing page. */
+export async function getLeaseDocumentForSigning(
+  id: string
+): Promise<Result<LeaseDocumentWithProperty | null>> {
+  try {
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+      .from("lease_documents")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return ok(null);
+    const doc = data as LeaseDocument;
+    const { data: prop } = await supabase
+      .from("properties")
+      .select("name")
+      .eq("id", doc.property_id)
+      .maybeSingle();
+    return ok({ ...doc, property_name: prop?.name ?? null });
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Landlord: send a prepared lease out for signature (owner-scoped). */
+export async function sendLeaseDocumentForSignature(
+  id: string
+): Promise<Result<null>> {
+  try {
+    const docResult = await getLeaseDocument(id);
+    if (docResult.error !== null) return fail(docResult.error);
+    const doc = docResult.data;
+    if (!doc) return fail("You do not have access to this lease document.");
+    if (!doc.original_file_path) return fail("Upload a lease PDF before sending.");
+    if (doc.status === "cancelled") return fail("This lease was cancelled.");
+    if (doc.status === "completed") return fail("This lease is already completed.");
+
+    const ownerId = await getCurrentOwnerId();
+    const supabase = getServiceClient();
+    const { error } = await supabase
+      .from("lease_documents")
+      .update({ status: "out_for_signature", sent_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("owner_id", ownerId);
+    if (error) throw error;
+    return ok(null);
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Landlord: apply the landlord's saved signature to a lease (owner-scoped). */
+export async function signLeaseDocumentAsLandlord(
+  id: string
+): Promise<Result<null>> {
+  try {
+    const ownerId = await getCurrentOwnerId();
+    const supabase = getServiceClient();
+
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("signature_data")
+      .eq("id", ownerId)
+      .maybeSingle();
+    if (!userRow?.signature_data)
+      return fail("Set up your signature in Settings first.");
+
+    const docResult = await getLeaseDocument(id);
+    if (docResult.error !== null) return fail(docResult.error);
+    const doc = docResult.data;
+    if (!doc) return fail("You do not have access to this lease document.");
+    if (doc.status === "cancelled") return fail("This lease was cancelled.");
+    if (doc.landlord_signed_at) return fail("You have already signed this lease.");
+
+    const now = new Date().toISOString();
+    const completed = Boolean(doc.tenant_signed_at);
+    const { error } = await supabase
+      .from("lease_documents")
+      .update({
+        landlord_signature_data: userRow.signature_data,
+        landlord_signed_at: now,
+        status: completed ? "completed" : "out_for_signature",
+        completed_at: completed ? now : null,
+      })
+      .eq("id", id)
+      .eq("owner_id", ownerId);
+    if (error) throw error;
+    return ok(null);
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/** Tenant (link-based): apply the tenant's drawn signature to a lease. */
+export async function signLeaseDocumentAsTenant(
+  id: string,
+  signatureData: string
+): Promise<Result<null>> {
+  try {
+    if (!signatureData.startsWith("data:image/png;base64,"))
+      return fail("Invalid signature format.");
+
+    const supabase = getServiceClient();
+    const { data, error: fErr } = await supabase
+      .from("lease_documents")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (fErr) throw fErr;
+    const doc = (data as LeaseDocument) ?? null;
+    if (!doc) return fail("Lease not found.");
+    if (doc.tenant_signed_at) return fail("This lease has already been signed.");
+    if (doc.status !== "out_for_signature")
+      return fail("This lease is not available for signing.");
+
+    const now = new Date().toISOString();
+    const completed = Boolean(doc.landlord_signed_at);
+    const { error } = await supabase
+      .from("lease_documents")
+      .update({
+        tenant_signature_data: signatureData,
+        tenant_signed_at: now,
+        status: completed ? "completed" : "out_for_signature",
+        completed_at: completed ? now : null,
+      })
+      .eq("id", id);
+    if (error) throw error;
+    return ok(null);
+  } catch (error) {
+    return fail(error);
+  }
+}
+
 /** Cancel a draft/preparing lease document (owner-scoped). */
 export async function cancelLeaseDocument(id: string): Promise<Result<null>> {
   try {
@@ -295,6 +492,7 @@ export async function cancelLeaseDocument(id: string): Promise<Result<null>> {
     if (error) throw error;
     if (!doc) return fail("You do not have access to this lease document.");
     if (doc.status === "cancelled") return ok(null);
+    if (doc.status === "completed") return fail("A completed lease can't be cancelled.");
 
     const { error: updErr } = await supabase
       .from("lease_documents")
