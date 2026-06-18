@@ -74,7 +74,9 @@ export function PdfViewer({
     let active = true;
     import("react-pdf").then(({ pdfjs }) => {
       if (!active) return;
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      // Self-hosted worker (public/pdf.worker.min.mjs), kept in sync with the
+      // installed pdfjs-dist version — no external CDN dependency at runtime.
+      pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
       setWorkerReady(true);
     });
     return () => {

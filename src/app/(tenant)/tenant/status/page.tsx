@@ -225,7 +225,7 @@ export default async function TenantStatusPage({
                       </div>
                     ) : canSign ? (
                       <Link
-                        href={`/sign/${lease.id}`}
+                        href={`/sign/${lease.id}?token=${lease.signing_token}`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
                       >
                         <FileSignature className="h-4 w-4" />

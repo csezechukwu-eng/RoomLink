@@ -212,6 +212,7 @@ export default async function LeaseDocumentPage({
           <Section title="Signing">
             <LeaseSigningPanel
               leaseDocumentId={doc.id}
+              signingToken={doc.signing_token}
               status={doc.status}
               landlordSigned={Boolean(doc.landlord_signed_at)}
               tenantSigned={Boolean(doc.tenant_signed_at)}

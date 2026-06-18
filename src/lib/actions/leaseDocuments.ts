@@ -139,10 +139,12 @@ export async function signLeaseAsTenant(
   formData: FormData
 ): Promise<ActionState> {
   const id = str(formData, "id");
+  const token = str(formData, "token");
   const signatureData = str(formData, "signature_data");
   if (!id) return errorState("Missing lease id.");
+  if (!token) return errorState("Missing signing token.");
   if (!signatureData) return errorState("Please provide your signature.");
-  const result = await signLeaseDocumentAsTenant(id, signatureData);
+  const result = await signLeaseDocumentAsTenant(id, token, signatureData);
   if (result.error !== null) return errorState(result.error);
   revalidateApp();
   return successState("Lease signed successfully.");
@@ -203,12 +205,14 @@ export async function signLeaseAsTenantWithStamp(
   formData: FormData
 ): Promise<ActionState> {
   const id = str(formData, "id");
+  const token = str(formData, "token");
   const signatureData = str(formData, "signature_data");
   if (!id) return errorState("Missing lease id.");
+  if (!token) return errorState("Missing signing token.");
   if (!signatureData) return errorState("Please provide your signature.");
 
   try {
-    const result = await signLeaseDocumentAsTenantWithStamp(id, signatureData);
+    const result = await signLeaseDocumentAsTenantWithStamp(id, token, signatureData);
     if (result.error !== null) return errorState(result.error);
   } catch (error) {
     return errorState(messageFrom(error));

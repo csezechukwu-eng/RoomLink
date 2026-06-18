@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServiceClient } from "@/lib/supabase/server";
+import { createAuthenticatedClient, getServiceClient } from "@/lib/supabase/server";
 
 const MIME_TYPES: Record<string, string> = {
   pdf: "application/pdf",
@@ -14,9 +14,47 @@ export async function GET(
   { params }: { params: Promise<{ leaseDocumentId: string }> }
 ) {
   const { leaseDocumentId } = await params;
+  const token = request.nextUrl.searchParams.get("token");
 
   try {
+    // Authorize: either an authenticated owner (RLS scopes them to their own
+    // documents), or a request carrying the document's unguessable signing
+    // token. Without one of these we refuse — previously ANY lease PDF
+    // (including signed copies) was served by id alone.
+    let authorized = false;
+    try {
+      const authClient = await createAuthenticatedClient();
+      const {
+        data: { user },
+      } = await authClient.auth.getUser();
+      if (user) {
+        const { data: owned } = await authClient
+          .from("lease_documents")
+          .select("id")
+          .eq("id", leaseDocumentId)
+          .maybeSingle();
+        if (owned) authorized = true;
+      }
+    } catch {
+      // Supabase not configured or no session — fall through to the token check.
+    }
+
     const supabase = getServiceClient();
+
+    if (!authorized) {
+      if (!token) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      const { data: match } = await supabase
+        .from("lease_documents")
+        .select("id")
+        .eq("id", leaseDocumentId)
+        .eq("signing_token", token)
+        .maybeSingle();
+      if (!match) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
 
     // Get the lease document to find the file path
     const { data: doc, error: docError } = await supabase

@@ -12,6 +12,7 @@ import type { SignatureField } from "@/lib/types";
 
 interface Props {
   leaseId: string;
+  token: string;
   tenantName: string;
   pdfUrl: string | null;
   signatureFields: SignatureField[];
@@ -21,6 +22,7 @@ const PDF_WIDTH = 600;
 
 export function SignLeaseForm({
   leaseId,
+  token,
   tenantName,
   pdfUrl,
   signatureFields,
@@ -44,6 +46,7 @@ export function SignLeaseForm({
 
     const formData = new FormData();
     formData.set("id", leaseId);
+    formData.set("token", token);
     formData.set("signature_data", signatureData);
     formAction(formData);
   };

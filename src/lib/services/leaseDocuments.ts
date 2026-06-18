@@ -514,6 +514,7 @@ export async function signLeaseDocumentAsLandlord(
 /** Tenant (link-based): apply the tenant's drawn signature to a lease. */
 export async function signLeaseDocumentAsTenant(
   id: string,
+  token: string,
   signatureData: string
 ): Promise<Result<null>> {
   try {
@@ -529,6 +530,8 @@ export async function signLeaseDocumentAsTenant(
     if (fErr) throw fErr;
     const doc = (data as LeaseDocument) ?? null;
     if (!doc) return fail("Lease not found.");
+    if (doc.signing_token !== token)
+      return fail("Invalid or expired signing link.");
     if (doc.tenant_signed_at) return fail("This lease has already been signed.");
     if (doc.status !== "out_for_signature")
       return fail("This lease is not available for signing.");
@@ -789,6 +792,7 @@ export async function getLeaseDocumentPdfUrlForSigning(
  */
 export async function signLeaseDocumentAsTenantWithStamp(
   id: string,
+  token: string,
   signatureData: string
 ): Promise<Result<null>> {
   try {
@@ -804,6 +808,8 @@ export async function signLeaseDocumentAsTenantWithStamp(
     if (fErr) throw fErr;
     const doc = (data as LeaseDocument) ?? null;
     if (!doc) return fail("Lease not found.");
+    if (doc.signing_token !== token)
+      return fail("Invalid or expired signing link.");
     if (doc.tenant_signed_at) return fail("This lease has already been signed.");
     if (doc.status !== "out_for_signature")
       return fail("This lease is not available for signing.");

@@ -411,6 +411,7 @@ export interface LeaseDocument {
   bed_id: string | null;
   tenant_id: string | null;
   application_id: string | null;
+  signing_token: string;
   title: string;
   status: LeaseDocumentStatus;
   original_file_path: string | null;

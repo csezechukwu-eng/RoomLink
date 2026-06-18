@@ -15,6 +15,7 @@ import type { LeaseDocumentStatus } from "@/lib/types";
 
 interface Props {
   leaseDocumentId: string;
+  signingToken: string;
   status: LeaseDocumentStatus;
   landlordSigned: boolean;
   tenantSigned: boolean;
@@ -22,16 +23,18 @@ interface Props {
 
 export function LeaseSigningPanel({
   leaseDocumentId,
+  signingToken,
   status,
   landlordSigned,
   tenantSigned,
 }: Props) {
   const [copied, setCopied] = React.useState(false);
 
+  const signingPath = `/sign/${leaseDocumentId}?token=${signingToken}`;
   const signingUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/sign/${leaseDocumentId}`
-      : `/sign/${leaseDocumentId}`;
+      ? `${window.location.origin}${signingPath}`
+      : signingPath;
 
   const copyLink = async () => {
     try {

@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ leaseId: string }>;
+  searchParams: Promise<{ token?: string }>;
 }
 
 function formatDate(value: string | null): string {
@@ -27,14 +28,18 @@ function formatCurrency(amount: number | null): string {
   }).format(amount);
 }
 
-export default async function SignLeasePage({ params }: Props) {
+export default async function SignLeasePage({ params, searchParams }: Props) {
   const { leaseId } = await params;
+  const { token } = await searchParams;
   const result = await getLeaseDocumentForSigning(leaseId);
   const lease = result.error === null ? result.data : null;
-  // Use our API route for the PDF
-  const pdfUrl = `/api/pdf/${leaseId}`;
 
-  if (!lease) notFound();
+  // Require the document's signing token — the lease id alone must not grant
+  // access to view or sign someone else's lease.
+  if (!lease || !token || token !== lease.signing_token) notFound();
+
+  // Carry the token so the PDF proxy authorizes this anonymous signer.
+  const pdfUrl = `/api/pdf/${leaseId}?token=${encodeURIComponent(token)}`;
 
   const tenantName = lease.tenant_snapshot?.name || "Tenant";
 
@@ -126,6 +131,7 @@ export default async function SignLeasePage({ params }: Props) {
 
         <SignLeaseForm
           leaseId={lease.id}
+          token={token}
           tenantName={tenantName}
           pdfUrl={pdfUrl}
           signatureFields={lease.signature_fields ?? []}
