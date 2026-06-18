@@ -8,8 +8,10 @@ import {
   sendLeaseDocumentForSignature,
   signLeaseDocumentAsLandlord,
   signLeaseDocumentAsTenant,
+  reviewSignAndSendLease,
+  signLeaseDocumentAsTenantWithStamp,
 } from "@/lib/services/leaseDocuments";
-import type { LeaseTermType } from "@/lib/types";
+import type { LeaseTermType, SignatureField } from "@/lib/types";
 import {
   type ActionState,
   errorState,
@@ -26,7 +28,12 @@ const TERM_TYPES = new Set<LeaseTermType>([
   "short_term_bed",
 ]);
 
-/** Landlord: upload a lease PDF and create the lease document record. */
+// Only accept PDF for electronic signing
+const ACCEPTED_DOCUMENT_TYPES = new Set([
+  "application/pdf",
+]);
+
+/** Landlord: upload a lease document and create the lease document record. */
 export async function uploadLeaseDocument(
   _prev: ActionState,
   formData: FormData
@@ -44,9 +51,9 @@ export async function uploadLeaseDocument(
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0)
-    return errorState("Choose a PDF lease document to upload.");
-  if (file.type !== "application/pdf")
-    return errorState("Only PDF files are accepted.");
+    return errorState("Choose a lease document to upload.");
+  if (!ACCEPTED_DOCUMENT_TYPES.has(file.type))
+    return errorState("Please upload a PDF file for electronic signing.");
 
   let leaseId: string;
   try {
@@ -69,7 +76,7 @@ export async function uploadLeaseDocument(
   redirect(`/dashboard/lease-documents/${leaseId}`);
 }
 
-/** Landlord: replace the PDF on a draft/preparing lease document. */
+/** Landlord: replace the document on a draft/preparing lease document. */
 export async function replaceLeasePdf(
   _prev: ActionState,
   formData: FormData
@@ -79,13 +86,14 @@ export async function replaceLeasePdf(
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0)
-    return errorState("Choose a PDF lease document to upload.");
-  if (file.type !== "application/pdf")
-    return errorState("Only PDF files are accepted.");
+    return errorState("Choose a lease document to upload.");
+  if (!ACCEPTED_DOCUMENT_TYPES.has(file.type))
+    return errorState("Please upload a PDF file for electronic signing.");
 
   try {
     const bytes = await file.arrayBuffer();
     const result = await replaceLeaseDocumentFile(id, {
+      name: file.name,
       type: file.type,
       bytes,
       size: file.size,
@@ -96,7 +104,7 @@ export async function replaceLeasePdf(
   }
 
   revalidateApp();
-  return successState("Lease PDF replaced.");
+  return successState("Lease document replaced.");
 }
 
 /** Landlord: send a prepared lease out for signature. */
@@ -153,4 +161,59 @@ export async function cancelLeaseDocument(
 
   revalidateApp();
   return successState("Lease document cancelled.");
+}
+
+// ---------------------------------------------------------------------------
+// Review & Sign workflow actions
+// ---------------------------------------------------------------------------
+
+/** Landlord: review, sign, and send a lease document (new combined flow). */
+export async function reviewSignAndSend(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = str(formData, "id");
+  if (!id) return errorState("Missing lease document id.");
+
+  const signatureFieldsJson = str(formData, "signature_fields");
+  if (!signatureFieldsJson) return errorState("Missing signature field placements.");
+
+  let signatureFields: SignatureField[];
+  try {
+    signatureFields = JSON.parse(signatureFieldsJson);
+    if (!Array.isArray(signatureFields)) throw new Error("Invalid format");
+  } catch {
+    return errorState("Invalid signature field data.");
+  }
+
+  try {
+    const result = await reviewSignAndSendLease(id, signatureFields);
+    if (result.error !== null) return errorState(result.error);
+  } catch (error) {
+    return errorState(messageFrom(error));
+  }
+
+  revalidateApp();
+  redirect(`/dashboard/lease-documents/${id}`);
+}
+
+/** Tenant: sign a lease with a drawn signature (stamps onto PDF). */
+export async function signLeaseAsTenantWithStamp(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = str(formData, "id");
+  const signatureData = str(formData, "signature_data");
+  if (!id) return errorState("Missing lease id.");
+  if (!signatureData) return errorState("Please provide your signature.");
+
+  try {
+    const result = await signLeaseDocumentAsTenantWithStamp(id, signatureData);
+    if (result.error !== null) return errorState(result.error);
+  } catch (error) {
+    return errorState(messageFrom(error));
+  }
+
+  revalidateApp();
+  return successState("Lease signed successfully.");
 }

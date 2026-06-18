@@ -392,6 +392,17 @@ export interface LeaseTenantSnapshot {
   email: string | null;
 }
 
+export type SignatureFieldType = "landlord" | "tenant";
+
+export interface SignatureField {
+  type: SignatureFieldType;
+  page: number; // 0-indexed page number
+  x: number; // fraction 0-1 of page width
+  y: number; // fraction 0-1 of page height
+  width: number; // fraction 0-1 of page width
+  height: number; // fraction 0-1 of page height
+}
+
 export interface LeaseDocument {
   id: string;
   owner_id: string;
@@ -419,6 +430,9 @@ export interface LeaseDocument {
   tenant_signed_at: string | null;
   sent_at: string | null;
   completed_at: string | null;
+  // Signature placement and stamped PDF
+  signature_fields: SignatureField[] | null;
+  signed_file_path: string | null;
   created_at: string;
   updated_at: string;
 }

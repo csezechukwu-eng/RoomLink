@@ -1,22 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { useActionState } from "react";
+import Link from "next/link";
 import {
   FileSignature,
   CheckCircle2,
   AlertCircle,
   Copy,
   Check,
-  Send,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FormAlert } from "@/components/forms/FormAlert";
-import { initialActionState } from "@/lib/actions/types";
-import {
-  sendLeaseForSignature,
-  signLeaseAsLandlord,
-} from "@/lib/actions/leaseDocuments";
 import type { LeaseDocumentStatus } from "@/lib/types";
 
 interface Props {
@@ -32,8 +26,6 @@ export function LeaseSigningPanel({
   landlordSigned,
   tenantSigned,
 }: Props) {
-  const [sendState, sendAction] = useActionState(sendLeaseForSignature, initialActionState);
-  const [signState, signAction] = useActionState(signLeaseAsLandlord, initialActionState);
   const [copied, setCopied] = React.useState(false);
 
   const signingUrl =
@@ -66,16 +58,18 @@ export function LeaseSigningPanel({
 
   return (
     <div className="space-y-4">
-      <FormAlert state={sendState.status !== "idle" ? sendState : signState} />
-
       {status === "preparing" && (
-        <form action={sendAction}>
-          <input type="hidden" name="id" value={leaseDocumentId} />
-          <Button type="submit" className="w-full">
-            <Send className="h-4 w-4" />
-            Send for signature
-          </Button>
-        </form>
+        <div className="space-y-3">
+          <Link href={`/dashboard/lease-documents/${leaseDocumentId}/review`}>
+            <Button className="w-full">
+              <Eye className="h-4 w-4" />
+              Review & Sign
+            </Button>
+          </Link>
+          <p className="text-xs text-slate-500">
+            Preview the document, place your signature, and send to tenant for signing.
+          </p>
+        </div>
       )}
 
       {status === "out_for_signature" && (
@@ -86,15 +80,6 @@ export function LeaseSigningPanel({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {!landlordSigned && (
-              <form action={signAction}>
-                <input type="hidden" name="id" value={leaseDocumentId} />
-                <Button type="submit">
-                  <FileSignature className="h-4 w-4" />
-                  Sign as landlord
-                </Button>
-              </form>
-            )}
             {!tenantSigned && (
               <Button type="button" variant="outline" onClick={copyLink}>
                 {copied ? (
@@ -111,9 +96,9 @@ export function LeaseSigningPanel({
               </Button>
             )}
           </div>
-          {!landlordSigned && (
+          {landlordSigned && !tenantSigned && (
             <p className="text-xs text-slate-500">
-              Signing uses your saved signature — set one in Settings if you haven&apos;t.
+              Share the signing link with your tenant to complete the lease.
             </p>
           )}
         </>

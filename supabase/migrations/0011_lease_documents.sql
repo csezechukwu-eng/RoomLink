@@ -80,7 +80,7 @@ create policy "owners_delete_own_lease_docs" on public.lease_documents
 comment on table public.lease_documents is 'Landlord-uploaded lease PDFs being prepared for approved applicants, with term snapshots.';
 
 -- ===========================================================================
--- PRIVATE storage bucket for lease PDFs
+-- PRIVATE storage bucket for lease documents (PDF, Word, RTF, ODT)
 -- ===========================================================================
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -88,7 +88,13 @@ values (
   'lease-documents',
   false,            -- PRIVATE: never publicly readable
   20971520,         -- 20MB
-  array['application/pdf']
+  array[
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/rtf',
+    'application/vnd.oasis.opendocument.text'
+  ]
 )
 on conflict (id) do nothing;
 

@@ -14,6 +14,16 @@ import { initialActionState } from "@/lib/actions/types";
 import { uploadLeaseDocument } from "@/lib/actions/leaseDocuments";
 import { LEASE_TERM_OPTIONS } from "@/lib/leaseReadiness";
 
+const ACCEPTED_DOCUMENT_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/rtf",
+  "application/vnd.oasis.opendocument.text",
+];
+
+const ACCEPTED_EXTENSIONS = ".pdf,.doc,.docx,.rtf,.odt";
+
 interface UploadLeaseModalProps {
   applicationId: string;
   defaults?: {
@@ -29,8 +39,8 @@ export function UploadLeaseModal({ applicationId, defaults }: UploadLeaseModalPr
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f && f.type !== "application/pdf") {
-      setFileError("Only PDF files are accepted.");
+    if (f && !ACCEPTED_DOCUMENT_TYPES.includes(f.type)) {
+      setFileError("Please upload a PDF, Word document (.doc, .docx), RTF, or ODT file.");
     } else {
       setFileError(null);
     }
@@ -40,14 +50,14 @@ export function UploadLeaseModal({ applicationId, defaults }: UploadLeaseModalPr
     <>
       <Button onClick={() => setOpen(true)}>
         <Upload className="h-4 w-4" />
-        Upload Lease PDF
+        Upload Lease Document
       </Button>
 
       <Modal
         open={open}
         onClose={() => setOpen(false)}
         title="Upload lease document"
-        description="Upload your lease PDF. We'll snapshot the current terms so later edits don't change this lease."
+        description="Upload your lease document (PDF, Word, RTF, or ODT). We'll snapshot the current terms so later edits don't change this lease."
       >
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="application_id" value={applicationId} />
@@ -62,12 +72,12 @@ export function UploadLeaseModal({ applicationId, defaults }: UploadLeaseModalPr
             />
           </FormField>
 
-          <FormField label="Lease PDF" htmlFor="lease-file" required error={fileError ?? undefined}>
+          <FormField label="Lease document" htmlFor="lease-file" required error={fileError ?? undefined}>
             <input
               id="lease-file"
               name="file"
               type="file"
-              accept="application/pdf"
+              accept={ACCEPTED_EXTENSIONS}
               required
               onChange={onFileChange}
               className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"

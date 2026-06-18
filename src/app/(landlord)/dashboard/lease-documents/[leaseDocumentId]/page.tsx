@@ -4,7 +4,6 @@ import {
   FileText,
   ExternalLink,
   CheckCircle2,
-  Layers,
   Lock,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -217,11 +216,6 @@ export default async function LeaseDocumentPage({
               landlordSigned={Boolean(doc.landlord_signed_at)}
               tenantSigned={Boolean(doc.tenant_signed_at)}
             />
-            <p className="mt-4 flex items-start gap-2 border-t border-slate-100 pt-3 text-xs text-slate-400">
-              <Layers className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              Drag-and-drop field placement on the PDF is coming in a later phase;
-              for now signatures are captured and the lease is marked executed.
-            </p>
           </Section>
         </div>
       </div>

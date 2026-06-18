@@ -31,6 +31,8 @@ export default async function SignLeasePage({ params }: Props) {
   const { leaseId } = await params;
   const result = await getLeaseDocumentForSigning(leaseId);
   const lease = result.error === null ? result.data : null;
+  // Use our API route for the PDF
+  const pdfUrl = `/api/pdf/${leaseId}`;
 
   if (!lease) notFound();
 
@@ -122,7 +124,12 @@ export default async function SignLeasePage({ params }: Props) {
           )}
         </div>
 
-        <SignLeaseForm leaseId={lease.id} tenantName={tenantName} />
+        <SignLeaseForm
+          leaseId={lease.id}
+          tenantName={tenantName}
+          pdfUrl={pdfUrl}
+          signatureFields={lease.signature_fields ?? []}
+        />
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-6">

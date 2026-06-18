@@ -80,7 +80,7 @@ insert into public.applications (id, property_id, bed_id, applicant_id, full_nam
    '11111111-1111-1111-1111-111111111111',
    (select id from public.beds where property_id = '11111111-1111-1111-1111-111111111111' and room_id = '22222222-0000-0000-0000-00000000000a' and label = 'Bed 1 Top Bunk'),
    '00000000-0000-0000-0000-000000000003', 'Alex Crew', 'alex@roomlink.demo', '704-555-0103',
-   'Flight attendant commuting from ORD a few nights a week.', current_date + 7, 'pending', null);
+   'Flight attendant commuting from ORD a few nights a week.', current_date + 7, 'submitted', null);
 
 -- Reservation (from Jordan's approved application) -------------------------
 insert into public.reservations (id, property_id, bed_id, tenant_id, application_id, status, start_date, deposit_amount, deposit_status, deposit_paid_at) values
