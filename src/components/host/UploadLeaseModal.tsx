@@ -14,15 +14,9 @@ import { initialActionState } from "@/lib/actions/types";
 import { uploadLeaseDocument } from "@/lib/actions/leaseDocuments";
 import { LEASE_TERM_OPTIONS } from "@/lib/leaseReadiness";
 
-const ACCEPTED_DOCUMENT_TYPES = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/rtf",
-  "application/vnd.oasis.opendocument.text",
-];
+const ACCEPTED_DOCUMENT_TYPES = ["application/pdf"];
 
-const ACCEPTED_EXTENSIONS = ".pdf,.doc,.docx,.rtf,.odt";
+const ACCEPTED_EXTENSIONS = ".pdf";
 
 interface UploadLeaseModalProps {
   applicationId: string;
@@ -40,7 +34,7 @@ export function UploadLeaseModal({ applicationId, defaults }: UploadLeaseModalPr
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f && !ACCEPTED_DOCUMENT_TYPES.includes(f.type)) {
-      setFileError("Please upload a PDF, Word document (.doc, .docx), RTF, or ODT file.");
+      setFileError("Please upload a PDF. In Word or Google Docs, use File → Save as / Download as PDF.");
     } else {
       setFileError(null);
     }
@@ -57,7 +51,7 @@ export function UploadLeaseModal({ applicationId, defaults }: UploadLeaseModalPr
         open={open}
         onClose={() => setOpen(false)}
         title="Upload lease document"
-        description="Upload your lease document (PDF, Word, RTF, or ODT). We'll snapshot the current terms so later edits don't change this lease."
+        description="Upload your lease as a PDF (in Word or Google Docs: File → Save as / Download as PDF). We'll snapshot the current terms so later edits don't change this lease."
       >
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="application_id" value={applicationId} />

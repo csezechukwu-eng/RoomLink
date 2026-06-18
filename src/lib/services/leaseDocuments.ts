@@ -21,14 +21,6 @@ const ACCEPTED_DOCUMENT_TYPES = [
   "application/pdf",
 ];
 
-const MIME_TO_EXT: Record<string, string> = {
-  "application/pdf": "pdf",
-  "application/msword": "doc",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
-  "application/rtf": "rtf",
-  "application/vnd.oasis.opendocument.text": "odt",
-};
-
 export interface ApplicationLeaseContext {
   ctx: LeaseContext;
   existing: LeaseDocument | null;
@@ -143,7 +135,7 @@ export async function createLeaseDocument(
 ): Promise<Result<{ id: string }>> {
   try {
     if (!ACCEPTED_DOCUMENT_TYPES.includes(input.file.type))
-      return fail("Please upload a PDF, Word document (.doc, .docx), RTF, or ODT file.");
+      return fail("Please upload a PDF. In Word or Google Docs, use File → Save as / Download as PDF.");
     if (input.file.size > MAX_FILE_SIZE)
       return fail("That file is too large (20MB max).");
 

@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthenticatedClient, getServiceClient } from "@/lib/supabase/server";
 
-const MIME_TYPES: Record<string, string> = {
-  pdf: "application/pdf",
-  doc: "application/msword",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  rtf: "application/rtf",
-  odt: "application/vnd.oasis.opendocument.text",
-};
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ leaseDocumentId: string }> }
@@ -73,18 +65,6 @@ export async function GET(
       return NextResponse.json({ error: "No file available" }, { status: 404 });
     }
 
-    // Get file extension
-    const ext = filePath.split(".").pop()?.toLowerCase() ?? "pdf";
-
-    // Check if it's a PDF
-    if (ext !== "pdf") {
-      return NextResponse.json({
-        error: "NOT_PDF",
-        message: "This document is not a PDF. Please upload a PDF version for the Review & Sign flow.",
-        fileType: ext
-      }, { status: 400 });
-    }
-
     // Download the file from storage
     const { data: fileData, error: dlError } = await supabase.storage
       .from("lease-documents")
@@ -95,14 +75,29 @@ export async function GET(
       return NextResponse.json({ error: "Failed to load PDF" }, { status: 500 });
     }
 
-    // Convert to array buffer
     const arrayBuffer = await fileData.arrayBuffer();
-    const contentType = MIME_TYPES[ext] ?? "application/pdf";
 
-    // Return PDF with inline content disposition
+    // Detect a real PDF by its content (the "%PDF-" magic header), not the
+    // filename — avoids false positives (a .docx stored as .pdf) and false
+    // negatives (a real PDF stored under another extension).
+    const head = new TextDecoder("latin1").decode(
+      new Uint8Array(arrayBuffer.slice(0, 1024))
+    );
+    if (!head.includes("%PDF-")) {
+      return NextResponse.json(
+        {
+          error: "NOT_PDF",
+          message:
+            "This lease's file isn't a PDF. Replace it with a PDF (in Word or Google Docs: File → Save as / Download as PDF) to use Review & Sign.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Return the PDF inline.
     return new NextResponse(arrayBuffer, {
       headers: {
-        "Content-Type": contentType,
+        "Content-Type": "application/pdf",
         "Content-Disposition": "inline",
         "Cache-Control": "private, max-age=3600",
       },
