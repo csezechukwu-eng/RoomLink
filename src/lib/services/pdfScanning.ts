@@ -180,7 +180,6 @@ export async function scanPdfWithTextExtraction(
 
     // Split text into lines and analyze
     const lines = text.split("\n");
-    let currentPage = 0;
     let lineIndex = 0;
 
     for (const line of lines) {
