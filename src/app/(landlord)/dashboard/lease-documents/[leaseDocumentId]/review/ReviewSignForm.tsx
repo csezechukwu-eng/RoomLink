@@ -35,7 +35,6 @@ export function ReviewSignForm({
   const [state, formAction] = useActionState(reviewSignAndSend, initialActionState);
   const [numPages, setNumPages] = React.useState(0);
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [pageHeight, setPageHeight] = React.useState(800);
   const [signatureFields, setSignatureFields] = React.useState<SignatureField[]>(existingFields);
   const [confirmed, setConfirmed] = React.useState(false);
 
@@ -78,13 +77,12 @@ export function ReviewSignForm({
     setCurrentPage(targetPage + 1);
   };
 
+  // x/y arrive already normalized to 0-1 of the rendered page (converted in
+  // renderOverlay using the real page dimensions react-pdf reports), so they
+  // map directly to the fractions pdf-lib uses when stamping.
   const handleMoveField = (type: "landlord" | "tenant", x: number, y: number) => {
     setSignatureFields((prev) =>
-      prev.map((f) =>
-        f.type === type
-          ? { ...f, x: x / PDF_WIDTH, y: y / pageHeight }
-          : f
-      )
+      prev.map((f) => (f.type === type ? { ...f, x, y } : f))
     );
   };
 
@@ -105,33 +103,26 @@ export function ReviewSignForm({
     (f) => f.page === currentPage - 1
   );
 
-  const renderOverlay = (pageIndex: number, width: number, height: number) => {
-    // Update page height for coordinate calculations
-    if (height !== pageHeight) {
-      setPageHeight(height);
-    }
-
-    return (
-      <>
-        {currentPageFields.map((field) => (
-          <SignatureBox
-            key={field.type}
-            type={field.type}
-            signatureImage={field.type === "landlord" ? landlordSignature : null}
-            x={field.x * width}
-            y={field.y * height}
-            width={field.width * width}
-            height={field.height * height}
-            containerWidth={width}
-            containerHeight={height}
-            onMove={(x, y) => handleMoveField(field.type, x, y)}
-            onRemove={() => handleRemoveField(field.type)}
-            editable={true}
-          />
-        ))}
-      </>
-    );
-  };
+  const renderOverlay = (pageIndex: number, width: number, height: number) => (
+    <>
+      {currentPageFields.map((field) => (
+        <SignatureBox
+          key={field.type}
+          type={field.type}
+          signatureImage={field.type === "landlord" ? landlordSignature : null}
+          x={field.x * width}
+          y={field.y * height}
+          width={field.width * width}
+          height={field.height * height}
+          containerWidth={width}
+          containerHeight={height}
+          onMove={(x, y) => handleMoveField(field.type, x / width, y / height)}
+          onRemove={() => handleRemoveField(field.type)}
+          editable={true}
+        />
+      ))}
+    </>
+  );
 
   const canSubmit = landlordField && tenantField && confirmed;
 
