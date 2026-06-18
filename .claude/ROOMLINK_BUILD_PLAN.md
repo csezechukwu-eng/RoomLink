@@ -116,7 +116,7 @@ the request to lead-architect. Do not edit it unilaterally.
 | 3 — Applications | public form, submission, inbox, detail, approve/deny | 🟡 partially built |
 | 4 — Reservations & rent | reservation status, deposit, rent due, paid/unpaid | ⏸️ pages exist; do NOT extend until 1–3 pass QA |
 | 5 — Comms & maintenance | announcements, messages, maintenance | ⏸️ pages exist; gated behind Phase 4 |
-| 6 — Lease signing (DocuSign-style) | upload, fillable fields, sign, download | ⛔ not started; treat legal/notary separately |
+| 6 — Lease signing (DocuSign-style) | upload, fillable fields, sign, download | 🟡 **spec'd in §7**; **NO code in this branch yet** — treat legal/notary separately |
 
 ---
 
@@ -151,3 +151,111 @@ the request to lead-architect. Do not edit it unilaterally.
 
 These two read-only workstreams do not overlap on any writable file → safe to
 run together.
+
+---
+
+## 7. Phase 6 — E-signature pipeline (detailed spec)
+
+> Status: **not implemented in this branch.** Any local debugging the owner has
+> done is not pushed here. These agents either debug that code once pushed, or
+> build the feature fresh against this spec. Legal/notary is explicitly out.
+
+### Goal (owner's words, restated)
+Landlord uploads a scannable lease → drag-and-drops signature/initial/date/text
+fields onto it and assigns them to the tenant → the landlord's own uploaded
+signature auto-fills landlord fields (no manual re-signing) → the layout
+auto-saves as a **reusable template** that keeps the **placeholders only, not the
+tenant signature** → a tenant signs their fields → a final flattened PDF is
+produced for the landlord to view/download.
+
+### Steps → agents
+1. Upload + render scannable doc ┐
+2. Drag-drop fields + assign      ├─ **esign-template-builder-agent**
+3. Auto-save reusable template   ┘
+4. Reusable landlord signature ──── **esign-signature-agent**
+5. Tenant signing experience ────── **esign-signing-agent**
+6. Flatten/merge + view/download ── **esign-render-export-agent**
+Schema/RLS/storage for all of the above ── **database-auth-agent** (sole DB owner)
+Coordination + sequencing ── **lead-architect** · Verification ── **qa-integration-agent**
+
+### THE integration contract — coordinate system (prevents the #1 bug)
+Every field is stored normalized, **top-left origin**, as fractions of its page:
+`{ page_index, x, y, width, height }` in `[0,1]`. Render = multiply by displayed
+page size. Export (pdf-lib, **bottom-left** origin, points): flip Y →
+`pdfX = x*W`, `pdfY = H - (y+h)*H`, `w = width*W`, `h = height*H`. Never store raw
+pixels at a specific zoom. **A drag-drop signature that "lands in the wrong
+place / is flipped" is almost always a violation of this contract.**
+
+### Data model (owned by database-auth-agent; draft — confirm before migrating)
+- `documents` — uploaded source file (owner_id, storage_path, page_count, …)
+- `document_templates` — reusable: references a `document`, holds recipient roles
+  and the **placeholder** field set. **No tenant data.**
+- `document_fields` — per template/instance: `template_id` (or `signing_request_id`),
+  `page_index`, normalized `x,y,width,height`, `type` (signature|initial|date|text),
+  `recipient_role` (landlord|tenant), `required`
+- `signatures` — landlord's reusable signatures (owner-private; image in private bucket)
+- `signing_requests` — a per-tenant INSTANCE of a template: `token`, `status`,
+  signer identity, expiry. Holds the tenant's field **values** (instance-only).
+- `signed_documents` — the final flattened PDF (storage_path, completed_at, audit)
+
+### Storage + RLS rules (database-auth-agent)
+- Buckets are **private**; access via short-lived signed URLs only.
+- Landlord signature images: owner-scoped, never public, never reused across owners.
+- Tenant signing access: by validated `signing_requests.token` (server-side) or
+  tenant RLS — a signer reads only their own request. No cross-tenant access.
+- Tenant signature is written to the signing instance / final doc only — **never**
+  to `document_templates` or `signatures`.
+
+### Recommended libraries (decision — override if you prefer)
+- Render: `pdfjs-dist` (or `react-pdf`). Manipulate/flatten: `pdf-lib`.
+- Signature capture: `signature_pad` (or a small hand-rolled canvas).
+- Drag: pointer/drag events are enough; a DnD lib is optional, not required.
+
+### Ownership additions + scope carve-outs
+- `src/app/(landlord)/dashboard/documents/**` → **esign-template-builder-agent**
+  (carved OUT of landlord-ui-agent). Final-doc download piece → render-export.
+- `src/app/(public)/sign/[token]/**` → **esign-signing-agent** (carved OUT of
+  tenant-public-agent).
+- `src/components/documents/**`: `builder/**` (builder), `viewer/**` (builder,
+  **SHARED**), `signature/**` (signature), `signing/**` (signing).
+- `src/lib/esign/**`: pure feature logic only (coords, render, flatten, export,
+  signature normalization) — **no Supabase calls**. All table reads/writes are
+  database-auth-agent's `src/lib/{services,actions}/documents.ts`.
+- `src/lib/esign/types.ts` → **SHARED hotspot** (the field/recipient/template/
+  instance types) — lead-architect coordinates changes.
+
+### Parallelization for Phase 6
+- **First, serially:** database-auth-agent lands the schema + storage + RLS +
+  data-access stubs (everything else depends on it), with approval before any
+  migration. In parallel during this, the e-sign agents may read + draft
+  mini-plans, no writes.
+- **Then, in parallel (non-overlapping files):** builder (`builder/**`+`viewer/**`),
+  signature (`signature/**`), render-export (`flatten/export`). signing
+  (`signing/**`) can start once `viewer/**` exposes a stable read-only API.
+- qa-integration-agent gates each merge with the e-sign security checks below.
+
+### E-sign QA checks (add to qa-integration-agent's review)
+- A field placed at zoom A renders correctly at zoom B and after reload.
+- Exported PDF places every signature correctly on single- AND multi-page docs
+  (Y-flip correct).
+- Saving a template persists placeholders only — assert no tenant signature/value.
+- A wrong/expired token (or other tenant) cannot load a signing request.
+- Signature images are not publicly reachable (no public URL; signed-URL only).
+
+### If debugging existing code: look here first
+Classic failure modes for this exact feature, in order of likelihood:
+1. **Coordinate mismatch / missing Y-flip** — placed in DOM (top-left px) but
+   exported in PDF points (bottom-left) → offset/flipped signatures.
+2. **Zoom/scale drift** — overlay uses a different scale than the pdf.js viewport.
+3. **Stale React state on auto-save** — saving before field state commits →
+   empty/duplicated placeholders, or accidentally capturing a tenant value.
+4. **Storage/RLS** — expired or public signed URL → 403/blank when stamping the
+   signature image.
+
+### Phase 6 checklist (live)
+- [ ] database-auth-agent: schema + storage + RLS + data-access (approval-gated)
+- [ ] esign-template-builder-agent: upload + render + place + assign + auto-save template
+- [ ] esign-signature-agent: capture + private storage + reusable library + landlord auto-fill
+- [ ] esign-signing-agent: token-guarded tenant signing, instance-only signature
+- [ ] esign-render-export-agent: flatten/merge + view/download + completion metadata
+- [ ] qa-integration-agent: e-sign security + coordinate-accuracy pass
