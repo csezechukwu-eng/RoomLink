@@ -19,7 +19,8 @@ import type { Property } from "@/lib/types";
 
 interface PropertyFormModalProps {
   mode: "create" | "edit";
-  property?: Property;
+  /** For edit mode: the property's current values to prefill the form. */
+  property?: Partial<Property> & { id: string };
   triggerVariant?: "primary" | "outline" | "secondary";
   triggerLabel?: string;
   iconOnly?: boolean;

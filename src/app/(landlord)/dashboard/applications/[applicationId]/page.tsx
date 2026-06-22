@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
+import { PrepareLeaseCard } from "@/components/host/PrepareLeaseCard";
 import { getApplicationDetail } from "@/lib/queries";
+import { getApplicationLeaseContext } from "@/lib/services/leaseDocuments";
 import { ApplicationDetailClient } from "./ApplicationDetailClient";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +23,7 @@ export default async function ApplicationDetailPage({
   if (!result.data) notFound();
 
   const application = result.data;
+  const leaseCtx = await getApplicationLeaseContext(applicationId);
 
   return (
     <div className="space-y-6">
@@ -33,6 +36,12 @@ export default async function ApplicationDetailPage({
       </Link>
 
       <ApplicationDetailClient application={application} />
+
+      {/* Phase 1 lease workflow: prepare (upload) a lease for an approved applicant.
+          A separate in-app signing flow lives under /dashboard/leases. */}
+      <div id="lease">
+        <PrepareLeaseCard context={leaseCtx.data ?? null} />
+      </div>
     </div>
   );
 }

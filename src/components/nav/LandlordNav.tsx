@@ -6,6 +6,7 @@ import {
   Building2,
   ClipboardList,
   CalendarCheck,
+  FileSignature,
   DollarSign,
   Users,
   Megaphone,
@@ -24,15 +25,18 @@ const items: SidebarItem[] = [
   { href: "/dashboard/properties", label: "Properties", icon: Building2 },
   { href: "/dashboard/applications", label: "Applications", icon: ClipboardList },
   { href: "/dashboard/reservations", label: "Reservations", icon: CalendarCheck },
+  { href: "/dashboard/leases", label: "Leases", icon: FileSignature },
   { href: "/dashboard/rent", label: "Rent & Payments", icon: DollarSign },
   { href: "/dashboard/tenants", label: "Tenants", icon: Users },
-  { href: "/dashboard/announcements", label: "Announcements", icon: Megaphone },
   { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
   { href: "/dashboard/maintenance", label: "Maintenance", icon: Wrench },
   { href: "/dashboard/reports", label: "Reports", icon: BarChart3 },
 ];
 
+// Announcements kept here (out of the primary operations list) so the main
+// sidebar stays focused, while the route remains reachable.
 const bottomItems: SidebarItem[] = [
+  { href: "/dashboard/announcements", label: "Announcements", icon: Megaphone },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 

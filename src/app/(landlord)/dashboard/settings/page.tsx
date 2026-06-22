@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useActionState, useEffect } from "react";
 import {
   User,
   Building2,
@@ -30,17 +30,21 @@ import {
   Plus,
   Trash2,
   ExternalLink,
+  PenTool,
 } from "lucide-react";
+import { SignaturePad } from "@/components/SignaturePad";
+import { saveSignatureAction, getSignature, deleteSignatureAction } from "@/lib/actions/signature";
 import { Card } from "@/components/ui/card";
 
 // Types
-type SettingsTab = "profile" | "properties" | "notifications" | "payments" | "security" | "integrations";
+type SettingsTab = "profile" | "signature" | "properties" | "notifications" | "payments" | "security" | "integrations";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
 
   const tabs = [
     { id: "profile" as const, label: "Profile", icon: User },
+    { id: "signature" as const, label: "Signature", icon: PenTool },
     { id: "properties" as const, label: "Property Defaults", icon: Building2 },
     { id: "notifications" as const, label: "Notifications", icon: Bell },
     { id: "payments" as const, label: "Payments & Billing", icon: CreditCard },
@@ -86,6 +90,7 @@ export default function SettingsPage() {
         {/* Content */}
         <div className="min-w-0 flex-1">
           {activeTab === "profile" && <ProfileSettings />}
+          {activeTab === "signature" && <SignatureSettings />}
           {activeTab === "properties" && <PropertySettings />}
           {activeTab === "notifications" && <NotificationSettings />}
           {activeTab === "payments" && <PaymentSettings />}
@@ -197,6 +202,168 @@ function ProfileSettings() {
               <option>EUR (€)</option>
               <option>GBP (£)</option>
             </select>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// Signature Settings
+function SignatureSettings() {
+  const [currentSignature, setCurrentSignature] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [state, formAction, isPending] = useActionState(saveSignatureAction, { status: "idle" });
+  const [signatureToSave, setSignatureToSave] = useState<string | null>(null);
+
+  // Load current signature on mount
+  useEffect(() => {
+    async function loadSignature() {
+      try {
+        const sig = await getSignature();
+        setCurrentSignature(sig);
+      } catch {
+        console.error("Failed to load signature");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadSignature();
+  }, []);
+
+  // Update current signature after successful save
+  useEffect(() => {
+    if (state.status === "success" && signatureToSave) {
+      setCurrentSignature(signatureToSave);
+      setSignatureToSave(null);
+    }
+  }, [state.status, signatureToSave]);
+
+  const handleSaveSignature = (signatureData: string) => {
+    setSignatureToSave(signatureData);
+    const formData = new FormData();
+    formData.set("signature_data", signatureData);
+    formAction(formData);
+  };
+
+  const handleDeleteSignature = async () => {
+    const result = await deleteSignatureAction();
+    if (result.status === "success") {
+      setCurrentSignature(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Your Signature</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Create and save your signature to automatically apply it to all lease agreements you send.
+        </p>
+
+        {state.status === "success" && (
+          <div className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <Check className="h-4 w-4 shrink-0" />
+            <span>{state.message}</span>
+          </div>
+        )}
+
+        {state.status === "error" && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {state.message}
+          </div>
+        )}
+
+        <div className="mt-6">
+          {isLoading ? (
+            <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-slate-200">
+              <p className="text-sm text-slate-400">Loading signature...</p>
+            </div>
+          ) : currentSignature ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
+                <p className="mb-2 text-sm font-medium text-slate-700">Current Signature</p>
+                <div className="flex items-center justify-center rounded-lg bg-slate-50 p-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={currentSignature}
+                    alt="Your signature"
+                    className="h-20 object-contain"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentSignature(null)}
+                  className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                >
+                  <PenTool className="h-4 w-4" />
+                  Update Signature
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteSignature}
+                  className="flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <SignaturePad
+                onSave={handleSaveSignature}
+                initialSignature={null}
+              />
+              {isPending && (
+                <p className="text-sm text-slate-500">Saving signature...</p>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold text-slate-900">How Signatures Work</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Understanding in-app lease signing.
+        </p>
+
+        <div className="mt-6 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-600">
+              1
+            </div>
+            <div>
+              <p className="font-medium text-slate-900">Save Your Signature</p>
+              <p className="text-sm text-slate-500">
+                Draw or type your signature above. This will be securely stored and used for all leases.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-600">
+              2
+            </div>
+            <div>
+              <p className="font-medium text-slate-900">Send Lease to Tenant</p>
+              <p className="text-sm text-slate-500">
+                When you send a lease, your signature is automatically applied. The tenant receives a link to sign.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-600">
+              3
+            </div>
+            <div>
+              <p className="font-medium text-slate-900">Tenant Signs Online</p>
+              <p className="text-sm text-slate-500">
+                Tenants sign directly in the app. Once both parties sign, a PDF is generated with all signatures.
+              </p>
+            </div>
           </div>
         </div>
       </Card>

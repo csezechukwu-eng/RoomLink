@@ -1,24 +1,28 @@
+import Link from "next/link";
 import { Users, Building } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { getProperties } from "@/lib/queries";
-import Link from "next/link";
+import { SummaryCard } from "@/components/SummaryCard";
+import { TenantRoster } from "@/components/host/TenantRoster";
+import { MoveBoard } from "@/components/host/MoveBoard";
+import { getProperties, getRoster } from "@/lib/queries";
+import { splitRoster } from "@/lib/tenantOps";
 
 export const dynamic = "force-dynamic";
 
 export default async function TenantsPage() {
-  const propertiesResult = await getProperties();
+  const [propertiesResult, rosterResult] = await Promise.all([
+    getProperties(),
+    getRoster(),
+  ]);
   const properties = propertiesResult.data ?? [];
+  const roster = rosterResult.data ?? [];
 
-  // Show empty state if no properties
+  // No properties at all → guide to create one.
   if (properties.length === 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tenants</h1>
-          <p className="text-slate-500">Manage all tenants across your properties.</p>
-        </div>
-
-        <Card className="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <Header />
+        <Card className="flex flex-col items-center justify-center px-6 py-16 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50">
             <Building className="h-8 w-8 text-indigo-600" />
           </div>
@@ -26,8 +30,7 @@ export default async function TenantsPage() {
             Create a property first
           </h2>
           <p className="mt-2 max-w-md text-slate-500">
-            You need to create properties with beds before you can manage tenants.
-            Go to Properties to get started.
+            Add a property with beds, then approve applications to place tenants.
           </p>
           <Link
             href="/dashboard/properties"
@@ -40,43 +43,79 @@ export default async function TenantsPage() {
     );
   }
 
-  // Show empty tenants state
+  const { movingIn, movingOut } = splitRoster(roster);
+  const unpaid = roster.filter(
+    (e) => e.rentStatus === "due" || e.rentStatus === "overdue"
+  ).length;
+
+  // Properties exist but no tenants placed yet.
+  if (roster.length === 0) {
+    return (
+      <div className="space-y-6">
+        <Header />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <SummaryCard label="Total tenants" value={0} />
+          <SummaryCard label="Moving in" value={0} />
+          <SummaryCard label="Moving out soon" value={0} />
+          <SummaryCard label="Unpaid" value={0} />
+        </div>
+        <Card className="flex flex-col items-center justify-center px-6 py-16 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50">
+            <Users className="h-8 w-8 text-indigo-600" />
+          </div>
+          <h2 className="mt-6 text-xl font-semibold text-slate-900">No tenants yet</h2>
+          <p className="mt-2 max-w-md text-slate-500">
+            When you approve an application, a reservation is created and the
+            tenant shows up here with their bed, lease, deposit, and rent status.
+          </p>
+          <Link
+            href="/dashboard/applications"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Review applications
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Tenants</h1>
-        <p className="text-slate-500">Manage all tenants across your properties.</p>
+      <Header />
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryCard label="Total tenants" value={roster.length} />
+        <SummaryCard
+          label="Moving in"
+          value={movingIn.length}
+          accentClassName="bg-emerald-500"
+        />
+        <SummaryCard
+          label="Moving out soon"
+          value={movingOut.length}
+          accentClassName="bg-amber-500"
+        />
+        <SummaryCard
+          label="Unpaid"
+          value={unpaid}
+          accentClassName="bg-red-500"
+        />
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Total Tenants" value={0} />
-        <StatCard label="Active" value={0} />
-        <StatCard label="Moving Out" value={0} />
-        <StatCard label="New This Month" value={0} />
-      </div>
+      <MoveBoard entries={roster} showProperty />
 
-      <Card className="flex flex-col items-center justify-center py-16 px-6 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50">
-          <Users className="h-8 w-8 text-indigo-600" />
-        </div>
-        <h2 className="mt-6 text-xl font-semibold text-slate-900">
-          No tenants yet
-        </h2>
-        <p className="mt-2 max-w-md text-slate-500">
-          When applications are approved and reservations are created, tenants will appear here.
-          Start by sharing your property availability pages to receive applications.
-        </p>
-      </Card>
+      <TenantRoster entries={roster} showProperty enableFilters />
     </div>
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function Header() {
   return (
-    <Card className="p-4">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
-    </Card>
+    <div>
+      <h1 className="text-2xl font-bold text-slate-900">Tenants</h1>
+      <p className="text-slate-500">
+        Everyone housed across your properties — bed, lease, deposit, and rent at a glance.
+      </p>
+    </div>
   );
 }

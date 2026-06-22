@@ -18,6 +18,16 @@ import {
   getApplicationById,
   type ApplicationWithRefs,
 } from "@/lib/services/applications";
+import {
+  listRentCharges,
+  type RentChargeWithRefs,
+} from "@/lib/services/rent";
+import {
+  listMaintenance,
+  type MaintenanceWithRefs,
+} from "@/lib/services/maintenance";
+import { listRoster, type RosterEntry } from "@/lib/services/tenants";
+import { todayISO, isoDaysFromToday, SOON_WINDOW_DAYS } from "@/lib/bedAvailability";
 
 export type { Result };
 
@@ -55,9 +65,15 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
         pendingApplications: 0,
         activeReservations: 0,
         rentDue: 0,
+        overdueRent: 0,
         openMaintenance: 0,
+        availableNow: 0,
+        freeingSoon: 0,
       });
     }
+
+    const today = todayISO();
+    const soon = isoDaysFromToday(SOON_WINDOW_DAYS);
 
     const [
       { count: roomCount, error: rErr },
@@ -65,18 +81,28 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
       { count: pendingApplications, error: aErr },
       { count: activeReservations, error: resErr },
       { count: rentDue, error: rentErr },
+      { count: overdueRent, error: overdueErr },
       { count: openMaintenance, error: mErr },
+      { count: freeingSoon, error: freeErr },
     ] = await Promise.all([
       supabase
         .from("rooms")
         .select("id", { count: "exact", head: true })
         .in("property_id", propertyIds),
-      supabase.from("beds").select("status").in("property_id", propertyIds),
+      // select("*") (not "status, available_from") so the dashboard still works
+      // before migration 0008 is applied — available_from is simply undefined
+      // then, and availableNow falls back to "all vacant beds".
+      supabase
+        .from("beds")
+        .select("*")
+        .in("property_id", propertyIds),
+      // "Pending" = awaiting a landlord decision. Migration 0007 replaced the
+      // legacy "pending" status with "submitted"/"under_review".
       supabase
         .from("applications")
         .select("id", { count: "exact", head: true })
         .in("property_id", propertyIds)
-        .eq("status", "pending"),
+        .in("status", ["submitted", "under_review"]),
       supabase
         .from("reservations")
         .select("id", { count: "exact", head: true })
@@ -88,19 +114,39 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
         .in("property_id", propertyIds)
         .in("status", ["due", "overdue"]),
       supabase
+        .from("rent_charges")
+        .select("id", { count: "exact", head: true })
+        .in("property_id", propertyIds)
+        .eq("status", "overdue"),
+      supabase
         .from("maintenance_requests")
         .select("id", { count: "exact", head: true })
         .in("property_id", propertyIds)
         .in("status", ["open", "in_progress"]),
+      // Beds freeing up soon: active reservations ending within the window.
+      supabase
+        .from("reservations")
+        .select("id", { count: "exact", head: true })
+        .in("property_id", propertyIds)
+        .eq("status", "active")
+        .gte("end_date", today)
+        .lte("end_date", soon),
     ]);
     if (rErr) throw rErr;
     if (bErr) throw bErr;
     if (aErr) throw aErr;
     if (resErr) throw resErr;
     if (rentErr) throw rentErr;
+    if (overdueErr) throw overdueErr;
     if (mErr) throw mErr;
+    if (freeErr) throw freeErr;
 
     const counts = tallyBeds(beds ?? []);
+    const availableNow = (beds ?? []).filter(
+      (b) =>
+        b.status === "vacant" &&
+        (!b.available_from || b.available_from <= today)
+    ).length;
     return ok({
       totalProperties: propertyIds.length,
       totalRooms: roomCount ?? 0,
@@ -109,17 +155,26 @@ export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
       pendingApplications: pendingApplications ?? 0,
       activeReservations: activeReservations ?? 0,
       rentDue: rentDue ?? 0,
+      overdueRent: overdueRent ?? 0,
       openMaintenance: openMaintenance ?? 0,
+      availableNow,
+      freeingSoon: freeingSoon ?? 0,
     });
   } catch (error) {
     return fail(error);
   }
 }
 
+export interface PropertyListItem extends Property {
+  roomCount: number;
+  bedCounts: BedStatusCounts;
+  media: PropertyMedia[];
+  pendingApplications: number;
+  openMaintenance: number;
+}
+
 /** All properties for the current landlord, with per-property bed counts and media. */
-export async function getProperties(): Promise<
-  Result<Array<Property & { roomCount: number; bedCounts: BedStatusCounts; media: PropertyMedia[] }>>
-> {
+export async function getProperties(): Promise<Result<PropertyListItem[]>> {
   try {
     const supabase = await createAuthenticatedClient();
     const ownerId = await getCurrentOwnerId();
@@ -135,16 +190,29 @@ export async function getProperties(): Promise<
     if (list.length === 0) return ok([]);
 
     const ids = list.map((p) => p.id);
-    const [{ data: rooms, error: rErr }, { data: beds, error: bErr }] =
-      await Promise.all([
-        supabase.from("rooms").select("id, property_id").in("property_id", ids),
-        supabase
-          .from("beds")
-          .select("status, property_id")
-          .in("property_id", ids),
-      ]);
+    const [
+      { data: rooms, error: rErr },
+      { data: beds, error: bErr },
+      { data: apps, error: aErr },
+      { data: maint, error: mtErr },
+    ] = await Promise.all([
+      supabase.from("rooms").select("id, property_id").in("property_id", ids),
+      supabase.from("beds").select("status, property_id").in("property_id", ids),
+      supabase
+        .from("applications")
+        .select("property_id")
+        .in("property_id", ids)
+        .in("status", ["submitted", "under_review"]),
+      supabase
+        .from("maintenance_requests")
+        .select("property_id")
+        .in("property_id", ids)
+        .in("status", ["open", "in_progress"]),
+    ]);
     if (rErr) throw rErr;
     if (bErr) throw bErr;
+    if (aErr) throw aErr;
+    if (mtErr) throw mtErr;
 
     // Fetch media for all properties - gracefully handle if table doesn't exist
     let allMedia: PropertyMedia[] = [];
@@ -178,6 +246,14 @@ export async function getProperties(): Promise<
       arr.push(m);
       mediaByProp.set(m.property_id, arr);
     }
+    const appsByProp = new Map<string, number>();
+    for (const a of apps ?? []) {
+      appsByProp.set(a.property_id, (appsByProp.get(a.property_id) ?? 0) + 1);
+    }
+    const maintByProp = new Map<string, number>();
+    for (const m of maint ?? []) {
+      maintByProp.set(m.property_id, (maintByProp.get(m.property_id) ?? 0) + 1);
+    }
 
     return ok(
       list.map((p) => ({
@@ -185,6 +261,8 @@ export async function getProperties(): Promise<
         roomCount: roomsByProp.get(p.id) ?? 0,
         bedCounts: tallyBeds(bedsByProp.get(p.id) ?? []),
         media: mediaByProp.get(p.id) ?? [],
+        pendingApplications: appsByProp.get(p.id) ?? 0,
+        openMaintenance: maintByProp.get(p.id) ?? 0,
       }))
     );
   } catch (error) {
@@ -197,6 +275,8 @@ export interface PropertyDetail {
   rooms: RoomWithBeds[];
   bedCounts: BedStatusCounts;
   media: PropertyMedia[];
+  /** bed_id -> end_date of its active reservation (for "frees up soon"). */
+  reservationEndByBed: Record<string, string>;
 }
 
 /** A single property with its rooms and beds (grouped) for the detail page. */
@@ -219,6 +299,7 @@ export async function getPropertyDetail(
     const [
       { data: rooms, error: rErr },
       { data: beds, error: bErr },
+      { data: activeReservations, error: resErr },
     ] = await Promise.all([
       supabase
         .from("rooms")
@@ -230,9 +311,20 @@ export async function getPropertyDetail(
         .select("*")
         .eq("property_id", propertyId)
         .order("label", { ascending: true }),
+      supabase
+        .from("reservations")
+        .select("bed_id, end_date")
+        .eq("property_id", propertyId)
+        .eq("status", "active"),
     ]);
     if (rErr) throw rErr;
     if (bErr) throw bErr;
+    if (resErr) throw resErr;
+
+    const reservationEndByBed: Record<string, string> = {};
+    for (const r of activeReservations ?? []) {
+      if (r.bed_id && r.end_date) reservationEndByBed[r.bed_id] = r.end_date;
+    }
 
     // Fetch media separately - gracefully handle if table doesn't exist yet
     let media: PropertyMedia[] = [];
@@ -267,7 +359,60 @@ export async function getPropertyDetail(
       rooms: roomsWithBeds,
       bedCounts: tallyBeds((beds ?? []) as Bed[]),
       media: (media ?? []) as PropertyMedia[],
+      reservationEndByBed,
     });
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export interface PropertyWorkspace extends PropertyDetail {
+  applications: ApplicationWithRefs[];
+  rentCharges: RentChargeWithRefs[];
+  maintenance: MaintenanceWithRefs[];
+  roster: RosterEntry[];
+}
+
+/**
+ * Full operations workspace for a single property: detail + applications,
+ * rent charges, and maintenance scoped to that property. Ownership is verified
+ * before any of the (service-role) list helpers are called.
+ */
+export async function getPropertyWorkspace(
+  propertyId: string
+): Promise<Result<PropertyWorkspace | null>> {
+  try {
+    const detailResult = await getPropertyDetail(propertyId);
+    if (detailResult.error !== null) return fail(detailResult.error);
+    if (!detailResult.data) return ok(null);
+
+    // Ownership has been verified by getPropertyDetail; safe to scope by property.
+    const [appsResult, rentResult, maintResult, rosterResult] = await Promise.all([
+      listApplications({ propertyId }),
+      listRentCharges({ propertyId }),
+      listMaintenance({ propertyId }),
+      listRoster({ propertyId }),
+    ]);
+
+    return ok({
+      ...detailResult.data,
+      applications: appsResult.data ?? [],
+      rentCharges: rentResult.data ?? [],
+      maintenance: maintResult.data ?? [],
+      roster: rosterResult.data ?? [],
+    });
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export type { RosterEntry };
+
+/** Tenant roster across all of the current landlord's properties. */
+export async function getRoster(): Promise<Result<RosterEntry[]>> {
+  try {
+    const ownerId = await getCurrentOwnerId();
+    return listRoster({ ownerId });
   } catch (error) {
     return fail(error);
   }

@@ -6,12 +6,12 @@
 -- Safe to re-run: clears the demo records first, then re-inserts.
 
 -- Fixed IDs (match src/lib/auth.ts):
---   owner   00000000-0000-0000-0000-000000000001  (Silvia, landlord)
+--   owner   d0d7c1e3-5b4a-4b9f-8c3d-1e2f3a4b5c6d  (Silvia, landlord)
 --   tenant  00000000-0000-0000-0000-000000000002  (Jordan Pilot, approved)
 --   appl.   00000000-0000-0000-0000-000000000003  (Alex Crew, pending)
 
 delete from public.users where id in (
-  '00000000-0000-0000-0000-000000000001',
+  'd0d7c1e3-5b4a-4b9f-8c3d-1e2f3a4b5c6d',
   '00000000-0000-0000-0000-000000000002',
   '00000000-0000-0000-0000-000000000003'
 );
@@ -19,7 +19,7 @@ delete from public.properties where id = '11111111-1111-1111-1111-111111111111';
 
 -- People -------------------------------------------------------------------
 insert into public.users (id, email, full_name, phone, role, verification_status) values
-  ('00000000-0000-0000-0000-000000000001', 'silvia@roomlink.demo', 'Silvia Owner',  '704-555-0101', 'owner',  'verified'),
+  ('d0d7c1e3-5b4a-4b9f-8c3d-1e2f3a4b5c6d', 'silvia@roomlink.demo', 'Silvia Owner',  '704-555-0101', 'owner',  'verified'),
   ('00000000-0000-0000-0000-000000000002', 'jordan@roomlink.demo', 'Jordan Pilot',  '704-555-0102', 'tenant', 'verified'),
   ('00000000-0000-0000-0000-000000000003', 'alex@roomlink.demo',   'Alex Crew',     '704-555-0103', 'tenant', 'pending');
 
@@ -27,7 +27,7 @@ insert into public.users (id, email, full_name, phone, role, verification_status
 insert into public.properties (id, owner_id, name, address, city, state, zip, property_type, description, house_rules)
 values (
   '11111111-1111-1111-1111-111111111111',
-  '00000000-0000-0000-0000-000000000001',
+  'd0d7c1e3-5b4a-4b9f-8c3d-1e2f3a4b5c6d',
   'Charlotte Flight Crew Crash Pad',
   '4821 Yorkmont Rd',
   'Charlotte',
@@ -39,7 +39,7 @@ values (
 );
 
 insert into public.property_members (property_id, user_id, role)
-values ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001', 'owner')
+values ('11111111-1111-1111-1111-111111111111', 'd0d7c1e3-5b4a-4b9f-8c3d-1e2f3a4b5c6d', 'owner')
 on conflict (property_id, user_id) do nothing;
 
 -- Rooms --------------------------------------------------------------------
@@ -80,7 +80,7 @@ insert into public.applications (id, property_id, bed_id, applicant_id, full_nam
    '11111111-1111-1111-1111-111111111111',
    (select id from public.beds where property_id = '11111111-1111-1111-1111-111111111111' and room_id = '22222222-0000-0000-0000-00000000000a' and label = 'Bed 1 Top Bunk'),
    '00000000-0000-0000-0000-000000000003', 'Alex Crew', 'alex@roomlink.demo', '704-555-0103',
-   'Flight attendant commuting from ORD a few nights a week.', current_date + 7, 'pending', null);
+   'Flight attendant commuting from ORD a few nights a week.', current_date + 7, 'submitted', null);
 
 -- Reservation (from Jordan's approved application) -------------------------
 insert into public.reservations (id, property_id, bed_id, tenant_id, application_id, status, start_date, deposit_amount, deposit_status, deposit_paid_at) values
@@ -114,7 +114,7 @@ insert into public.payments (tenant_id, reservation_id, rent_charge_id, property
 
 -- Announcement -------------------------------------------------------------
 insert into public.announcements (property_id, author_id, title, body, created_at) values
-  ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000001',
+  ('11111111-1111-1111-1111-111111111111', 'd0d7c1e3-5b4a-4b9f-8c3d-1e2f3a4b5c6d',
    'Parking + new linens',
    E'Two crew permits are now in the kitchen drawer — first come first served.\nFresh linens are stocked in the hall closet. Welcome aboard!',
    now() - interval '3 days');
@@ -123,7 +123,7 @@ insert into public.announcements (property_id, author_id, title, body, created_a
 insert into public.messages (property_id, tenant_id, sender_id, sender_role, body, read_at, created_at) values
   ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', 'tenant',
    'Hi! Is there a spot to leave a bike in the garage?', now() - interval '2 days', now() - interval '2 days'),
-  ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'owner',
+  ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000002', 'd0d7c1e3-5b4a-4b9f-8c3d-1e2f3a4b5c6d', 'owner',
    'Yes — rack on the left wall. I labeled a hook with your bed number.', null, now() - interval '1 day');
 
 -- Maintenance request ------------------------------------------------------
