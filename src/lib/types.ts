@@ -159,6 +159,8 @@ export interface Application {
   desired_move_in: string | null;
   length_of_stay: string | null;
   reason_for_stay: string | null;
+  /** The rental/stay type for this application. Links to lease_templates.stay_type */
+  stay_type: LeaseStayType | null;
 
   // Commuter Status
   commuter_status: CommuterStatus | null;
@@ -434,6 +436,215 @@ export interface LeaseDocument {
   // Signature placement and stamped PDF
   signature_fields: SignatureField[] | null;
   signed_file_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Lease Templates (reusable lease PDFs for landlords)
+// ---------------------------------------------------------------------------
+
+export type LeaseCategory =
+  | "month_to_month_room_lease"
+  | "fixed_term_lease"
+  | "midterm_lease"
+  | "short_term_bed_rental"
+  | "crash_pad_agreement"
+  | "student_housing_agreement"
+  | "travel_nurse_housing_agreement"
+  | "other";
+
+export type LeaseStayType =
+  | "month_to_month"
+  | "yearly"
+  | "midterm"
+  | "short_term"
+  | "bed_rental"
+  | "room_rental"
+  | "crash_pad"
+  | "student_housing"
+  | "travel_nurse_housing";
+
+export type LeaseTemplateStatus = "needs_setup" | "ready" | "archived";
+
+export interface LeaseTemplate {
+  id: string;
+  owner_id: string;
+  title: string;
+  lease_category: LeaseCategory;
+  stay_type: LeaseStayType;
+  property_id: string | null;
+  file_path: string;
+  file_name: string;
+  file_type: string;
+  status: LeaseTemplateStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeaseTemplateWithProperty extends LeaseTemplate {
+  property_name: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Lease Template Fields (reusable signing fields for lease templates)
+// ---------------------------------------------------------------------------
+
+export type LeaseTemplateFieldType =
+  | "tenant_signature"
+  | "tenant_initials"
+  | "date_signed"
+  | "tenant_full_name"
+  | "email"
+  | "phone"
+  | "text"
+  | "checkbox";
+
+export type LeaseTemplateFieldAssignedTo = "tenant" | "landlord";
+
+export interface LeaseTemplateField {
+  id: string;
+  lease_template_id: string;
+  owner_id: string;
+  field_key: string | null;
+  field_type: LeaseTemplateFieldType;
+  label: string;
+  required: boolean;
+  assigned_to: LeaseTemplateFieldAssignedTo;
+  page_number: number | null;
+  x: number | null;
+  y: number | null;
+  width: number | null;
+  height: number | null;
+  placement_note: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Prepared Leases (applicant-specific leases created from templates)
+// ---------------------------------------------------------------------------
+
+export type PreparedLeaseStatus =
+  | "sent"
+  | "viewed"
+  | "signed"
+  | "completed"
+  | "cancelled";
+
+export interface PreparedLeaseApplicantSnapshot {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface PreparedLeasePropertySnapshot {
+  name: string | null;
+  address: string | null;
+}
+
+export interface PreparedLeaseRoomSnapshot {
+  name: string | null;
+}
+
+export interface PreparedLeaseBedSnapshot {
+  label: string | null;
+}
+
+export interface PreparedLeaseRentSnapshot {
+  monthly_rent: number | null;
+}
+
+export interface PreparedLeaseDepositSnapshot {
+  deposit_amount: number | null;
+}
+
+export interface PreparedLeaseAutofillSnapshot {
+  tenantName?: string | null;
+  tenantEmail?: string | null;
+  tenantPhone?: string | null;
+  monthlyIncome?: number | null;
+  employer?: string | null;
+  propertyName?: string | null;
+  propertyAddress?: string | null;
+  roomName?: string | null;
+  bedLabel?: string | null;
+  monthlyRent?: number | null;
+  depositAmount?: number | null;
+  moveInDate?: string | null;
+  leaseStartDate?: string | null;
+  rentalType?: string | null;
+  stayType?: string | null;
+  houseRules?: string | null;
+}
+
+export interface PreparedLease {
+  id: string;
+  owner_id: string;
+  application_id: string;
+  lease_template_id: string;
+  property_id: string | null;
+  room_id: string | null;
+  bed_id: string | null;
+  tenant_id: string | null;
+  rental_type: string | null;
+  status: PreparedLeaseStatus;
+  /** Unique reference number for the lease: RL-LEASE-YYYY-NNNNNN */
+  lease_reference_number: string;
+  applicant_snapshot: PreparedLeaseApplicantSnapshot;
+  property_snapshot: PreparedLeasePropertySnapshot | null;
+  room_snapshot: PreparedLeaseRoomSnapshot | null;
+  bed_snapshot: PreparedLeaseBedSnapshot | null;
+  rent_snapshot: PreparedLeaseRentSnapshot | null;
+  deposit_snapshot: PreparedLeaseDepositSnapshot | null;
+  autofill_snapshot: PreparedLeaseAutofillSnapshot;
+  sent_at: string | null;
+  viewed_at: string | null;
+  signed_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PreparedLeaseWithDetails extends PreparedLease {
+  template_title: string | null;
+  property_name: string | null;
+  applicant_name: string | null;
+}
+
+export interface PreparedLeaseField {
+  id: string;
+  prepared_lease_id: string;
+  lease_template_field_id: string | null;
+  template_field_key: string;
+  prepared_field_key: string;
+  signature_instance_key: string | null;
+  /** Unique reference number for signature fields: RL-{TYPE}-YYYY-NNNNNN-NNN */
+  signature_reference_number: string | null;
+  field_type: LeaseTemplateFieldType;
+  label: string;
+  required: boolean;
+  assigned_to: LeaseTemplateFieldAssignedTo;
+  page_number: number | null;
+  x: number | null;
+  y: number | null;
+  width: number | null;
+  height: number | null;
+  placement_note: string | null;
+  sort_order: number | null;
+  value: string | null;
+  /** UUID of user who signed this field */
+  signed_by_user_id: string | null;
+  /** Name of person who signed this field */
+  signed_by_name: string | null;
+  /** Email of person who signed this field */
+  signed_by_email: string | null;
+  /** Timestamp when this field was signed */
+  signed_at: string | null;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
 }
