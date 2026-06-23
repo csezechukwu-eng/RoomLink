@@ -152,8 +152,8 @@ const DEMO_ROOMS_CONFIG = [
         bunk_type: "single" as const,
         monthly_rent: 650,
         deposit_amount: 300,
-        status: "reserved" as const,
-        description: "Single bed in shared room - for testing reserved status",
+        status: "vacant" as const,
+        description: "Single bed in shared room",
       },
     ],
   },
@@ -170,44 +170,48 @@ export interface DemoApplication {
   monthlyIncome: number;
   employmentStatus: string;
   commuterStatus: string;
+  targetStatus: "under_review" | "approved" | "rejected";
 }
 
 const DEMO_APPLICANTS: DemoApplication[] = [
   {
-    name: "Jane Demo Tenant",
+    name: "Jane Pending",
     firstName: "Jane",
-    lastName: "Demo Tenant",
-    email: "jane.demo@example.com",
+    lastName: "Pending",
+    email: "jane.pending@example.com",
     phone: "555-0101",
     stayType: "month_to_month",
     moveInOffset: 30,
     monthlyIncome: 4200,
     employmentStatus: "employed_full_time",
     commuterStatus: "local_resident",
+    targetStatus: "under_review",
   },
   {
-    name: "Marcus Demo Tenant",
+    name: "Marcus Approved",
     firstName: "Marcus",
-    lastName: "Demo Tenant",
-    email: "marcus.demo@example.com",
+    lastName: "Approved",
+    email: "marcus.approved@example.com",
     phone: "555-0102",
     stayType: "crash_pad",
     moveInOffset: 7,
     monthlyIncome: 3800,
     employmentStatus: "employed_full_time",
     commuterStatus: "airline_crew",
+    targetStatus: "approved",
   },
   {
-    name: "Ava Demo Tenant",
+    name: "Ava Rejected",
     firstName: "Ava",
-    lastName: "Demo Tenant",
-    email: "ava.demo@example.com",
+    lastName: "Rejected",
+    email: "ava.rejected@example.com",
     phone: "555-0103",
     stayType: "midterm",
     moveInOffset: 14,
-    monthlyIncome: 5200,
-    employmentStatus: "employed_full_time",
+    monthlyIncome: 2600,
+    employmentStatus: "employed_part_time",
     commuterStatus: "travel_nurse",
+    targetStatus: "rejected",
   },
 ];
 
@@ -1223,7 +1227,7 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
           government_id_status: "uploaded",
           background_check_consent: true,
           stay_type: demo.stayType,
-          status: "under_review",
+          status: demo.targetStatus,
           is_demo: true,
         })
         .select()
@@ -1241,14 +1245,34 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
       summary.applicationsCreated++;
     }
 
+    // Update existing applications to correct statuses if they exist
+    let statusesUpdated = 0;
+    for (const demo of DEMO_APPLICANTS) {
+      const { error: updateErr } = await supabase
+        .from("applications")
+        .update({ status: demo.targetStatus })
+        .eq("property_id", propertyId)
+        .eq("email", demo.email)
+        .eq("is_demo", true)
+        .neq("status", demo.targetStatus);
+
+      if (!updateErr) {
+        statusesUpdated++;
+      }
+    }
+
     if (summary.applicationsCreated > 0 || (existingApps?.length ?? 0) > 0) {
       const total = summary.applicationsCreated + (existingApps?.length ?? 0);
+      let detail = summary.applicationsCreated > 0
+        ? `Created ${summary.applicationsCreated} application(s)`
+        : `Reusing ${total} existing application(s)`;
+      if (statusesUpdated > 0 && summary.applicationsCreated === 0) {
+        detail += `, updated statuses`;
+      }
       steps.push({
         step: "Demo Applications",
-        status: summary.applicationsCreated > 0 ? "success" : "skipped",
-        detail: summary.applicationsCreated > 0
-          ? `Created ${summary.applicationsCreated} application(s)`
-          : `Reusing ${total} existing application(s)`,
+        status: summary.applicationsCreated > 0 || statusesUpdated > 0 ? "success" : "skipped",
+        detail,
       });
     }
 
