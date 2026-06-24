@@ -17,6 +17,14 @@ export interface Property {
   description: string | null;
   house_rules: string | null;
   is_hidden: boolean;
+  /** True if this is a demo/test property */
+  is_demo: boolean;
+  /** Whether an application fee is required */
+  application_fee_required: boolean;
+  /** Amount of the application fee */
+  application_fee_amount: number | null;
+  /** Instructions for paying the application fee */
+  application_fee_instructions: string | null;
   created_at: string;
 }
 
@@ -26,6 +34,8 @@ export interface Room {
   name: string;
   description: string | null;
   max_occupancy: number;
+  /** True if this is a demo/test room */
+  is_demo: boolean;
   created_at: string;
 }
 
@@ -44,6 +54,8 @@ export interface Bed {
   /** Optional stay-length guardrails (short/mid/long filtering). */
   min_stay_days: number | null;
   max_stay_days: number | null;
+  /** True if this is a demo/test bed */
+  is_demo: boolean;
   created_at: string;
 }
 
@@ -93,6 +105,24 @@ export interface DashboardMetrics {
 export type UserRole = "owner" | "manager" | "tenant";
 export type VerificationStatus = "unverified" | "pending" | "verified";
 
+// ---------------------------------------------------------------------------
+// Subscription Billing Types (Room Link platform billing)
+// ---------------------------------------------------------------------------
+
+/** Stripe subscription statuses from webhook events */
+export type StripeSubscriptionStatus =
+  | "incomplete"
+  | "incomplete_expired"
+  | "trialing"
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "unpaid"
+  | "paused";
+
+/** Room Link subscription plan tiers */
+export type SubscriptionPlan = "free" | "starter" | "pro" | "enterprise";
+
 export interface User {
   id: string;
   email: string;
@@ -104,6 +134,36 @@ export interface User {
   signature_data: string | null;
   signature_updated_at: string | null;
   created_at: string;
+
+  // ---------------------------------------------------------------------------
+  // Subscription Billing Fields (landlord paying Room Link)
+  // These are SEPARATE from Stripe Connect fields for rent collection.
+  // ---------------------------------------------------------------------------
+
+  /** Stripe Customer ID - landlord as customer paying Room Link */
+  stripe_customer_id: string | null;
+  /** Stripe Subscription ID for Room Link platform access */
+  stripe_subscription_id: string | null;
+  /** Current subscription status from Stripe webhooks */
+  stripe_subscription_status: StripeSubscriptionStatus | null;
+  /** Stripe Price ID for current subscription tier */
+  stripe_price_id: string | null;
+  /** Start of current billing period */
+  stripe_current_period_start: string | null;
+  /** End of current billing period */
+  stripe_current_period_end: string | null;
+  /** Whether subscription cancels at period end */
+  stripe_cancel_at_period_end: boolean;
+  /** Email for billing communications */
+  billing_email: string | null;
+  /** Current plan tier */
+  subscription_plan: SubscriptionPlan;
+  /** When the user first subscribed to a paid plan */
+  subscription_started_at: string | null;
+  /** When the user canceled their subscription */
+  subscription_canceled_at: string | null;
+  /** Placeholder for future Stripe Connect rent collection */
+  stripe_connect_enabled: boolean;
 }
 
 export type ApplicationStatus =
@@ -140,6 +200,8 @@ export type EmploymentStatus =
 export type GovernmentIdStatus = "uploaded" | "not_uploaded" | "pending";
 
 export type SmokingStatus = "non_smoker" | "smoker" | "former_smoker" | "vaper";
+
+export type ApplicationFeeStatus = "not_required" | "unpaid" | "paid_manually" | "waived";
 
 export interface Application {
   id: string;
@@ -198,6 +260,23 @@ export interface Application {
   created_at: string;
   updated_at: string;
   decided_at: string | null;
+
+  // Application Fee (snapshot at time of application)
+  /** Whether fee was required at time of application */
+  application_fee_required: boolean;
+  /** Fee amount snapshot */
+  application_fee_amount: number | null;
+  /** Current fee status */
+  application_fee_status: ApplicationFeeStatus;
+  /** When fee was marked paid */
+  application_fee_paid_at: string | null;
+  /** When fee was waived */
+  application_fee_waived_at: string | null;
+  /** Landlord notes about fee */
+  application_fee_notes: string | null;
+
+  /** True if this is a demo/test application */
+  is_demo: boolean;
 }
 
 /** Application with joined property/room/bed details for display */
@@ -607,6 +686,8 @@ export interface PreparedLease {
   cancelled_at: string | null;
   created_at: string;
   updated_at: string;
+  /** True if this is a demo/test prepared lease */
+  is_demo: boolean;
 }
 
 export interface PreparedLeaseWithDetails extends PreparedLease {

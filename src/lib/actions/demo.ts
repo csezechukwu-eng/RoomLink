@@ -37,14 +37,19 @@ export async function checkDemoReadinessAction(): Promise<ActionState> {
 // ---------------------------------------------------------------------------
 
 export async function seedFullDemoDataAction(): Promise<ActionState> {
-  const result = await seedFullDemoData();
+  console.log("[seedFullDemoDataAction] Starting...");
 
-  if (result.error !== null) {
-    return {
-      status: "error",
-      message: result.error,
-    };
-  }
+  try {
+    const result = await seedFullDemoData();
+    console.log("[seedFullDemoDataAction] seedFullDemoData returned:", result.error ? `error: ${result.error}` : "success");
+
+    if (result.error !== null) {
+      console.error("[seedFullDemoDataAction] Returning error:", result.error);
+      return {
+        status: "error",
+        message: result.error,
+      };
+    }
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/demo");
@@ -78,6 +83,13 @@ export async function seedFullDemoDataAction(): Promise<ActionState> {
       skippedSteps,
     },
   };
+  } catch (e) {
+    console.error("[seedFullDemoDataAction] Exception caught:", e);
+    return {
+      status: "error",
+      message: e instanceof Error ? e.message : "Failed to seed demo data",
+    };
+  }
 }
 
 // ---------------------------------------------------------------------------

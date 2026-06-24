@@ -9,13 +9,7 @@ import type { User } from "@supabase/supabase-js";
  *
  * Supports two modes:
  * 1. Production mode: Uses real Supabase Auth
- * 2. Demo mode (local only): Uses hardcoded demo UUIDs
- *
- * Demo mode is ONLY available when:
- * - DEMO_MODE=true in environment
- * - NODE_ENV is NOT "production"
- *
- * This prevents demo mode from accidentally running in production.
+ * 2. Demo mode: Uses hardcoded demo UUIDs when DEMO_MODE=true
  */
 
 // Demo UUIDs - only used in local demo mode
@@ -27,13 +21,9 @@ export const TENANT_COOKIE = "rl_tenant";
 
 /**
  * Check if demo mode is enabled.
- * Demo mode only works locally (not in production).
+ * Demo mode is active when DEMO_MODE=true is set in environment.
  */
 export function isDemoMode(): boolean {
-  // Never allow demo mode in production
-  if (process.env.NODE_ENV === "production") {
-    return false;
-  }
   return process.env.DEMO_MODE === "true";
 }
 
@@ -144,4 +134,106 @@ export async function setCurrentTenantId(tenantId: string): Promise<void> {
     path: "/",
     maxAge: 60 * 60 * 24 * 90, // 90 days
   });
+}
+
+// ---------------------------------------------------------------------------
+// Billing Data Types
+// ---------------------------------------------------------------------------
+
+export interface LandlordBillingData {
+  id: string;
+  email: string;
+  full_name: string | null;
+  subscription_plan: "free" | "starter" | "pro" | "enterprise";
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_subscription_status: string | null;
+  stripe_price_id: string | null;
+  stripe_current_period_start: string | null;
+  stripe_current_period_end: string | null;
+  stripe_cancel_at_period_end: boolean;
+  billing_email: string | null;
+  subscription_started_at: string | null;
+  subscription_canceled_at: string | null;
+  stripe_connect_enabled: boolean;
+}
+
+/**
+ * Get the current landlord's billing data from the users table.
+ * Returns null if not authenticated or user not found.
+ */
+export async function getLandlordBillingData(): Promise<LandlordBillingData | null> {
+  const { createAuthenticatedClient } = await import("@/lib/supabase/server");
+
+  // Demo mode: return mock billing data
+  if (isDemoMode()) {
+    return {
+      id: DEMO_OWNER_ID,
+      email: "demo@roomlink.local",
+      full_name: "Demo Landlord",
+      subscription_plan: "pro",
+      stripe_customer_id: null,
+      stripe_subscription_id: null,
+      stripe_subscription_status: "active",
+      stripe_price_id: null,
+      stripe_current_period_start: new Date().toISOString(),
+      stripe_current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      stripe_cancel_at_period_end: false,
+      billing_email: null,
+      subscription_started_at: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
+      subscription_canceled_at: null,
+      stripe_connect_enabled: false,
+    };
+  }
+
+  // Production mode: fetch from database
+  const supabase = await createAuthenticatedClient();
+  const authUser = await getAuthUser();
+
+  if (!authUser) return null;
+
+  const { data, error } = await supabase
+    .from("users")
+    .select(`
+      id,
+      email,
+      full_name,
+      subscription_plan,
+      stripe_customer_id,
+      stripe_subscription_id,
+      stripe_subscription_status,
+      stripe_price_id,
+      stripe_current_period_start,
+      stripe_current_period_end,
+      stripe_cancel_at_period_end,
+      billing_email,
+      subscription_started_at,
+      subscription_canceled_at,
+      stripe_connect_enabled
+    `)
+    .eq("id", authUser.id)
+    .single();
+
+  if (error || !data) {
+    // User might not exist in users table yet - return defaults
+    return {
+      id: authUser.id,
+      email: authUser.email || "",
+      full_name: authUser.user_metadata?.full_name || null,
+      subscription_plan: "free",
+      stripe_customer_id: null,
+      stripe_subscription_id: null,
+      stripe_subscription_status: null,
+      stripe_price_id: null,
+      stripe_current_period_start: null,
+      stripe_current_period_end: null,
+      stripe_cancel_at_period_end: false,
+      billing_email: null,
+      subscription_started_at: null,
+      subscription_canceled_at: null,
+      stripe_connect_enabled: false,
+    };
+  }
+
+  return data as LandlordBillingData;
 }

@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 import type { DocumentProps, PageProps } from "react-pdf";
 
+// Import required react-pdf CSS for text and annotation layers
+import "react-pdf/dist/Page/TextLayer.css";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+
 /**
  * react-pdf renders the PDF to a <canvas> of a known size, so a signature
  * overlay placed at (0,0) with the same width/height lines up pixel-for-pixel
@@ -19,7 +23,7 @@ import type { DocumentProps, PageProps } from "react-pdf";
  * which is why stamped signatures landed in the wrong place.)
  *
  * pdf.js touches browser-only APIs, so the Document/Page components are loaded
- * client-side only (ssr: false) and the worker is configured in a client effect.
+ * client-side only (ssr: false).
  */
 const Document = dynamic<DocumentProps>(
   () => import("react-pdf").then((m) => m.Document),
@@ -69,14 +73,13 @@ export function PdfViewer({
     cb.current = { onLoadSuccess, onNotPdf, onPageChange };
   });
 
-  // Configure the pdf.js worker once, on the client only.
+  // Configure the pdf.js worker once, on the client only (using unpkg CDN).
+  // Note: pdfjs-dist 5.x uses .mjs worker files and is hosted on unpkg, not cdnjs.
   React.useEffect(() => {
     let active = true;
     import("react-pdf").then(({ pdfjs }) => {
       if (!active) return;
-      // Self-hosted worker (public/pdf.worker.min.mjs), kept in sync with the
-      // installed pdfjs-dist version — no external CDN dependency at runtime.
-      pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+      pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
       setWorkerReady(true);
     });
     return () => {
@@ -96,6 +99,17 @@ export function PdfViewer({
 
     (async () => {
       try {
+        // Validate URL before fetching
+        if (!url || url === "null" || url === "undefined") {
+          if (active) {
+            setError("No document URL provided");
+            setLoading(false);
+          }
+          return;
+        }
+
+        // Use no-cors credentials for Supabase signed URLs (cross-origin)
+        // Signed URLs don't need cookies/auth headers
         const res = await fetch(url);
         const contentType = res.headers.get("content-type") ?? "";
 
@@ -109,8 +123,10 @@ export function PdfViewer({
             }
             return;
           }
+          // Storage or auth error from Supabase
+          const errorMsg = data?.message || data?.error || "Storage access error";
           if (active) {
-            setError("Failed to load document");
+            setError(errorMsg);
             setLoading(false);
           }
           return;
@@ -118,17 +134,32 @@ export function PdfViewer({
 
         if (!res.ok) {
           if (active) {
-            setError("Failed to load document");
+            // Show HTTP status for debugging
+            const statusText = res.status === 404
+              ? "Document not found in storage"
+              : res.status === 403
+                ? "Access denied to document"
+                : `HTTP ${res.status}: ${res.statusText || "Failed to load"}`;
+            setError(statusText);
             setLoading(false);
           }
           return;
         }
 
         const buffer = await res.arrayBuffer();
+        if (buffer.byteLength === 0) {
+          if (active) {
+            setError("Document is empty");
+            setLoading(false);
+          }
+          return;
+        }
         if (active) setFileData(new Uint8Array(buffer));
-      } catch {
+      } catch (err) {
         if (active) {
-          setError("Failed to load document");
+          // Show network error details
+          const message = err instanceof Error ? err.message : "Network error";
+          setError(`Failed to fetch document: ${message}`);
           setLoading(false);
         }
       }
@@ -211,7 +242,8 @@ export function PdfViewer({
               setLoading(false);
               cb.current.onLoadSuccess?.(n);
             }}
-            onLoadError={() => {
+            onLoadError={(error) => {
+              console.error("PDF load error:", error);
               setError("Failed to render PDF");
               setLoading(false);
             }}
@@ -231,7 +263,7 @@ export function PdfViewer({
               />
               {renderOverlay && pageHeight > 0 && (
                 <div
-                  className="pointer-events-auto absolute left-0 top-0"
+                  className="pointer-events-auto absolute inset-0 z-10"
                   style={{ width, height: pageHeight }}
                 >
                   {renderOverlay(currentPage - 1, width, pageHeight)}

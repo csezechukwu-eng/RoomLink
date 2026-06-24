@@ -19,6 +19,8 @@ import {
   XCircle,
   Clock,
   ListChecks,
+  Beaker,
+  AlertTriangle,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +34,7 @@ import {
   markUnderReviewAction,
   updateInternalNotesAction,
 } from "@/lib/actions/applications";
+import { ApplicationFeeSection } from "@/components/host/ApplicationFeeSection";
 import { initialActionState } from "@/lib/actions/types";
 import {
   APPLICATION_STATUS_STYLES,
@@ -69,6 +72,12 @@ export function ApplicationDetailClient({ application }: ApplicationDetailClient
   const canWaitlist = ["submitted", "under_review"].includes(application.status);
   const canMarkUnderReview = application.status === "submitted";
 
+  // Fee warning: show if fee is required but not paid/waived
+  const showFeeWarning =
+    canApprove &&
+    application.application_fee_required &&
+    application.application_fee_status === "unpaid";
+
   // Combine all action states for feedback
   const actionState = approveState.status !== "idle" ? approveState
     : rejectState.status !== "idle" ? rejectState
@@ -84,6 +93,12 @@ export function ApplicationDetailClient({ application }: ApplicationDetailClient
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-slate-900">{fullName}</h1>
             <Badge className={statusStyle.badge}>{application.status.replace("_", " ")}</Badge>
+            {application.is_demo && (
+              <Badge className="bg-amber-100 text-amber-700 border border-amber-300">
+                <Beaker className="mr-1 h-3 w-3" />
+                Demo Application
+              </Badge>
+            )}
           </div>
           <p className="mt-1 text-slate-500">Applied on {submittedDate}</p>
         </div>
@@ -96,6 +111,18 @@ export function ApplicationDetailClient({ application }: ApplicationDetailClient
       {(canApprove || canReject || canWaitlist || canMarkUnderReview) && (
         <Card className="p-4">
           <h2 className="mb-3 text-sm font-semibold text-slate-700">Actions</h2>
+
+          {/* Fee Warning */}
+          {showFeeWarning && (
+            <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <span>
+                Application fee is not marked as paid or waived yet. You can still
+                approve, but consider collecting the fee first.
+              </span>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2">
             {canMarkUnderReview && (
               <form action={reviewAction}>
@@ -275,6 +302,17 @@ export function ApplicationDetailClient({ application }: ApplicationDetailClient
 
         {/* Sidebar - 1 column */}
         <div className="space-y-6">
+          {/* Application Fee */}
+          <ApplicationFeeSection
+            applicationId={application.id}
+            feeRequired={application.application_fee_required}
+            feeAmount={application.application_fee_amount}
+            feeStatus={application.application_fee_status}
+            feePaidAt={application.application_fee_paid_at}
+            feeWaivedAt={application.application_fee_waived_at}
+            feeNotes={application.application_fee_notes}
+          />
+
           {/* Property/Bed Info */}
           <Card className="p-5">
             <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">

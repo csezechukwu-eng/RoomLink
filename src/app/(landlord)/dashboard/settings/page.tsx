@@ -554,79 +554,66 @@ function NotificationSettings() {
 function PaymentSettings() {
   return (
     <div className="space-y-6">
+      {/* Room Link Subscription Billing */}
+      <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Room Link Subscription</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Manage your Room Link platform subscription and billing.
+            </p>
+          </div>
+          <a
+            href="/dashboard/settings/billing"
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Manage Billing
+            <ChevronRight className="h-4 w-4" />
+          </a>
+        </div>
+        <div className="mt-4 flex items-center gap-4 text-sm text-slate-600">
+          <span className="flex items-center gap-1.5">
+            <Check className="h-4 w-4 text-emerald-500" />
+            View subscription status
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Check className="h-4 w-4 text-emerald-500" />
+            Compare plans
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Check className="h-4 w-4 text-emerald-500" />
+            Manage payment methods
+          </span>
+        </div>
+      </Card>
+
+      {/* Rent Collection (Stripe Connect - Future) */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold text-slate-900">Payment Methods</h2>
-        <p className="mt-1 text-sm text-slate-500">Manage how you receive payments from tenants.</p>
+        <h2 className="text-lg font-semibold text-slate-900">Rent Collection</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Collect rent payments directly from tenants. (Coming Soon)
+        </p>
 
-        <div className="mt-6 space-y-4">
-          <div className="flex items-center justify-between rounded-lg border border-slate-200 p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-100">
-                <CreditCard className="h-6 w-6 text-indigo-600" />
-              </div>
-              <div>
-                <p className="font-medium text-slate-900">Bank Account (ACH)</p>
-                <p className="text-sm text-slate-500">****4567 • Wells Fargo</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-600">Primary</span>
-              <button className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Edit</button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border border-slate-200 p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100">
-                <CreditCard className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="font-medium text-slate-900">Stripe</p>
-                <p className="text-sm text-slate-500">Connected • Accept card payments</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-600">Active</span>
-              <button className="text-sm font-medium text-indigo-600 hover:text-indigo-700">Manage</button>
-            </div>
-          </div>
-
-          <button className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 py-4 text-sm font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600">
-            <Plus className="h-4 w-4" />
-            Add Payment Method
+        <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-8 text-center">
+          <CreditCard className="mx-auto h-10 w-10 text-slate-400" />
+          <p className="mt-3 font-medium text-slate-900">Stripe Connect Integration</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Soon you&apos;ll be able to accept rent payments directly from tenants.
+            <br />
+            Connect your bank account to receive payouts automatically.
+          </p>
+          <button
+            className="mt-4 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-400 cursor-not-allowed"
+            disabled
+          >
+            Coming Soon
           </button>
         </div>
       </Card>
 
       <Card className="p-6">
-        <h2 className="text-lg font-semibold text-slate-900">Billing Information</h2>
-        <p className="mt-1 text-sm text-slate-500">Manage your RoomLink subscription.</p>
-
-        <div className="mt-6 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-indigo-900">Professional Plan</p>
-              <p className="text-sm text-indigo-700">Up to 100 beds • All features included</p>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-indigo-900">$99<span className="text-sm font-normal">/mo</span></p>
-              <p className="text-sm text-indigo-700">Next billing: Jul 1, 2024</p>
-            </div>
-          </div>
-          <div className="mt-4 flex gap-2">
-            <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-              Upgrade Plan
-            </button>
-            <button className="rounded-lg border border-indigo-200 bg-white px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50">
-              View Invoices
-            </button>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="p-6">
         <h2 className="text-lg font-semibold text-slate-900">Payment Processing Fees</h2>
-        <p className="mt-1 text-sm text-slate-500">Choose who pays the processing fees.</p>
+        <p className="mt-1 text-sm text-slate-500">Choose who pays the processing fees when rent collection is enabled.</p>
 
         <div className="mt-6 space-y-3">
           <label className="flex items-center gap-3 rounded-lg border border-slate-200 p-4 cursor-pointer hover:bg-slate-50">

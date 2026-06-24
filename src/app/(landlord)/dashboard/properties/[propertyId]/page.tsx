@@ -13,6 +13,7 @@ import { PropertyApplicationsPanel } from "@/components/host/PropertyApplication
 import { PropertyPaymentsSnapshot } from "@/components/host/PropertyPaymentsSnapshot";
 import { PropertyMaintenanceSnapshot } from "@/components/host/PropertyMaintenanceSnapshot";
 import { PropertyRulesPanel } from "@/components/host/PropertyRulesPanel";
+import { PropertyApplicationFeePanel } from "@/components/host/PropertyApplicationFeePanel";
 import { getPropertyWorkspace } from "@/lib/queries";
 import { computeNeedsAttention } from "@/lib/needsAttention";
 import { computeBedAvailability, type BedAvailability } from "@/lib/bedAvailability";
@@ -148,6 +149,9 @@ export default async function PropertyDetailPage({
 
           {/* D. Applications */}
           <PropertyApplicationsPanel applications={applications} />
+
+          {/* D2. Application Fee Settings */}
+          <PropertyApplicationFeePanel property={property} />
 
           {/* E. Rent & Payment snapshot */}
           <PropertyPaymentsSnapshot charges={rentCharges} />

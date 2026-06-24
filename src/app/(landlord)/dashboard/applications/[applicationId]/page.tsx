@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
 import { PrepareLeaseCard } from "@/components/host/PrepareLeaseCard";
+import { LeaseAutomationSection } from "@/components/host/LeaseAutomationSection";
 import { getApplicationDetail } from "@/lib/queries";
 import { getApplicationLeaseContext } from "@/lib/services/leaseDocuments";
+import { getLeaseAutomationContext } from "@/lib/services/preparedLeases";
 import { ApplicationDetailClient } from "./ApplicationDetailClient";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +25,10 @@ export default async function ApplicationDetailPage({
   if (!result.data) notFound();
 
   const application = result.data;
-  const leaseCtx = await getApplicationLeaseContext(applicationId);
+  const [leaseCtx, automationCtx] = await Promise.all([
+    getApplicationLeaseContext(applicationId),
+    getLeaseAutomationContext(applicationId),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -37,8 +42,12 @@ export default async function ApplicationDetailPage({
 
       <ApplicationDetailClient application={application} />
 
-      {/* Phase 1 lease workflow: prepare (upload) a lease for an approved applicant.
-          A separate in-app signing flow lives under /dashboard/leases. */}
+      {/* Lease Automation: approve & send lease based on rental type */}
+      <div id="lease-automation">
+        <LeaseAutomationSection context={automationCtx.data ?? null} />
+      </div>
+
+      {/* Legacy Phase 1 lease workflow: manual upload for approved applicant */}
       <div id="lease">
         <PrepareLeaseCard context={leaseCtx.data ?? null} />
       </div>

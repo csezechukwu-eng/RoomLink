@@ -85,23 +85,33 @@ export function DemoTestCenter({
   };
 
   const handleLoadFullDemo = async () => {
+    console.log("[DemoTestCenter] Load Full Demo Data clicked");
     setLoading(true);
     setError(null);
     setSeedSteps([]);
     setLastAction(null);
     try {
+      console.log("[DemoTestCenter] Calling seedFullDemoDataAction...");
       const result = await seedFullDemoDataAction();
+      console.log("[DemoTestCenter] seedFullDemoDataAction result:", JSON.stringify(result, null, 2));
       if (result.status === "error") {
-        setError(result.message ?? null);
+        console.error("[DemoTestCenter] Server action returned error:", result.message);
+        setError(result.message ?? "Unknown error occurred");
       } else {
+        console.log("[DemoTestCenter] Server action succeeded:", result.message);
         setSeedSteps(result.data?.steps || []);
-        setLastAction(result.message ?? null);
+        setLastAction(result.message ?? "Demo data loaded");
       }
+      console.log("[DemoTestCenter] Refreshing readiness...");
       await refreshReadiness();
+      console.log("[DemoTestCenter] Readiness refreshed");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load demo data");
+      console.error("[DemoTestCenter] Exception caught:", e);
+      const errorMessage = e instanceof Error ? e.message : "Failed to load demo data";
+      setError(errorMessage);
     } finally {
       setLoading(false);
+      console.log("[DemoTestCenter] Loading complete");
     }
   };
 

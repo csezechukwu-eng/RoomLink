@@ -53,13 +53,25 @@ export async function createProperty(
   let newId: string | null = null;
   try {
     const supabase = await createAuthenticatedClient();
-    const ownerId = await getCurrentOwnerId();
 
-    // Debug: Check what auth.uid() returns from Supabase's perspective
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    console.log("[createProperty] ownerId from getCurrentOwnerId:", ownerId);
-    console.log("[createProperty] auth.uid from supabase.auth.getUser:", authUser?.id);
-    console.log("[createProperty] IDs match:", ownerId === authUser?.id);
+    // Get owner ID directly from the authenticated session.
+    // This ensures owner_id matches auth.uid() for RLS compliance.
+    // Do NOT use getCurrentOwnerId() here - it may return a demo ID that
+    // doesn't match the actual authenticated user's auth.uid().
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      console.error("[createProperty] Auth error:", authError);
+      return errorState(
+        "Your session has expired. Please sign in again to create a property."
+      );
+    }
+
+    const ownerId = user.id;
+    console.log("[createProperty] Using owner_id from authenticated session:", ownerId);
 
     const { data, error } = await supabase
       .from("properties")
@@ -67,13 +79,15 @@ export async function createProperty(
       .select("id")
       .single();
 
-    console.log("[createProperty] Insert result - data:", data, "error:", error);
-
     if (error) {
       console.error("[createProperty] Insert error:", error);
       console.error("[createProperty] Error code:", error.code);
-      console.error("[createProperty] Error details:", error.details);
-      console.error("[createProperty] Error hint:", error.hint);
+      // Provide a user-friendly message for RLS errors
+      if (error.code === "42501") {
+        return errorState(
+          "Unable to create property. Your account may not have permission. Please sign out and sign in again."
+        );
+      }
       throw error;
     }
     if (!data) {
@@ -183,6 +197,59 @@ export async function togglePropertyVisibility(
 
     revalidateLandlord(id);
     return successState(isHidden ? "Property hidden." : "Property visible.");
+  } catch (error) {
+    return errorState(messageFrom(error));
+  }
+}
+
+/** Update property application fee settings. */
+export async function updateApplicationFeeSettings(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = str(formData, "id");
+  if (!id) return errorState("Missing property id.");
+
+  const feeRequired = str(formData, "application_fee_required") === "true";
+  const feeAmountStr = optionalStr(formData, "application_fee_amount");
+  const feeInstructions = optionalStr(formData, "application_fee_instructions");
+
+  // Parse and validate fee amount
+  let feeAmount: number | null = null;
+  if (feeAmountStr) {
+    feeAmount = parseFloat(feeAmountStr);
+    if (isNaN(feeAmount) || feeAmount < 0) {
+      return errorState("Please enter a valid fee amount.", {
+        application_fee_amount: "Enter a valid amount (0 or more).",
+      });
+    }
+  }
+
+  // If fee is required, amount should be set
+  if (feeRequired && (!feeAmount || feeAmount <= 0)) {
+    return errorState("Please enter a fee amount.", {
+      application_fee_amount: "Fee amount is required when fee is enabled.",
+    });
+  }
+
+  try {
+    const supabase = await createAuthenticatedClient();
+    const ownerId = await getCurrentOwnerId();
+    await assertPropertyOwned(supabase, id, ownerId);
+
+    const { error } = await supabase
+      .from("properties")
+      .update({
+        application_fee_required: feeRequired,
+        application_fee_amount: feeAmount,
+        application_fee_instructions: feeInstructions || null,
+      })
+      .eq("id", id)
+      .eq("owner_id", ownerId);
+    if (error) throw error;
+
+    revalidateLandlord(id);
+    return successState("Application fee settings saved.");
   } catch (error) {
     return errorState(messageFrom(error));
   }

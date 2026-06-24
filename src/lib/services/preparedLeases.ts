@@ -523,6 +523,9 @@ export async function approveAndSendLease(
     const leaseReferenceNumber = await generateLeaseReferenceNumber();
 
     // 7. Create prepared lease
+    // Check if this is a demo application to propagate is_demo flag
+    const isDemo = (application as { is_demo?: boolean }).is_demo ?? false;
+
     const { data: preparedLease, error: plErr } = await supabase
       .from("prepared_leases")
       .insert({
@@ -544,6 +547,7 @@ export async function approveAndSendLease(
         deposit_snapshot: depositSnapshot,
         autofill_snapshot: autofillSnapshot,
         sent_at: now,
+        is_demo: isDemo,
       })
       .select("id")
       .single();
@@ -589,6 +593,7 @@ export async function approveAndSendLease(
         height: field.height,
         placement_note: field.placement_note,
         sort_order: field.sort_order,
+        is_demo: isDemo,
       };
     });
 
