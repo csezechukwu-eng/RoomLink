@@ -1,6 +1,7 @@
 // RoomLink domain types — Phase 1A
 
 export type PropertyType = "crash_pad" | "co_living" | "midterm" | "room_rental";
+export type OccupancyType = "co_ed" | "women_only_house" | "women_only_rooms";
 export type BunkType = "top_bunk" | "bottom_bunk" | "single" | "other";
 export type BedStatus = "vacant" | "reserved" | "occupied" | "unavailable";
 export type MemberRole = "owner" | "manager" | "tenant";
@@ -14,6 +15,11 @@ export interface Property {
   state: string | null;
   zip: string | null;
   property_type: PropertyType;
+  /**
+   * Public occupancy policy. Optional because the column is added in migration
+   * 0020; rows from a DB without it default to "co_ed" in the UI.
+   */
+  occupancy_type?: OccupancyType | null;
   description: string | null;
   house_rules: string | null;
   is_hidden: boolean;

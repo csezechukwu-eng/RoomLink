@@ -5,10 +5,11 @@ import {
   ArrowLeft,
   BedDouble,
   DoorOpen,
-  Bath,
-  Wifi,
-  WashingMachine,
-  Car,
+  Users,
+  ShieldCheck,
+  CalendarDays,
+  Camera,
+  MapPin,
   ChevronDown,
   ImageIcon,
 } from "lucide-react";
@@ -16,12 +17,35 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ErrorState";
 import { getAvailabilityDetail } from "@/lib/services/availability";
-import { labelForBunkType } from "@/lib/constants";
+import { labelForBunkType, labelForOccupancyType } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import { computeBedAvailability } from "@/lib/bedAvailability";
-import type { PropertyMedia } from "@/lib/types";
+import type { Bed, PropertyMedia } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+const MIN_STAY_COPY =
+  "Room Link is built for monthly stays. The minimum booking period is 30 days.";
+
+function rentRange(beds: Bed[]): string | null {
+  const rents = beds.map((b) => Number(b.monthly_rent)).filter((n) => n > 0);
+  if (rents.length === 0) return null;
+  const min = Math.min(...rents);
+  const max = Math.max(...rents);
+  return min === max
+    ? formatCurrency(min)
+    : `${formatCurrency(min)}–${formatCurrency(max)}`;
+}
+
+function depositRange(beds: Bed[]): string | null {
+  const deposits = beds.map((b) => Number(b.deposit_amount)).filter((n) => n > 0);
+  if (deposits.length === 0) return null;
+  const min = Math.min(...deposits);
+  const max = Math.max(...deposits);
+  return min === max
+    ? formatCurrency(min)
+    : `${formatCurrency(min)}–${formatCurrency(max)}`;
+}
 
 export default async function AvailabilityDetailPage({
   params,
@@ -47,6 +71,15 @@ export default async function AvailabilityDetailPage({
     .filter(Boolean)
     .join(", ");
 
+  const allBeds = rooms.flatMap((r) => r.beds);
+  const vacant = allBeds.filter((b) => b.status === "vacant");
+  // Price/deposit shown for what a tenant can actually book (vacant beds);
+  // fall back to the whole house if nothing is currently open.
+  const priceSource = vacant.length > 0 ? vacant : allBeds;
+  const rent = rentRange(priceSource);
+  const deposit = depositRange(priceSource);
+  const hasVacancy = vacantBeds > 0;
+
   return (
     <div className="space-y-6">
       <BackLink />
@@ -57,115 +90,203 @@ export default async function AvailabilityDetailPage({
           {property.name}
         </h1>
         {location && (
-          <p className="mt-1 text-slate-500">{location}</p>
+          <p className="mt-1 flex items-center gap-1.5 text-slate-500">
+            <MapPin className="h-4 w-4 shrink-0" />
+            {location}
+          </p>
         )}
       </div>
 
       {/* Photo Gallery */}
       <PhotoGallery photos={propertyPhotos} />
 
-      {/* Amenities */}
-      <div className="flex flex-wrap gap-4 text-sm">
-        <AmenityBadge icon={<BedDouble className="h-4 w-4" />} label={`${totalBeds} Beds`} />
-        <AmenityBadge icon={<DoorOpen className="h-4 w-4" />} label={`${rooms.length} Rooms`} />
-        <AmenityBadge icon={<Bath className="h-4 w-4" />} label="3 Bathrooms" />
-        <AmenityBadge icon={<Wifi className="h-4 w-4" />} label="WiFi" />
-        <AmenityBadge icon={<WashingMachine className="h-4 w-4" />} label="Laundry" />
-        <AmenityBadge icon={<Car className="h-4 w-4" />} label="Parking" />
+      {/* Key facts (real data only — no placeholder amenities) */}
+      <div className="flex flex-wrap gap-3 text-sm">
+        <Fact icon={<Users className="h-4 w-4" />} label={`Sleeps ${totalBeds}`} />
+        <Fact
+          icon={<BedDouble className="h-4 w-4" />}
+          label={`${vacantBeds} of ${totalBeds} beds open`}
+        />
+        <Fact icon={<DoorOpen className="h-4 w-4" />} label={`${rooms.length} rooms`} />
+        <Fact
+          icon={<ShieldCheck className="h-4 w-4" />}
+          label={labelForOccupancyType(property.occupancy_type)}
+        />
       </div>
 
-      {/* About & House Rules */}
-      {(property.description || property.house_rules) && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {property.description && (
-            <Card className="p-5">
-              <h2 className="font-semibold text-slate-900">About</h2>
-              <p className="mt-2 text-sm text-slate-600 whitespace-pre-line">
-                {property.description}
-              </p>
-            </Card>
-          )}
-          {property.house_rules && (
-            <Card className="p-5">
-              <h2 className="font-semibold text-slate-900">House Rules</h2>
-              <p className="mt-2 text-sm text-slate-600 whitespace-pre-line">
-                {property.house_rules}
-              </p>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* Available Beds Section */}
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Available Beds</h2>
-
-        {rooms.length === 0 ? (
-          <p className="text-sm text-slate-500">No rooms listed yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {rooms.map((room) => {
-              const availableCount = room.beds.filter((b) => b.status === "vacant").length;
-              const occupiedCount = room.beds.filter((b) => b.status === "occupied").length;
-
-              return (
-                <Card key={room.id} className="overflow-hidden">
-                  {/* Room Header */}
-                  <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-semibold text-slate-900">{room.name}</h3>
-                      <span className="text-sm text-slate-500">
-                        {room.beds.length} Beds · {occupiedCount} Occupied · {availableCount} Available
-                      </span>
-                    </div>
-                    <ChevronDown className="h-5 w-5 text-slate-400" />
-                  </div>
-
-                  {/* Beds List */}
-                  <div className="divide-y divide-slate-100">
-                    {room.beds.map((bed) => (
-                      <div
-                        key={bed.id}
-                        className="flex items-center justify-between px-5 py-4"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <span className="font-medium text-slate-900">{bed.label}</span>
-                            <span className="text-sm text-slate-500">
-                              ({labelForBunkType(bed.bunk_type)})
-                            </span>
-                          </div>
-                          <p className="mt-1 text-sm text-slate-500">
-                            {formatCurrency(bed.monthly_rent)} / month · Deposit: {formatCurrency(bed.deposit_amount)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {bed.status === "vacant" ? (
-                            <>
-                              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                                {computeBedAvailability(bed).label}
-                              </span>
-                              <Link href={`/apply/${bed.id}`}>
-                                <Button size="sm">Apply</Button>
-                              </Link>
-                            </>
-                          ) : (
-                            <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                              {bed.status === "occupied" ? "Occupied" : bed.status === "reserved" ? "Reserved" : "Unavailable"}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {room.beds.length === 0 && (
-                      <p className="px-5 py-4 text-sm text-slate-500">No beds in this room.</p>
-                    )}
-                  </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Left column: about, rules, beds */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* About & House Rules */}
+          {(property.description || property.house_rules) && (
+            <div className="grid gap-6 sm:grid-cols-2">
+              {property.description && (
+                <Card className="p-5">
+                  <h2 className="font-semibold text-slate-900">About</h2>
+                  <p className="mt-2 whitespace-pre-line text-sm text-slate-600">
+                    {property.description}
+                  </p>
                 </Card>
-              );
-            })}
+              )}
+              {property.house_rules && (
+                <Card className="p-5">
+                  <h2 className="font-semibold text-slate-900">House rules</h2>
+                  <p className="mt-2 whitespace-pre-line text-sm text-slate-600">
+                    {property.house_rules}
+                  </p>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* Available Beds Section */}
+          <div id="available-beds" className="scroll-mt-20">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">
+              Available beds
+            </h2>
+
+            {rooms.length === 0 ? (
+              <p className="text-sm text-slate-500">No rooms listed yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {rooms.map((room) => {
+                  const availableCount = room.beds.filter(
+                    (b) => b.status === "vacant"
+                  ).length;
+                  const occupiedCount = room.beds.filter(
+                    (b) => b.status === "occupied"
+                  ).length;
+
+                  return (
+                    <Card key={room.id} className="overflow-hidden">
+                      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3">
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-semibold text-slate-900">
+                            {room.name}
+                          </h3>
+                          <span className="text-sm text-slate-500">
+                            {room.beds.length} beds · {occupiedCount} occupied ·{" "}
+                            {availableCount} available
+                          </span>
+                        </div>
+                        <ChevronDown className="h-5 w-5 text-slate-400" />
+                      </div>
+
+                      <div className="divide-y divide-slate-100">
+                        {room.beds.map((bed) => (
+                          <div
+                            key={bed.id}
+                            className="flex items-center justify-between px-5 py-4"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3">
+                                <span className="font-medium text-slate-900">
+                                  {bed.label}
+                                </span>
+                                <span className="text-sm text-slate-500">
+                                  ({labelForBunkType(bed.bunk_type)})
+                                </span>
+                              </div>
+                              <p className="mt-1 text-sm text-slate-500">
+                                {formatCurrency(bed.monthly_rent)} / month ·
+                                Deposit: {formatCurrency(bed.deposit_amount)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {bed.status === "vacant" ? (
+                                <>
+                                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                                    {computeBedAvailability(bed).label}
+                                  </span>
+                                  <Link href={`/apply/${bed.id}`}>
+                                    <Button size="sm">Request</Button>
+                                  </Link>
+                                </>
+                              ) : (
+                                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                                  {bed.status === "occupied"
+                                    ? "Occupied"
+                                    : bed.status === "reserved"
+                                      ? "Reserved"
+                                      : "Unavailable"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {room.beds.length === 0 && (
+                          <p className="px-5 py-4 text-sm text-slate-500">
+                            No beds in this room.
+                          </p>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Right column: booking summary (sticky on desktop) */}
+        <aside className="lg:col-span-1">
+          <Card className="p-5 lg:sticky lg:top-20">
+            <div className="flex items-baseline gap-1">
+              {rent ? (
+                <>
+                  <span className="text-2xl font-bold text-slate-900">{rent}</span>
+                  <span className="text-slate-500">/month</span>
+                </>
+              ) : (
+                <span className="text-lg font-semibold text-slate-700">
+                  Pricing varies
+                </span>
+              )}
+            </div>
+
+            <dl className="mt-4 space-y-2.5 text-sm">
+              <SummaryRow label="Deposit" value={deposit ?? "No deposit"} />
+              <SummaryRow
+                label="Occupancy"
+                value={labelForOccupancyType(property.occupancy_type)}
+              />
+              <SummaryRow label="House capacity" value={`${totalBeds} beds`} />
+              <SummaryRow
+                label="Available now"
+                value={`${vacantBeds} bed${vacantBeds === 1 ? "" : "s"}`}
+              />
+            </dl>
+
+            {/* Minimum stay note + required copy */}
+            <div className="mt-4 rounded-lg bg-indigo-50 p-3">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-indigo-900">
+                <CalendarDays className="h-4 w-4" />
+                Minimum stay: 30 days
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-indigo-700">
+                {MIN_STAY_COPY}
+              </p>
+            </div>
+
+            {/* CTA */}
+            {hasVacancy ? (
+              <Link href="#available-beds" className="mt-4 block">
+                <Button className="w-full">Request monthly stay</Button>
+              </Link>
+            ) : (
+              <Button className="mt-4 w-full" disabled>
+                No beds currently available
+              </Button>
+            )}
+
+            {/* Checkout photo requirement (informational only) */}
+            <p className="mt-3 flex items-start gap-1.5 text-xs text-slate-500">
+              <Camera className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              Checkout photos are required at move-out to confirm the bed&apos;s
+              condition.
+            </p>
+          </Card>
+        </aside>
       </div>
     </div>
   );
@@ -178,8 +299,26 @@ function BackLink() {
       className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
     >
       <ArrowLeft className="h-4 w-4" />
-      Back to Properties
+      Back to listings
     </Link>
+  );
+}
+
+function Fact({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-700">
+      <span className="text-slate-400">{icon}</span>
+      {label}
+    </span>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="font-medium text-slate-900">{value}</dd>
+    </div>
   );
 }
 
@@ -261,20 +400,5 @@ function PhotoGallery({ photos }: { photos: PropertyMedia[] }) {
         )
       )}
     </div>
-  );
-}
-
-function AmenityBadge({
-  icon,
-  label,
-}: {
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-700">
-      <span className="text-slate-400">{icon}</span>
-      {label}
-    </span>
   );
 }

@@ -8,6 +8,7 @@ import type {
   GovernmentIdStatus,
   MaintenancePriority,
   MaintenanceStatus,
+  OccupancyType,
   PropertyType,
   RentStatus,
   ReservationStatus,
@@ -24,6 +25,13 @@ export const PROPERTY_TYPES: Option<PropertyType>[] = [
   { value: "co_living", label: "Co-Living" },
   { value: "midterm", label: "Midterm Rental" },
   { value: "room_rental", label: "Room Rental" },
+];
+
+/** Public occupancy policy options (search filter + listing labels). */
+export const OCCUPANCY_TYPES: Option<OccupancyType>[] = [
+  { value: "co_ed", label: "Co-ed" },
+  { value: "women_only_house", label: "Women-only house" },
+  { value: "women_only_rooms", label: "Women-only rooms" },
 ];
 
 export const BUNK_TYPES: Option<BunkType>[] = [
@@ -69,6 +77,14 @@ export const BED_STATUS_STYLES: Record<
 
 export function labelForPropertyType(value: PropertyType): string {
   return PROPERTY_TYPES.find((t) => t.value === value)?.label ?? value;
+}
+
+export function labelForOccupancyType(
+  value: OccupancyType | null | undefined
+): string {
+  // Default to "Co-ed" when unset (e.g. DB without migration 0020).
+  if (!value) return "Co-ed";
+  return OCCUPANCY_TYPES.find((t) => t.value === value)?.label ?? "Co-ed";
 }
 
 export function labelForBunkType(value: BunkType): string {
