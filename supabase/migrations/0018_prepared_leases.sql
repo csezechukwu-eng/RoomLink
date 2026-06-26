@@ -57,11 +57,14 @@ create table if not exists public.prepared_leases (
   completed_at          timestamptz,
   cancelled_at          timestamptz,
   created_at            timestamptz not null default now(),
-  updated_at            timestamptz not null default now(),
-  -- Ensure one active lease per application
-  constraint prepared_leases_unique_active_application
-    unique (application_id) where (status not in ('cancelled'))
+  updated_at            timestamptz not null default now()
 );
+
+-- Partial unique index: only one non-cancelled lease per application
+-- (PostgreSQL does not support partial unique constraints in CREATE TABLE)
+create unique index if not exists prepared_leases_unique_active_application
+  on public.prepared_leases(application_id)
+  where status <> 'cancelled';
 
 -- Indexes
 create index if not exists idx_prepared_leases_owner on public.prepared_leases(owner_id);
