@@ -1336,20 +1336,31 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
 
     // Check existing demo applications
     const demoEmails = DEMO_APPLICANTS.map((a) => a.email);
-    const { data: existingApps } = await supabase
+    console.log("[seedFullDemoData] Checking for existing apps with emails:", demoEmails);
+    console.log("[seedFullDemoData] Using property_id:", propertyId);
+
+    const { data: existingApps, error: existingAppsErr } = await supabase
       .from("applications")
-      .select("email")
+      .select("email, id, is_demo, status")
       .eq("property_id", propertyId)
       .eq("is_demo", true)
       .in("email", demoEmails);
-    const existingAppEmails = new Set((existingApps ?? []).map((a) => a.email));
-    console.log("[seedFullDemoData] Existing demo apps:", existingAppEmails.size);
 
+    if (existingAppsErr) {
+      console.error("[seedFullDemoData] Error checking existing apps:", existingAppsErr.message);
+    }
+
+    const existingAppEmails = new Set((existingApps ?? []).map((a) => a.email));
+    console.log("[seedFullDemoData] Existing demo apps found:", existingApps?.length ?? 0);
+    console.log("[seedFullDemoData] Existing app emails:", Array.from(existingAppEmails));
+
+    let appsSkipped = 0;
     for (let i = 0; i < DEMO_APPLICANTS.length; i++) {
       const demo = DEMO_APPLICANTS[i];
 
       if (existingAppEmails.has(demo.email)) {
         console.log("[seedFullDemoData] Skipping existing app for:", demo.email);
+        appsSkipped++;
         continue;
       }
 
@@ -1357,58 +1368,76 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
       const bedIndex = vacantDemoBeds.length > 0 ? i % vacantDemoBeds.length : -1;
       const bed = bedIndex >= 0 ? vacantDemoBeds[bedIndex] : undefined;
       if (!bed) {
-        console.error("[seedFullDemoData] No bed available for:", demo.name);
+        console.error("[seedFullDemoData] No bed available for:", demo.name, "- vacantDemoBeds.length:", vacantDemoBeds.length);
         steps.push({
           step: `Application ${demo.name}`,
           status: "error",
-          detail: "No vacant beds available",
+          detail: `No vacant beds available (${vacantDemoBeds.length} beds)`,
         });
         continue;
       }
-      console.log("[seedFullDemoData] Assigning bed", bed.label, "to", demo.name);
+      console.log("[seedFullDemoData] Assigning bed", bed.label, "(id:", bed.id, ") to", demo.name);
 
       const moveInDate = new Date();
       moveInDate.setDate(moveInDate.getDate() + demo.moveInOffset);
       const moveInIso = moveInDate.toISOString().slice(0, 10);
 
+      const insertPayload = {
+        property_id: propertyId,
+        bed_id: bed.id,
+        desired_room_id: bed.room_id,
+        first_name: demo.firstName,
+        last_name: demo.lastName,
+        full_name: demo.name,
+        email: demo.email,
+        phone: demo.phone,
+        desired_move_in: moveInIso,
+        length_of_stay: "6-12 months",
+        reason_for_stay: "Demo application for testing Room Link workflows",
+        commuter_status: demo.commuterStatus,
+        employment_status: demo.employmentStatus,
+        employer_name: "Demo Employer Inc.",
+        monthly_income: demo.monthlyIncome,
+        emergency_contact_name: "Demo Emergency Contact",
+        emergency_contact_phone: "555-9999",
+        government_id_status: "uploaded",
+        background_check_consent: true,
+        stay_type: demo.stayType,
+        status: demo.targetStatus,
+        is_demo: true,
+      };
+
+      console.log("[seedFullDemoData] Inserting application:", JSON.stringify({
+        property_id: insertPayload.property_id,
+        bed_id: insertPayload.bed_id,
+        email: insertPayload.email,
+        status: insertPayload.status,
+        is_demo: insertPayload.is_demo,
+      }));
+
       const { data: app, error: aErr } = await supabase
         .from("applications")
-        .insert({
-          property_id: propertyId,
-          bed_id: bed.id,
-          desired_room_id: bed.room_id,
-          first_name: demo.firstName,
-          last_name: demo.lastName,
-          full_name: demo.name,
-          email: demo.email,
-          phone: demo.phone,
-          desired_move_in: moveInIso,
-          length_of_stay: "6-12 months",
-          reason_for_stay: "Demo application for testing Room Link workflows",
-          commuter_status: demo.commuterStatus,
-          employment_status: demo.employmentStatus,
-          employer_name: "Demo Employer Inc.",
-          monthly_income: demo.monthlyIncome,
-          emergency_contact_name: "Demo Emergency Contact",
-          emergency_contact_phone: "555-9999",
-          government_id_status: "uploaded",
-          background_check_consent: true,
-          stay_type: demo.stayType,
-          status: demo.targetStatus,
-          is_demo: true,
-        })
+        .insert(insertPayload)
         .select()
         .single();
 
       if (aErr) {
+        console.error("[seedFullDemoData] Insert failed for", demo.name, ":", aErr.message, aErr.code, aErr.details);
         steps.push({
           step: `Application ${demo.name}`,
           status: "error",
-          detail: aErr.message,
+          detail: `Insert failed: ${aErr.message}`,
         });
         continue;
       }
 
+      console.log("[seedFullDemoData] Successfully created application:", app?.id, "for", demo.name);
+      steps.push({
+        step: `Application ${demo.name}`,
+        status: "success",
+        detail: `Created with bed ${bed.label}`,
+        id: app?.id,
+      });
       summary.applicationsCreated++;
     }
 
@@ -1428,20 +1457,42 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
       }
     }
 
-    if (summary.applicationsCreated > 0 || (existingApps?.length ?? 0) > 0) {
-      const total = summary.applicationsCreated + (existingApps?.length ?? 0);
-      let detail = summary.applicationsCreated > 0
-        ? `Created ${summary.applicationsCreated} application(s)`
-        : `Reusing ${total} existing application(s)`;
-      if (statusesUpdated > 0 && summary.applicationsCreated === 0) {
-        detail += `, updated statuses`;
+    // Always report the applications step result
+    const totalExisting = existingApps?.length ?? 0;
+    const totalApps = summary.applicationsCreated + totalExisting;
+    let appStepDetail = "";
+    let appStepStatus: "success" | "skipped" | "error" = "error";
+
+    if (summary.applicationsCreated > 0) {
+      appStepDetail = `Created ${summary.applicationsCreated} application(s)`;
+      appStepStatus = "success";
+      if (appsSkipped > 0) {
+        appStepDetail += `, ${appsSkipped} skipped (existing)`;
       }
-      steps.push({
-        step: "Demo Applications",
-        status: summary.applicationsCreated > 0 || statusesUpdated > 0 ? "success" : "skipped",
-        detail,
-      });
+    } else if (totalExisting > 0) {
+      appStepDetail = `Reusing ${totalExisting} existing application(s)`;
+      appStepStatus = "skipped";
+      if (statusesUpdated > 0) {
+        appStepDetail += `, updated ${statusesUpdated} statuses`;
+        appStepStatus = "success";
+      }
+    } else {
+      appStepDetail = "No applications created - check server logs";
+      appStepStatus = "error";
     }
+
+    console.log("[seedFullDemoData] Applications step result:", {
+      created: summary.applicationsCreated,
+      existing: totalExisting,
+      skipped: appsSkipped,
+      statusesUpdated,
+    });
+
+    steps.push({
+      step: "Demo Applications",
+      status: appStepStatus,
+      detail: appStepDetail,
+    });
     } // end of vacantDemoBeds check else block
 
     // -------------------------------------------------------------------------
