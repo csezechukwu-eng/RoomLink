@@ -421,7 +421,34 @@ export async function checkFullDemoReadiness(): Promise<Result<FullDemoReadiness
     const ownerId = await getCurrentOwnerId();
     const supabase = getServiceClient();
 
+    if (!supabase) {
+      return fail("Database service client unavailable. Please check server configuration.");
+    }
+
     const checks: DemoReadinessCheck[] = [];
+
+    // -------------------------------------------------------------------------
+    // Pre-check: Verify is_demo columns exist (migrations 0020/0021)
+    // -------------------------------------------------------------------------
+    const { error: schemaCheck1 } = await supabase
+      .from("properties")
+      .select("is_demo")
+      .limit(1);
+
+    const { error: schemaCheck2 } = await supabase
+      .from("applications")
+      .select("is_demo")
+      .limit(1);
+
+    const schemaError = schemaCheck1 || schemaCheck2;
+    if (schemaError) {
+      const msg = schemaError.message || "";
+      if (msg.includes("is_demo") || msg.includes("column") || msg.includes("does not exist")) {
+        return fail(
+          "Database migration required: Run migrations 0020 and 0021 in Supabase SQL Editor to add demo support columns."
+        );
+      }
+    }
 
     // -------------------------------------------------------------------------
     // Dashboard Checks
@@ -443,7 +470,10 @@ export async function checkFullDemoReadiness(): Promise<Result<FullDemoReadiness
       .from("properties")
       .select("*")
       .eq("owner_id", ownerId);
-    if (pErr) throw pErr;
+    if (pErr) {
+      console.error("[checkFullDemoReadiness] Properties query failed:", pErr.message);
+      throw pErr;
+    }
     const properties = (allProperties ?? []) as Property[];
 
     const demoProperty = properties.find((p) => p.is_demo === true) || null;
@@ -511,12 +541,16 @@ export async function checkFullDemoReadiness(): Promise<Result<FullDemoReadiness
 
     let demoApplications: Application[] = [];
     if (propertyIds.length > 0) {
-      const { data: appData } = await supabase
+      const { data: appData, error: appErr } = await supabase
         .from("applications")
         .select("*")
         .in("property_id", propertyIds)
         .eq("is_demo", true)
         .order("created_at", { ascending: false });
+      if (appErr) {
+        console.error("[checkFullDemoReadiness] Applications query failed:", appErr.message);
+        // Don't throw - just log and continue with empty array
+      }
       demoApplications = (appData ?? []) as Application[];
     }
 
@@ -674,12 +708,16 @@ export async function checkFullDemoReadiness(): Promise<Result<FullDemoReadiness
     // Prepared Leases / Sent Leases
     // -------------------------------------------------------------------------
 
-    const { data: preparedLeases } = await supabase
+    const { data: preparedLeases, error: plErr } = await supabase
       .from("prepared_leases")
       .select("*")
       .eq("owner_id", ownerId)
       .eq("is_demo", true)
       .order("created_at", { ascending: false });
+    if (plErr) {
+      console.error("[checkFullDemoReadiness] Prepared leases query failed:", plErr.message);
+      // Don't throw - just log and continue with empty array
+    }
     const demoPreparedLeases = (preparedLeases ?? []) as PreparedLease[];
 
     const plIds = demoPreparedLeases.map((pl) => pl.id);
@@ -788,9 +826,41 @@ export async function checkFullDemoReadiness(): Promise<Result<FullDemoReadiness
 
 export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
   try {
+    console.log("[seedFullDemoData] Starting demo data seed...");
+
     const ownerId = await getCurrentOwnerId();
+    console.log("[seedFullDemoData] Got owner ID:", ownerId);
+
     const supabase = getServiceClient();
+    if (!supabase) {
+      console.error("[seedFullDemoData] Service client is null - check SUPABASE_SERVICE_ROLE_KEY");
+      return fail("Database service client unavailable. Please check server configuration.");
+    }
+
     const steps: DemoSeedStep[] = [];
+
+    // Pre-check: Verify is_demo column exists on properties table
+    // This helps catch migration issues early
+    console.log("[seedFullDemoData] Checking if is_demo column exists...");
+    const { error: schemaCheckError } = await supabase
+      .from("properties")
+      .select("is_demo")
+      .limit(1);
+
+    if (schemaCheckError) {
+      const errorMsg = schemaCheckError.message || String(schemaCheckError);
+      console.error("[seedFullDemoData] Schema check failed:", errorMsg);
+
+      if (errorMsg.includes("is_demo") || errorMsg.includes("column") || errorMsg.includes("does not exist")) {
+        return fail(
+          "Database migration required: The 'is_demo' column is missing. " +
+          "Please run migrations 0020 and 0021 in Supabase SQL Editor."
+        );
+      }
+      // Other errors - continue anyway
+      console.warn("[seedFullDemoData] Schema check had non-critical error:", errorMsg);
+    }
+    console.log("[seedFullDemoData] Schema check passed");
 
     const summary = {
       propertyId: null as string | null,
@@ -808,18 +878,24 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
     // -------------------------------------------------------------------------
     // Step 1: Create or reuse demo property
     // -------------------------------------------------------------------------
+    console.log("[seedFullDemoData] Step 1: Looking for existing demo property for owner:", ownerId);
 
-    const { data: existingDemoProp } = await supabase
+    const { data: existingDemoProp, error: existingPropError } = await supabase
       .from("properties")
       .select("*")
       .eq("owner_id", ownerId)
       .eq("is_demo", true)
       .maybeSingle();
 
+    if (existingPropError) {
+      console.error("[seedFullDemoData] Error checking existing property:", existingPropError.message);
+    }
+
     let propertyId: string;
     let property: Property;
 
     if (existingDemoProp) {
+      console.log("[seedFullDemoData] Found existing demo property:", existingDemoProp.name);
       propertyId = existingDemoProp.id;
       property = existingDemoProp as Property;
       steps.push({
@@ -831,6 +907,9 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
       summary.propertyId = propertyId;
       summary.propertyName = existingDemoProp.name;
     } else {
+      console.log("[seedFullDemoData] No existing demo property, creating new one...");
+      console.log("[seedFullDemoData] Insert config:", JSON.stringify({ owner_id: ownerId, ...DEMO_PROPERTY_CONFIG }));
+
       const { data: newProp, error: pErr } = await supabase
         .from("properties")
         .insert({
@@ -843,13 +922,16 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
         .single();
 
       if (pErr) {
+        console.error("[seedFullDemoData] Property insert failed:", pErr.message, pErr);
         steps.push({
           step: "Demo Property",
           status: "error",
-          detail: pErr.message,
+          detail: `Insert failed: ${pErr.message}`,
         });
         return ok({ success: false, steps, summary });
       }
+
+      console.log("[seedFullDemoData] Property created successfully:", newProp.id);
 
       propertyId = newProp.id;
       property = newProp as Property;
@@ -1009,32 +1091,41 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
       summary.leaseTemplateId = templateId;
       summary.leaseTemplateName = existingTemplate.title;
     } else {
-      // Generate demo PDF
-      const pdfBytes = await generateDemoLeasePdf();
-
-      // Upload to Supabase storage
+      // Try to generate and upload demo PDF
       const stamp = Date.now();
       const rand = Math.random().toString(36).slice(2, 8);
       const fileName = "room-link-demo-lease.pdf";
-      const path = `${ownerId}/templates/${stamp}-${rand}-${fileName}`;
+      let actualFilePath = `${ownerId}/templates/${stamp}-${rand}-${fileName}`;
+      let pdfUploaded = false;
+      let storageWarning = "";
 
-      const { error: uploadErr } = await supabase.storage
-        .from(BUCKET)
-        .upload(path, pdfBytes, {
-          contentType: "application/pdf",
-          upsert: false,
-        });
+      try {
+        const pdfBytes = await generateDemoLeasePdf();
 
-      if (uploadErr) {
-        steps.push({
-          step: "Demo Lease Template",
-          status: "error",
-          detail: `Failed to upload PDF: ${uploadErr.message}`,
-        });
-        return ok({ success: false, steps, summary });
+        const { error: uploadErr } = await supabase.storage
+          .from(BUCKET)
+          .upload(actualFilePath, pdfBytes, {
+            contentType: "application/pdf",
+            upsert: false,
+          });
+
+        if (uploadErr) {
+          // Storage failed but we'll continue with a placeholder
+          storageWarning = `PDF upload skipped: ${uploadErr.message}`;
+          console.warn("[Demo] Storage upload failed:", uploadErr.message);
+          // Use a demo placeholder path that won't break the template
+          actualFilePath = `demo/${ownerId}/demo-lease-placeholder.pdf`;
+        } else {
+          pdfUploaded = true;
+        }
+      } catch (pdfErr) {
+        // PDF generation failed but we'll continue
+        storageWarning = `PDF generation skipped: ${pdfErr instanceof Error ? pdfErr.message : "unknown error"}`;
+        console.warn("[Demo] PDF generation failed:", pdfErr);
+        actualFilePath = `demo/${ownerId}/demo-lease-placeholder.pdf`;
       }
 
-      // Create template record
+      // Create template record (always continue even if storage failed)
       const { data: template, error: tErr } = await supabase
         .from("lease_templates")
         .insert({
@@ -1043,41 +1134,58 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
           lease_category: "month_to_month_room_lease",
           stay_type: "month_to_month",
           property_id: null,
-          file_path: path,
+          file_path: actualFilePath,
           file_name: fileName,
           file_type: "application/pdf",
           status: "needs_setup",
-          notes: "Demo lease template for testing Room Link features.",
+          notes: storageWarning
+            ? `Demo lease template. Note: ${storageWarning}`
+            : "Demo lease template for testing Room Link features.",
         })
         .select()
         .single();
 
       if (tErr) {
-        // Clean up uploaded file
-        await supabase.storage.from(BUCKET).remove([path]);
+        // Clean up uploaded file if it was uploaded
+        if (pdfUploaded) {
+          await supabase.storage.from(BUCKET).remove([actualFilePath]);
+        }
         steps.push({
           step: "Demo Lease Template",
           status: "error",
-          detail: tErr.message,
+          detail: `Failed to create template: ${tErr.message}`,
         });
-        return ok({ success: false, steps, summary });
+        // Don't return early - try to continue with other steps
+        // Set templateId to empty to skip field creation
+        templateId = "";
+      } else {
+        templateId = template.id;
+        const detailMsg = pdfUploaded
+          ? `Created "${template.title}" with PDF`
+          : `Created "${template.title}" (PDF placeholder - storage unavailable)`;
+        steps.push({
+          step: "Demo Lease Template",
+          status: "success",
+          detail: detailMsg,
+          id: templateId,
+        });
+        summary.leaseTemplateId = templateId;
+        summary.leaseTemplateName = template.title;
       }
-
-      templateId = template.id;
-      steps.push({
-        step: "Demo Lease Template",
-        status: "success",
-        detail: `Created "${template.title}" with PDF`,
-        id: templateId,
-      });
-      summary.leaseTemplateId = templateId;
-      summary.leaseTemplateName = template.title;
     }
 
     // -------------------------------------------------------------------------
     // Step 4: Create or reuse demo lease template fields
     // -------------------------------------------------------------------------
 
+    // Skip field creation if template creation failed
+    if (!templateId) {
+      steps.push({
+        step: "Demo Template Fields",
+        status: "error",
+        detail: "Skipped - no template available",
+      });
+    } else {
     const { data: existingFields } = await supabase
       .from("lease_template_fields")
       .select("*")
@@ -1130,11 +1238,20 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
           : `Reusing ${totalFields} existing field(s)`,
       });
     }
+    } // end of templateId else block
 
     // -------------------------------------------------------------------------
     // Step 5: Update template status to ready
     // -------------------------------------------------------------------------
 
+    // Skip if no templateId
+    if (!templateId) {
+      steps.push({
+        step: "Template Status",
+        status: "error",
+        detail: "Skipped - no template available",
+      });
+    } else {
     // Check if template has required signature field
     const { count: sigCount } = await supabase
       .from("lease_template_fields")
@@ -1159,6 +1276,7 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
         summary.templateLinked = true;
       }
     }
+    } // end of templateId else block for step 5
 
     // -------------------------------------------------------------------------
     // Step 6: Create demo applications
@@ -1282,6 +1400,14 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
     // Step 7: Create prepared_lease for approved demo applications
     // -------------------------------------------------------------------------
 
+    // Skip prepared leases if no template available
+    if (!templateId) {
+      steps.push({
+        step: "Demo Prepared Leases",
+        status: "error",
+        detail: "Skipped - no template available for lease generation",
+      });
+    } else {
     // Get approved demo applications that don't have a prepared_lease yet
     const { data: approvedApps } = await supabase
       .from("applications")
@@ -1505,6 +1631,7 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
         detail: "Prepared leases already exist for approved applications",
       });
     }
+    } // end of templateId else block for step 7
 
     return ok({
       success: true,

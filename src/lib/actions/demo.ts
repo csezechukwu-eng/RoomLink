@@ -41,53 +41,76 @@ export async function seedFullDemoDataAction(): Promise<ActionState> {
 
   try {
     const result = await seedFullDemoData();
-    console.log("[seedFullDemoDataAction] seedFullDemoData returned:", result.error ? `error: ${result.error}` : "success");
+    console.log("[seedFullDemoDataAction] seedFullDemoData returned:", JSON.stringify({
+      hasError: result.error !== null,
+      error: result.error,
+      dataSuccess: result.data?.success,
+      stepsCount: result.data?.steps?.length ?? 0,
+    }));
 
+    // Handle Result error (e.g., auth failure)
     if (result.error !== null) {
-      console.error("[seedFullDemoDataAction] Returning error:", result.error);
+      console.error("[seedFullDemoDataAction] Result error:", result.error);
       return {
         status: "error",
         message: result.error,
       };
     }
 
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/demo");
-  revalidatePath("/dashboard/properties");
-  revalidatePath("/dashboard/leases");
-  revalidatePath("/dashboard/leases/applications");
-  revalidatePath("/dashboard/applications");
+    // Handle success: false (internal failures)
+    if (!result.data.success) {
+      const errorSteps = result.data.steps.filter((s) => s.status === "error");
+      const errorMessages = errorSteps.map((s) => `${s.step}: ${s.detail}`).join("; ");
+      console.error("[seedFullDemoDataAction] Data creation failed:", errorMessages);
+      return {
+        status: "error",
+        message: errorMessages || "Demo data creation failed - check server logs",
+        data: {
+          steps: result.data.steps,
+          summary: result.data.summary,
+        },
+      };
+    }
 
-  const { steps, summary } = result.data;
-  const successSteps = steps.filter((s) => s.status === "success").length;
-  const errorSteps = steps.filter((s) => s.status === "error").length;
-  const skippedSteps = steps.filter((s) => s.status === "skipped").length;
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/demo");
+    revalidatePath("/dashboard/properties");
+    revalidatePath("/dashboard/leases");
+    revalidatePath("/dashboard/leases/applications");
+    revalidatePath("/dashboard/applications");
 
-  let message = "";
-  if (errorSteps > 0) {
-    message = `Demo setup completed with ${errorSteps} error(s)`;
-  } else if (successSteps > 0) {
-    message = `Demo data loaded successfully! Created ${successSteps} item(s)`;
-  } else {
-    message = "Demo data already exists - nothing new created";
-  }
+    const { steps, summary } = result.data;
+    const successSteps = steps.filter((s) => s.status === "success").length;
+    const errorSteps = steps.filter((s) => s.status === "error").length;
+    const skippedSteps = steps.filter((s) => s.status === "skipped").length;
 
-  return {
-    status: errorSteps > 0 ? "error" : "success",
-    message,
-    data: {
-      steps,
-      summary,
-      successSteps,
-      errorSteps,
-      skippedSteps,
-    },
-  };
+    let message = "";
+    if (errorSteps > 0) {
+      const errorDetails = steps.filter((s) => s.status === "error").map((s) => s.detail).join("; ");
+      message = `Demo setup completed with ${errorSteps} error(s): ${errorDetails}`;
+    } else if (successSteps > 0) {
+      message = `Demo data loaded successfully! Created ${successSteps} item(s)`;
+    } else {
+      message = "Demo data already exists - nothing new created";
+    }
+
+    return {
+      status: errorSteps > 0 ? "error" : "success",
+      message,
+      data: {
+        steps,
+        summary,
+        successSteps,
+        errorSteps,
+        skippedSteps,
+      },
+    };
   } catch (e) {
     console.error("[seedFullDemoDataAction] Exception caught:", e);
+    const errorMessage = e instanceof Error ? e.message : "Failed to seed demo data";
     return {
       status: "error",
-      message: e instanceof Error ? e.message : "Failed to seed demo data",
+      message: `Server error: ${errorMessage}`,
     };
   }
 }
