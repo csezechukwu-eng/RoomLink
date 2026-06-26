@@ -323,6 +323,61 @@ $$;
 create unique index if not exists idx_prepared_leases_signing_token
   on public.prepared_leases(signing_token);
 
+-- Add lease_reference_number column (unique reference for audit trails)
+alter table public.prepared_leases
+  add column if not exists lease_reference_number text;
+
+-- Backfill existing rows with reference numbers
+do $$
+declare
+  v_row record;
+  v_counter integer := 0;
+  v_year text;
+begin
+  for v_row in
+    select id, created_at
+    from public.prepared_leases
+    where lease_reference_number is null
+    order by created_at asc
+  loop
+    v_counter := v_counter + 1;
+    v_year := to_char(v_row.created_at, 'YYYY');
+    update public.prepared_leases
+    set lease_reference_number = 'RL-LEASE-' || v_year || '-' || lpad(v_counter::text, 6, '0')
+    where id = v_row.id;
+  end loop;
+end;
+$$;
+
+-- Now make the column not null (safe because we backfilled)
+do $$
+begin
+  alter table public.prepared_leases alter column lease_reference_number set not null;
+exception when others then
+  null; -- Already NOT NULL or has null values
+end;
+$$;
+
+-- Add unique constraint (idempotent)
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'prepared_leases_lease_reference_number_unique'
+  ) then
+    alter table public.prepared_leases
+      add constraint prepared_leases_lease_reference_number_unique
+        unique (lease_reference_number);
+  end if;
+end;
+$$;
+
+create index if not exists idx_prepared_leases_reference_number
+  on public.prepared_leases(lease_reference_number);
+
+comment on column public.prepared_leases.lease_reference_number is
+  'Unique reference number for the lease in format: RL-LEASE-YYYY-NNNNNN';
+
 create or replace function update_prepared_leases_updated_at()
 returns trigger as $$
 begin
@@ -463,7 +518,83 @@ create policy "owners_delete_own_prepared_lease_fields" on public.prepared_lease
     )
   );
 
+-- Add signature tracking columns to prepared_lease_fields
+alter table public.prepared_lease_fields
+  add column if not exists signature_reference_number text;
+
+alter table public.prepared_lease_fields
+  add column if not exists signed_by_user_id uuid;
+
+alter table public.prepared_lease_fields
+  add column if not exists signed_by_name text;
+
+alter table public.prepared_lease_fields
+  add column if not exists signed_by_email text;
+
+alter table public.prepared_lease_fields
+  add column if not exists signed_at timestamptz;
+
+-- Add unique constraint on signature_reference_number (allowing nulls)
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'prepared_lease_fields_signature_reference_number_unique'
+  ) then
+    alter table public.prepared_lease_fields
+      add constraint prepared_lease_fields_signature_reference_number_unique
+        unique (signature_reference_number);
+  end if;
+end;
+$$;
+
+create index if not exists idx_prepared_lease_fields_signature_ref
+  on public.prepared_lease_fields(signature_reference_number)
+  where signature_reference_number is not null;
+
+create index if not exists idx_prepared_lease_fields_signed_at
+  on public.prepared_lease_fields(signed_at)
+  where signed_at is not null;
+
+-- RLS policies for tenant access to their own fields
+drop policy if exists "tenants_select_own_prepared_lease_fields" on public.prepared_lease_fields;
+create policy "tenants_select_own_prepared_lease_fields" on public.prepared_lease_fields
+  for select to authenticated using (
+    exists (
+      select 1 from public.prepared_leases pl
+      where pl.id = prepared_lease_fields.prepared_lease_id
+        and pl.tenant_id = auth.uid()
+    )
+  );
+
+drop policy if exists "tenants_update_own_prepared_lease_fields" on public.prepared_lease_fields;
+create policy "tenants_update_own_prepared_lease_fields" on public.prepared_lease_fields
+  for update to authenticated using (
+    exists (
+      select 1 from public.prepared_leases pl
+      where pl.id = prepared_lease_fields.prepared_lease_id
+        and pl.tenant_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.prepared_leases pl
+      where pl.id = prepared_lease_fields.prepared_lease_id
+        and pl.tenant_id = auth.uid()
+    )
+  );
+
 comment on table public.prepared_lease_fields is 'Fields copied from lease_template_fields into a prepared lease.';
+comment on column public.prepared_lease_fields.signature_reference_number is
+  'Unique reference number for signature fields: RL-{TYPE}-YYYY-NNNNNN-NNN';
+comment on column public.prepared_lease_fields.signed_by_user_id is
+  'UUID of the user who signed this field';
+comment on column public.prepared_lease_fields.signed_by_name is
+  'Name of the person who signed this field';
+comment on column public.prepared_lease_fields.signed_by_email is
+  'Email of the person who signed this field';
+comment on column public.prepared_lease_fields.signed_at is
+  'Timestamp when this field was signed';
 
 -- =============================================================================
 -- PART 6: DEMO DATA SUPPORT (is_demo columns)

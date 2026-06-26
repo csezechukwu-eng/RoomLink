@@ -1282,15 +1282,57 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
     // Step 6: Create demo applications
     // -------------------------------------------------------------------------
 
-    // Get all demo beds
-    const { data: allDemoBeds } = await supabase
+    // Get all demo beds (simplified query without join to avoid issues)
+    console.log("[seedFullDemoData] Step 6: Querying vacant demo beds for property:", propertyId);
+    const { data: allDemoBeds, error: bedQueryErr } = await supabase
       .from("beds")
-      .select("*, rooms!inner(id, name)")
+      .select("*")
       .eq("property_id", propertyId)
       .eq("is_demo", true)
       .eq("status", "vacant");
 
-    const vacantDemoBeds = (allDemoBeds ?? []) as Array<Bed & { rooms: { id: string; name: string } }>;
+    if (bedQueryErr) {
+      console.error("[seedFullDemoData] Error querying demo beds:", bedQueryErr.message);
+    }
+
+    const vacantDemoBeds = (allDemoBeds ?? []) as Bed[];
+    console.log("[seedFullDemoData] Found", vacantDemoBeds.length, "vacant demo beds");
+
+    // If no vacant beds found, try to get ANY demo beds and reset their status
+    if (vacantDemoBeds.length === 0) {
+      console.log("[seedFullDemoData] No vacant beds found, checking all demo beds...");
+      const { data: anyDemoBeds } = await supabase
+        .from("beds")
+        .select("*")
+        .eq("property_id", propertyId)
+        .eq("is_demo", true);
+
+      console.log("[seedFullDemoData] Found", (anyDemoBeds ?? []).length, "total demo beds");
+
+      // Reset demo beds to vacant status for testing
+      if (anyDemoBeds && anyDemoBeds.length > 0) {
+        const bedIds = anyDemoBeds.map((b) => b.id);
+        const { error: resetErr } = await supabase
+          .from("beds")
+          .update({ status: "vacant" })
+          .in("id", bedIds);
+
+        if (!resetErr) {
+          console.log("[seedFullDemoData] Reset", bedIds.length, "demo beds to vacant");
+          // Use these beds
+          vacantDemoBeds.push(...(anyDemoBeds as Bed[]));
+        }
+      }
+    }
+
+    // Final check - if still no beds, skip applications
+    if (vacantDemoBeds.length === 0) {
+      steps.push({
+        step: "Demo Applications",
+        status: "error",
+        detail: "No demo beds available - create demo property first",
+      });
+    } else {
 
     // Check existing demo applications
     const demoEmails = DEMO_APPLICANTS.map((a) => a.email);
@@ -1301,17 +1343,21 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
       .eq("is_demo", true)
       .in("email", demoEmails);
     const existingAppEmails = new Set((existingApps ?? []).map((a) => a.email));
+    console.log("[seedFullDemoData] Existing demo apps:", existingAppEmails.size);
 
     for (let i = 0; i < DEMO_APPLICANTS.length; i++) {
       const demo = DEMO_APPLICANTS[i];
 
       if (existingAppEmails.has(demo.email)) {
+        console.log("[seedFullDemoData] Skipping existing app for:", demo.email);
         continue;
       }
 
-      // Assign bed based on availability
-      const bed = vacantDemoBeds[i % vacantDemoBeds.length];
+      // Assign bed based on availability (safe modulo)
+      const bedIndex = vacantDemoBeds.length > 0 ? i % vacantDemoBeds.length : -1;
+      const bed = bedIndex >= 0 ? vacantDemoBeds[bedIndex] : undefined;
       if (!bed) {
+        console.error("[seedFullDemoData] No bed available for:", demo.name);
         steps.push({
           step: `Application ${demo.name}`,
           status: "error",
@@ -1319,6 +1365,7 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
         });
         continue;
       }
+      console.log("[seedFullDemoData] Assigning bed", bed.label, "to", demo.name);
 
       const moveInDate = new Date();
       moveInDate.setDate(moveInDate.getDate() + demo.moveInOffset);
@@ -1395,6 +1442,7 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
         detail,
       });
     }
+    } // end of vacantDemoBeds check else block
 
     // -------------------------------------------------------------------------
     // Step 7: Create prepared_lease for approved demo applications
