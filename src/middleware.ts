@@ -34,12 +34,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // LOCAL DEMO PREVIEW ONLY — never active in production. Mirrors the demo
-  // bypass in lib/auth.ts so the host UI is viewable without a real session.
-  if (
-    process.env.DEMO_MODE === "true" &&
-    process.env.NODE_ENV !== "production"
-  ) {
+  // DEMO MODE — bypass authentication when DEMO_MODE=true is set.
+  // This allows viewing the dashboard without logging in for testing purposes.
+  if (process.env.DEMO_MODE === "true") {
     return NextResponse.next();
   }
 

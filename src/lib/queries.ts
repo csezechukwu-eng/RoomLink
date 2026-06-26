@@ -47,7 +47,20 @@ export function tallyBeds(beds: Pick<Bed, "status">[]): BedStatusCounts {
 export async function getDashboardMetrics(): Promise<Result<DashboardMetrics>> {
   try {
     const supabase = await createAuthenticatedClient();
-    const ownerId = await getCurrentOwnerId();
+
+    // Get owner ID directly from the authenticated session.
+    // This ensures consistency with createProperty and prevents demo mode mismatch.
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      console.error("[getDashboardMetrics] Auth error:", authError);
+      return fail("Your session has expired. Please sign in again.");
+    }
+
+    const ownerId = user.id;
 
     const { data: properties, error: pErr } = await supabase
       .from("properties")
@@ -177,7 +190,20 @@ export interface PropertyListItem extends Property {
 export async function getProperties(): Promise<Result<PropertyListItem[]>> {
   try {
     const supabase = await createAuthenticatedClient();
-    const ownerId = await getCurrentOwnerId();
+
+    // Get owner ID directly from the authenticated session.
+    // This ensures consistency with createProperty and prevents demo mode mismatch.
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      console.error("[getProperties] Auth error:", authError);
+      return fail("Your session has expired. Please sign in again.");
+    }
+
+    const ownerId = user.id;
 
     const { data: properties, error: pErr } = await supabase
       .from("properties")
@@ -285,7 +311,20 @@ export async function getPropertyDetail(
 ): Promise<Result<PropertyDetail | null>> {
   try {
     const supabase = await createAuthenticatedClient();
-    const ownerId = await getCurrentOwnerId();
+
+    // Get owner ID directly from the authenticated session.
+    // This ensures consistency with createProperty and prevents demo mode mismatch.
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      console.error("[getPropertyDetail] Auth error:", authError);
+      return fail("Your session has expired. Please sign in again.");
+    }
+
+    const ownerId = user.id;
 
     const { data: property, error: pErr } = await supabase
       .from("properties")

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useActionState } from "react";
-import { ChevronLeft, ChevronRight, Check, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, AlertCircle, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +22,7 @@ import {
   REFERRAL_SOURCES,
   PAYMENT_METHODS,
 } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils";
 import type { Bed, Room, Property } from "@/lib/types";
 
 interface ApplicationFormProps {
@@ -187,6 +188,31 @@ export function ApplicationForm({
           </h2>
         </div>
       </div>
+
+      {/* Application Fee Notice - shown before form */}
+      {property.application_fee_required && property.application_fee_amount && (
+        <Card className="border-amber-200 bg-amber-50 p-5">
+          <div className="flex items-start gap-3">
+            <DollarSign className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div className="space-y-2">
+              <div>
+                <h3 className="font-semibold text-amber-900">
+                  Application Fee: {formatCurrency(property.application_fee_amount)}
+                </h3>
+                <p className="text-sm text-amber-700">
+                  This property requires an application fee. The landlord will provide
+                  payment instructions after you submit your application.
+                </p>
+              </div>
+              {property.application_fee_instructions && (
+                <div className="rounded-lg bg-white/50 px-3 py-2 text-sm text-amber-800">
+                  {property.application_fee_instructions}
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card className="p-6">
         <form action={formAction}>
@@ -788,6 +814,24 @@ export function ApplicationForm({
                   <ReviewItem label="Name" value={formData.emergency_contact_name} />
                   <ReviewItem label="Phone" value={formData.emergency_contact_phone} />
                 </ReviewSection>
+
+                {/* Application Fee Summary */}
+                {property.application_fee_required && property.application_fee_amount && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-amber-600" />
+                        <span className="font-medium text-amber-900">Application Fee</span>
+                      </div>
+                      <span className="font-semibold text-amber-900">
+                        {formatCurrency(property.application_fee_amount)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-amber-700">
+                      The landlord will contact you with payment instructions after submission.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Hidden form fields for submission */}

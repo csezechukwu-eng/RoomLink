@@ -100,6 +100,18 @@ export async function submitApplication(
       return fail("Please select a property or bed to apply for.");
     }
 
+    // Get property fee settings to snapshot into the application
+    const { data: property, error: pErr } = await supabase
+      .from("properties")
+      .select("application_fee_required, application_fee_amount")
+      .eq("id", propertyId)
+      .maybeSingle();
+    if (pErr) throw pErr;
+
+    const feeRequired = property?.application_fee_required ?? false;
+    const feeAmount = property?.application_fee_amount ?? null;
+    const feeStatus = feeRequired ? "unpaid" : "not_required";
+
     // Create or find the applicant user
     const applicant = await upsertApplicantByEmail({
       email: input.email,
@@ -154,6 +166,11 @@ export async function submitApplication(
         pet_info: input.petInfo || null,
         smoking_status: input.smokingStatus || null,
         tenant_notes: input.tenantNotes || null,
+
+        // Application Fee Snapshot
+        application_fee_required: feeRequired,
+        application_fee_amount: feeAmount,
+        application_fee_status: feeStatus,
 
         // Status
         status: "submitted",

@@ -41,13 +41,15 @@ export default async function LandingPage() {
             <div className="mt-8 flex flex-wrap gap-4">
               <Link href="/availability">
                 <Button size="md" className="h-12 px-6 text-base">
-                  Start Free Trial
+                  Browse Listings
                 </Button>
               </Link>
-              <Button variant="outline" size="md" className="h-12 px-6 text-base gap-2">
-                <Play className="h-4 w-4" />
-                Watch Demo
-              </Button>
+              <Link href="/dashboard">
+                <Button variant="outline" size="md" className="h-12 px-6 text-base gap-2">
+                  <Play className="h-4 w-4" />
+                  Host Dashboard
+                </Button>
+              </Link>
             </div>
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
               <span className="flex items-center gap-2">
@@ -129,7 +131,7 @@ export default async function LandingPage() {
           <FeatureCard
             icon={<CalendarClock className="h-6 w-6" />}
             title="Move-Outs"
-            description="Manage 30-day notices and keep your turnover organized."
+            description="Manage move-out notices and keep your turnover organized."
           />
         </div>
       </section>
@@ -186,12 +188,12 @@ export default async function LandingPage() {
         <div className="mt-8 flex justify-center gap-4">
           <Link href="/availability">
             <Button size="md" className="h-12 px-8 text-base">
-              Start Free Trial
+              Browse Listings
             </Button>
           </Link>
           <Link href="/dashboard">
             <Button variant="outline" size="md" className="h-12 px-8 text-base">
-              View Demo Dashboard
+              Host Dashboard
             </Button>
           </Link>
         </div>

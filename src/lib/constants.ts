@@ -9,6 +9,8 @@ import type {
   MaintenancePriority,
   MaintenanceStatus,
   PropertyType,
+  PropertyOccupancyType,
+  RoomOccupancyType,
   RentStatus,
   ReservationStatus,
   SmokingStatus,
@@ -262,4 +264,28 @@ export function labelForGovernmentIdStatus(value: GovernmentIdStatus): string {
 
 export function labelForSmokingStatus(value: SmokingStatus): string {
   return SMOKING_STATUSES.find((t) => t.value === value)?.label ?? value;
+}
+
+// ---------------------------------------------------------------------------
+// Listing Occupancy Types — Monthly Stay Marketplace
+// ---------------------------------------------------------------------------
+
+export const PROPERTY_OCCUPANCY_TYPES: Option<PropertyOccupancyType>[] = [
+  { value: "coed", label: "Co-ed" },
+  { value: "women_only_house", label: "Women-only house" },
+  { value: "women_only_rooms_available", label: "Women-only rooms available" },
+];
+
+export const ROOM_OCCUPANCY_TYPES: Option<RoomOccupancyType>[] = [
+  { value: "coed", label: "Co-ed" },
+  { value: "women_only", label: "Women-only" },
+];
+
+export function labelForOccupancyType(value: PropertyOccupancyType | RoomOccupancyType | null | undefined): string {
+  if (!value) return "";
+  const prop = PROPERTY_OCCUPANCY_TYPES.find((t) => t.value === value);
+  if (prop) return prop.label;
+  const room = ROOM_OCCUPANCY_TYPES.find((t) => t.value === value);
+  if (room) return room.label;
+  return value;
 }

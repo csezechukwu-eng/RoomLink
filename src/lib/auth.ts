@@ -9,13 +9,7 @@ import type { User } from "@supabase/supabase-js";
  *
  * Supports two modes:
  * 1. Production mode: Uses real Supabase Auth
- * 2. Demo mode (local only): Uses hardcoded demo UUIDs
- *
- * Demo mode is ONLY available when:
- * - DEMO_MODE=true in environment
- * - NODE_ENV is NOT "production"
- *
- * This prevents demo mode from accidentally running in production.
+ * 2. Demo mode: Uses hardcoded demo UUIDs when DEMO_MODE=true
  */
 
 // Demo UUIDs - only used in local demo mode
@@ -27,13 +21,9 @@ export const TENANT_COOKIE = "rl_tenant";
 
 /**
  * Check if demo mode is enabled.
- * Demo mode only works locally (not in production).
+ * Demo mode is active when DEMO_MODE=true is set in environment.
  */
 export function isDemoMode(): boolean {
-  // Never allow demo mode in production
-  if (process.env.NODE_ENV === "production") {
-    return false;
-  }
   return process.env.DEMO_MODE === "true";
 }
 
@@ -144,4 +134,64 @@ export async function setCurrentTenantId(tenantId: string): Promise<void> {
     path: "/",
     maxAge: 60 * 60 * 24 * 90, // 90 days
   });
+}
+
+// ---------------------------------------------------------------------------
+// Stripe Connect Status (Future: Marketplace Payouts)
+// ---------------------------------------------------------------------------
+
+export interface LandlordPayoutStatus {
+  id: string;
+  email: string;
+  full_name: string | null;
+  /** Whether Stripe Connect is set up for payouts */
+  stripe_connect_enabled: boolean;
+}
+
+/**
+ * Get the current landlord's payout status from the users table.
+ * Used for future Stripe Connect marketplace payouts.
+ * Returns null if not authenticated or user not found.
+ */
+export async function getLandlordPayoutStatus(): Promise<LandlordPayoutStatus | null> {
+  const { createAuthenticatedClient } = await import("@/lib/supabase/server");
+
+  // Demo mode: return mock data
+  if (isDemoMode()) {
+    return {
+      id: DEMO_OWNER_ID,
+      email: "demo@roomlink.local",
+      full_name: "Demo Landlord",
+      stripe_connect_enabled: false,
+    };
+  }
+
+  // Production mode: fetch from database
+  const supabase = await createAuthenticatedClient();
+  const authUser = await getAuthUser();
+
+  if (!authUser) return null;
+
+  const { data, error } = await supabase
+    .from("users")
+    .select(`
+      id,
+      email,
+      full_name,
+      stripe_connect_enabled
+    `)
+    .eq("id", authUser.id)
+    .single();
+
+  if (error || !data) {
+    // User might not exist in users table yet - return defaults
+    return {
+      id: authUser.id,
+      email: authUser.email || "",
+      full_name: authUser.user_metadata?.full_name || null,
+      stripe_connect_enabled: false,
+    };
+  }
+
+  return data as LandlordPayoutStatus;
 }

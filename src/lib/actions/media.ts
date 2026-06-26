@@ -1,6 +1,5 @@
 "use server";
 
-import { getCurrentOwnerId } from "@/lib/auth";
 import { createAuthenticatedClient } from "@/lib/supabase/server";
 import type { MediaType, PropertyMedia } from "@/lib/types";
 import {
@@ -12,6 +11,26 @@ import {
   str,
   successState,
 } from "@/lib/actions/_shared";
+
+/**
+ * Helper to get owner ID from authenticated session.
+ * This ensures consistency and avoids demo mode mismatch issues.
+ */
+async function getSessionOwnerId(
+  supabase: Awaited<ReturnType<typeof createAuthenticatedClient>>
+): Promise<{ ownerId: string | null; error: string | null }> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    console.error("[media] Auth error:", authError);
+    return { ownerId: null, error: "Your session has expired. Please sign in again." };
+  }
+
+  return { ownerId: user.id, error: null };
+}
 
 const BUCKET_NAME = "property-media";
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -49,7 +68,8 @@ export async function uploadMedia(
 
   try {
     const supabase = await createAuthenticatedClient();
-    const ownerId = await getCurrentOwnerId();
+    const { ownerId, error: authErr } = await getSessionOwnerId(supabase);
+    if (!ownerId) return errorState(authErr || "Authentication required.");
     await assertPropertyOwned(supabase, propertyId, ownerId);
 
     // Generate unique filename
@@ -84,14 +104,25 @@ export async function uploadMedia(
     } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
 
     // Check if this is the first image for this property/room/bed (make it cover)
-    const { count } = await supabase
+    let countQuery = supabase
       .from("property_media")
       .select("id", { count: "exact", head: true })
       .eq("property_id", propertyId)
-      .eq("media_type", mediaType)
-      .eq("room_id", roomId ?? "")
-      .eq("bed_id", bedId ?? "");
+      .eq("media_type", mediaType);
 
+    // Handle null values correctly - use .is() for null, .eq() for non-null
+    if (roomId) {
+      countQuery = countQuery.eq("room_id", roomId);
+    } else {
+      countQuery = countQuery.is("room_id", null);
+    }
+    if (bedId) {
+      countQuery = countQuery.eq("bed_id", bedId);
+    } else {
+      countQuery = countQuery.is("bed_id", null);
+    }
+
+    const { count } = await countQuery;
     const isCover = (count ?? 0) === 0;
 
     // Insert media record
@@ -135,7 +166,8 @@ export async function deleteMedia(
 
   try {
     const supabase = await createAuthenticatedClient();
-    const ownerId = await getCurrentOwnerId();
+    const { ownerId, error: authErr } = await getSessionOwnerId(supabase);
+    if (!ownerId) return errorState(authErr || "Authentication required.");
 
     // Get media record
     const { data: media, error: fetchError } = await supabase
@@ -172,13 +204,25 @@ export async function deleteMedia(
 
     // If this was the cover, promote another image
     if (media.is_cover) {
-      const { data: nextMedia } = await supabase
+      let nextQuery = supabase
         .from("property_media")
         .select("id")
         .eq("property_id", media.property_id)
-        .eq("media_type", media.media_type)
-        .eq("room_id", media.room_id ?? "")
-        .eq("bed_id", media.bed_id ?? "")
+        .eq("media_type", media.media_type);
+
+      // Handle null values correctly
+      if (media.room_id) {
+        nextQuery = nextQuery.eq("room_id", media.room_id);
+      } else {
+        nextQuery = nextQuery.is("room_id", null);
+      }
+      if (media.bed_id) {
+        nextQuery = nextQuery.eq("bed_id", media.bed_id);
+      } else {
+        nextQuery = nextQuery.is("bed_id", null);
+      }
+
+      const { data: nextMedia } = await nextQuery
         .order("sort_order", { ascending: true })
         .limit(1)
         .single();
@@ -211,7 +255,8 @@ export async function setCoverMedia(
 
   try {
     const supabase = await createAuthenticatedClient();
-    const ownerId = await getCurrentOwnerId();
+    const { ownerId, error: authErr } = await getSessionOwnerId(supabase);
+    if (!ownerId) return errorState(authErr || "Authentication required.");
 
     // Get the media record
     const { data: media, error: fetchError } = await supabase
@@ -226,14 +271,26 @@ export async function setCoverMedia(
     }
 
     // Unset any existing cover for this property/room/bed + type
-    await supabase
+    let unsetQuery = supabase
       .from("property_media")
       .update({ is_cover: false })
       .eq("property_id", media.property_id)
       .eq("media_type", media.media_type)
-      .eq("room_id", media.room_id ?? "")
-      .eq("bed_id", media.bed_id ?? "")
       .eq("is_cover", true);
+
+    // Handle null values correctly
+    if (media.room_id) {
+      unsetQuery = unsetQuery.eq("room_id", media.room_id);
+    } else {
+      unsetQuery = unsetQuery.is("room_id", null);
+    }
+    if (media.bed_id) {
+      unsetQuery = unsetQuery.eq("bed_id", media.bed_id);
+    } else {
+      unsetQuery = unsetQuery.is("bed_id", null);
+    }
+
+    await unsetQuery;
 
     // Set new cover
     const { error: updateError } = await supabase
@@ -263,7 +320,8 @@ export async function getPropertyMedia(
 ): Promise<PropertyMedia[]> {
   try {
     const supabase = await createAuthenticatedClient();
-    const ownerId = await getCurrentOwnerId();
+    const { ownerId } = await getSessionOwnerId(supabase);
+    if (!ownerId) return [];
 
     const { data, error } = await supabase
       .from("property_media")
@@ -295,7 +353,8 @@ export async function getMediaForEntity(options: {
 }): Promise<PropertyMedia[]> {
   try {
     const supabase = await createAuthenticatedClient();
-    const ownerId = await getCurrentOwnerId();
+    const { ownerId } = await getSessionOwnerId(supabase);
+    if (!ownerId) return [];
 
     let query = supabase
       .from("property_media")

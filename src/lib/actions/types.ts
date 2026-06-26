@@ -7,7 +7,8 @@ export type ActionState = {
   status: "idle" | "success" | "error";
   message?: string;
   fieldErrors?: Record<string, string>;
-  data?: { id?: string } & Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data?: any;
 };
 
 export const initialActionState: ActionState = { status: "idle" };
@@ -47,5 +48,31 @@ export function num(formData: FormData, key: string): number | null {
 }
 
 export function messageFrom(error: unknown): string {
-  return error instanceof Error ? error.message : "Something went wrong.";
+  // Standard Error instance
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  // String error
+  if (typeof error === "string") {
+    return error;
+  }
+
+  // Supabase/PostgreSQL error objects (not instanceof Error)
+  if (error && typeof error === "object") {
+    const errorObj = error as Record<string, unknown>;
+
+    // PostgreSQL/Supabase error with message
+    if (typeof errorObj.message === "string" && errorObj.message) {
+      const code = typeof errorObj.code === "string" ? ` [${errorObj.code}]` : "";
+      return `${errorObj.message}${code}`;
+    }
+
+    // Error object with error property
+    if (typeof errorObj.error === "string" && errorObj.error) {
+      return errorObj.error;
+    }
+  }
+
+  return "Something went wrong.";
 }

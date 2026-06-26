@@ -5,6 +5,7 @@ import {
   Activity,
   CalendarClock,
   ArrowRight,
+  Beaker,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,12 @@ export default async function DashboardPage() {
             <Button variant="outline">
               <ClipboardList className="h-4 w-4" />
               View Applications
+            </Button>
+          </Link>
+          <Link href="/dashboard/demo">
+            <Button variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-50">
+              <Beaker className="h-4 w-4" />
+              Demo Test Center
             </Button>
           </Link>
         </div>

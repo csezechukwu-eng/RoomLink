@@ -523,6 +523,9 @@ export async function approveAndSendLease(
     const leaseReferenceNumber = await generateLeaseReferenceNumber();
 
     // 7. Create prepared lease
+    // Check if this is a demo application to propagate is_demo flag
+    const isDemo = (application as { is_demo?: boolean }).is_demo ?? false;
+
     const { data: preparedLease, error: plErr } = await supabase
       .from("prepared_leases")
       .insert({
@@ -544,6 +547,7 @@ export async function approveAndSendLease(
         deposit_snapshot: depositSnapshot,
         autofill_snapshot: autofillSnapshot,
         sent_at: now,
+        is_demo: isDemo,
       })
       .select("id")
       .single();
@@ -589,6 +593,7 @@ export async function approveAndSendLease(
         height: field.height,
         placement_note: field.placement_note,
         sort_order: field.sort_order,
+        is_demo: isDemo,
       };
     });
 
@@ -793,6 +798,188 @@ export async function searchPreparedLeases(
         applicant_name: l.applicant_snapshot?.name ?? null,
       }))
     );
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tenant: Get prepared leases for a tenant
+// ---------------------------------------------------------------------------
+
+/** Prepared lease with property name for tenant display */
+export interface TenantPreparedLease {
+  id: string;
+  status: string;
+  signing_token: string;
+  lease_reference_number: string;
+  property_name: string | null;
+  room_snapshot: { name: string | null } | null;
+  bed_snapshot: { label: string | null } | null;
+  monthly_rent_snapshot: number | null;
+  lease_start_date: string | null;
+  tenant_signed_at: string | null;
+  sent_at: string | null;
+}
+
+/**
+ * Get prepared leases for a tenant (for tenant status page).
+ * Returns leases where tenant_id matches the provided tenantId.
+ */
+export async function getTenantPreparedLeases(
+  tenantId: string
+): Promise<Result<TenantPreparedLease[]>> {
+  try {
+    const supabase = getServiceClient();
+
+    const { data, error } = await supabase
+      .from("prepared_leases")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .neq("status", "cancelled")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+
+    const rows = (data ?? []) as PreparedLease[];
+    if (rows.length === 0) return ok([]);
+
+    // Get property names
+    const propertyIds = [...new Set(rows.map((r) => r.property_id).filter(Boolean))] as string[];
+    const { data: props } = propertyIds.length > 0
+      ? await supabase.from("properties").select("id, name").in("id", propertyIds)
+      : { data: [] };
+    const propName = new Map((props ?? []).map((p) => [p.id, p.name]));
+
+    return ok(
+      rows.map((r) => ({
+        id: r.id,
+        status: r.status,
+        signing_token: r.signing_token,
+        lease_reference_number: r.lease_reference_number,
+        property_name: r.property_id ? propName.get(r.property_id) ?? null : r.property_snapshot?.name ?? null,
+        room_snapshot: r.room_snapshot,
+        bed_snapshot: r.bed_snapshot,
+        monthly_rent_snapshot: r.rent_snapshot?.monthly_rent ?? null,
+        lease_start_date: r.autofill_snapshot?.moveInDate ?? null,
+        tenant_signed_at: r.signed_at,
+        sent_at: r.sent_at,
+      }))
+    );
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public: Get prepared lease for tenant signing (token-verified)
+// ---------------------------------------------------------------------------
+
+export interface PreparedLeaseForSigning {
+  id: string;
+  status: string;
+  signing_token: string;
+  lease_reference_number: string;
+  lease_template_id: string;
+  property_name: string | null;
+  room_snapshot: { name: string | null } | null;
+  bed_snapshot: { label: string | null } | null;
+  monthly_rent_snapshot: number | null;
+  deposit_amount_snapshot: number | null;
+  lease_start_date: string | null;
+  tenant_name: string | null;
+  tenant_signed_at: string | null;
+}
+
+/**
+ * Get prepared lease for tenant signing page. Token-based access (no auth required).
+ */
+export async function getPreparedLeaseForSigning(
+  leaseId: string
+): Promise<Result<PreparedLeaseForSigning | null>> {
+  try {
+    const supabase = getServiceClient();
+
+    const { data, error } = await supabase
+      .from("prepared_leases")
+      .select("*")
+      .eq("id", leaseId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return ok(null);
+
+    const lease = data as PreparedLease;
+
+    // Get property name
+    let propertyName: string | null = null;
+    if (lease.property_id) {
+      const { data: prop } = await supabase
+        .from("properties")
+        .select("name")
+        .eq("id", lease.property_id)
+        .maybeSingle();
+      propertyName = prop?.name ?? null;
+    }
+
+    return ok({
+      id: lease.id,
+      status: lease.status,
+      signing_token: lease.signing_token,
+      lease_reference_number: lease.lease_reference_number,
+      lease_template_id: lease.lease_template_id,
+      property_name: propertyName ?? lease.property_snapshot?.name ?? null,
+      room_snapshot: lease.room_snapshot,
+      bed_snapshot: lease.bed_snapshot,
+      monthly_rent_snapshot: lease.rent_snapshot?.monthly_rent ?? null,
+      deposit_amount_snapshot: lease.deposit_snapshot?.deposit_amount ?? null,
+      lease_start_date: lease.autofill_snapshot?.moveInDate ?? null,
+      tenant_name: lease.applicant_snapshot?.name ?? null,
+      tenant_signed_at: lease.signed_at,
+    });
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public: Sign prepared lease (tenant action)
+// ---------------------------------------------------------------------------
+
+/**
+ * Mark the prepared lease as signed by the tenant.
+ */
+export async function signPreparedLease(
+  leaseId: string,
+  token: string
+): Promise<Result<{ success: boolean }>> {
+  try {
+    const supabase = getServiceClient();
+
+    // First verify the token matches
+    const { data: lease, error: fetchError } = await supabase
+      .from("prepared_leases")
+      .select("id, signing_token, status")
+      .eq("id", leaseId)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    if (!lease) return fail("Agreement not found.");
+    if (lease.signing_token !== token) return fail("Invalid signing token.");
+    if (!["sent", "viewed"].includes(lease.status)) {
+      return fail("This agreement is not available for signing.");
+    }
+
+    // Update to signed status
+    const now = new Date().toISOString();
+    const { error: updateError } = await supabase
+      .from("prepared_leases")
+      .update({
+        status: "signed",
+        signed_at: now,
+        viewed_at: lease.status === "sent" ? now : undefined,
+      })
+      .eq("id", leaseId);
+    if (updateError) throw updateError;
+
+    return ok({ success: true });
   } catch (error) {
     return fail(error);
   }

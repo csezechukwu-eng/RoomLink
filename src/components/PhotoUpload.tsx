@@ -5,6 +5,47 @@ import Image from "next/image";
 import { ImagePlus, Trash2, Star, Loader2 } from "lucide-react";
 import type { PropertyMedia, MediaType } from "@/lib/types";
 
+interface UploadProgress {
+  filename: string;
+  status: "pending" | "uploading" | "success" | "error";
+  error?: string;
+}
+
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+/** Convert technical errors to user-friendly messages */
+function getUserFriendlyError(error: unknown, filename: string): string {
+  const msg = error instanceof Error ? error.message : String(error);
+
+  // Body size limit exceeded (Next.js Server Action limit)
+  if (msg.includes("Body exceeded") || msg.includes("1 MB limit") || msg.includes("413")) {
+    return `${filename}: File too large. Maximum size is ${MAX_FILE_SIZE_MB}MB.`;
+  }
+
+  // Server Components render error (generic production error)
+  if (msg.includes("Server Components render") || msg.includes("digest")) {
+    return `${filename}: Upload failed. Please try again or use a smaller file.`;
+  }
+
+  // Network errors
+  if (msg.includes("fetch") || msg.includes("network") || msg.includes("Failed to fetch")) {
+    return `${filename}: Network error. Check your connection and try again.`;
+  }
+
+  // Storage errors
+  if (msg.includes("storage") || msg.includes("bucket")) {
+    return `${filename}: Storage error. Please try again later.`;
+  }
+
+  // Auth errors
+  if (msg.includes("session") || msg.includes("auth") || msg.includes("sign in")) {
+    return `${filename}: Session expired. Please refresh and sign in again.`;
+  }
+
+  return `${filename}: ${msg || "Upload failed"}`;
+}
+
 interface PhotoUploadProps {
   propertyId: string;
   mediaType: MediaType;
@@ -30,6 +71,7 @@ export function PhotoUpload({
 }: PhotoUploadProps) {
   const [photos, setPhotos] = React.useState<PropertyMedia[]>(existingPhotos);
   const [uploading, setUploading] = React.useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState<UploadProgress[]>([]);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [settingCoverId, setSettingCoverId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -44,37 +86,111 @@ export function PhotoUpload({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const file = files[0];
-    if (photos.length >= maxPhotos) {
+    // Check how many we can upload
+    const availableSlots = maxPhotos - photos.length;
+    if (availableSlots <= 0) {
       setError(`Maximum ${maxPhotos} photos allowed.`);
       return;
     }
 
-    setError(null);
+    // Limit files to available slots
+    let filesToUpload = Array.from(files).slice(0, availableSlots);
+    const warnings: string[] = [];
+
+    if (files.length > availableSlots) {
+      warnings.push(`Only uploading ${availableSlots} of ${files.length} photos (max ${maxPhotos}).`);
+    }
+
+    // Client-side file size validation
+    const oversizedFiles = filesToUpload.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
+    if (oversizedFiles.length > 0) {
+      for (const f of oversizedFiles) {
+        const sizeMB = (f.size / 1024 / 1024).toFixed(1);
+        warnings.push(`${f.name} (${sizeMB}MB) exceeds ${MAX_FILE_SIZE_MB}MB limit and will be skipped.`);
+      }
+      filesToUpload = filesToUpload.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
+    }
+
+    if (filesToUpload.length === 0) {
+      setError(warnings.length > 0 ? warnings.join("\n") : "No valid files to upload.");
+      return;
+    }
+
+    if (warnings.length > 0) {
+      setError(warnings.join("\n"));
+    } else {
+      setError(null);
+    }
+
+    // Initialize progress tracking
+    const initialProgress: UploadProgress[] = filesToUpload.map((file) => ({
+      filename: file.name,
+      status: "pending",
+    }));
+    setUploadProgress(initialProgress);
     setUploading(true);
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("property_id", propertyId);
-      formData.append("media_type", mediaType);
-      if (roomId) formData.append("room_id", roomId);
-      if (bedId) formData.append("bed_id", bedId);
+    const errors: string[] = [];
 
-      const result = await onUpload(formData);
-      if (result.status === "error") {
-        setError(result.message || "Upload failed.");
-      }
-    } catch (err) {
-      setError("Upload failed. Please try again.");
-      console.error("Upload error:", err);
-    } finally {
-      setUploading(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+    // Upload files sequentially to handle cover photo logic correctly
+    for (let i = 0; i < filesToUpload.length; i++) {
+      const file = filesToUpload[i];
+
+      // Update progress to uploading
+      setUploadProgress((prev) =>
+        prev.map((p, idx) => (idx === i ? { ...p, status: "uploading" } : p))
+      );
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("property_id", propertyId);
+        formData.append("media_type", mediaType);
+        if (roomId) formData.append("room_id", roomId);
+        if (bedId) formData.append("bed_id", bedId);
+
+        const result = await onUpload(formData);
+        if (result.status === "error") {
+          const errorMsg = getUserFriendlyError(result.message || "Upload failed", file.name);
+          errors.push(errorMsg);
+          setUploadProgress((prev) =>
+            prev.map((p, idx) =>
+              idx === i ? { ...p, status: "error", error: result.message } : p
+            )
+          );
+        } else {
+          setUploadProgress((prev) =>
+            prev.map((p, idx) => (idx === i ? { ...p, status: "success" } : p))
+          );
+        }
+      } catch (err) {
+        const errorMsg = getUserFriendlyError(err, file.name);
+        errors.push(errorMsg);
+        setUploadProgress((prev) =>
+          prev.map((p, idx) =>
+            idx === i ? { ...p, status: "error", error: errorMsg } : p
+          )
+        );
       }
     }
+
+    // Show combined errors
+    if (errors.length > 0) {
+      setError((prev) => {
+        const existing = prev ? prev + "\n" : "";
+        return existing + errors.join("\n");
+      });
+    }
+
+    setUploading(false);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+
+    // Clear progress after a delay
+    setTimeout(() => setUploadProgress([]), 2000);
   };
 
   const handleDelete = async (mediaId: string) => {
@@ -134,8 +250,34 @@ export function PhotoUpload({
     <div className="space-y-4">
       {/* Error message */}
       {error && (
-        <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+        <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 whitespace-pre-line">
           {error}
+        </div>
+      )}
+
+      {/* Upload progress */}
+      {uploadProgress.length > 0 && (
+        <div className="space-y-1">
+          {uploadProgress.map((progress, idx) => (
+            <div
+              key={idx}
+              className={`flex items-center gap-2 rounded px-2 py-1 text-xs ${
+                progress.status === "success"
+                  ? "bg-green-50 text-green-700"
+                  : progress.status === "error"
+                  ? "bg-red-50 text-red-700"
+                  : progress.status === "uploading"
+                  ? "bg-blue-50 text-blue-700"
+                  : "bg-slate-50 text-slate-600"
+              }`}
+            >
+              {progress.status === "uploading" && (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              )}
+              <span className="truncate flex-1">{progress.filename}</span>
+              <span className="capitalize">{progress.status}</span>
+            </div>
+          ))}
         </div>
       )}
 
@@ -212,6 +354,7 @@ export function PhotoUpload({
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif"
+              multiple
               onChange={handleFileSelect}
               disabled={uploading}
               className="sr-only"
@@ -221,7 +364,7 @@ export function PhotoUpload({
             ) : (
               <>
                 <ImagePlus className="h-8 w-8 text-slate-400" />
-                <span className="mt-2 text-xs text-slate-500">Add photo</span>
+                <span className="mt-2 text-xs text-slate-500">Add photos</span>
               </>
             )}
           </label>

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { setCurrentTenantId, getCurrentOwnerId } from "@/lib/auth";
+import { createAuthenticatedClient } from "@/lib/supabase/server";
 import {
   submitApplication,
   approveApplication,
@@ -11,6 +12,7 @@ import {
   updateInternalNotes,
   getApplicationById,
 } from "@/lib/services/applications";
+import { approveAndSendLease } from "@/lib/services/preparedLeases";
 import {
   type ActionState,
   errorState,
@@ -250,4 +252,169 @@ export async function updateInternalNotesAction(
   if (result.error !== null) return errorState(result.error);
   revalidateApp();
   return successState("Notes saved.");
+}
+
+/**
+ * Approve an application and automatically send the linked lease template.
+ * This:
+ * 1. Validates the application and linked lease template
+ * 2. Approves the application
+ * 3. Creates a reservation
+ * 4. Creates a prepared lease from the linked template
+ * 5. Copies template fields with unique signature instance keys
+ */
+export async function approveAndSendLeaseAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = str(formData, "id");
+  if (!id) return errorState("Missing application id.");
+
+  // Verify landlord owns this application's property
+  try {
+    await getCurrentOwnerId();
+  } catch {
+    return errorState("You must be logged in to approve applications.");
+  }
+
+  const result = await approveAndSendLease(id);
+  if (result.error !== null) return errorState(result.error);
+
+  revalidateApp();
+  return successState("Application approved and lease sent.");
+}
+
+/**
+ * Mark application fee as paid manually.
+ */
+export async function markFeePaidAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = str(formData, "id");
+  const notes = optionalStr(formData, "fee_notes");
+  if (!id) return errorState("Missing application id.");
+
+  try {
+    await getCurrentOwnerId(); // Verify landlord is logged in
+    const supabase = await createAuthenticatedClient();
+
+    const { error } = await supabase
+      .from("applications")
+      .update({
+        application_fee_status: "paid_manually",
+        application_fee_paid_at: new Date().toISOString(),
+        application_fee_waived_at: null,
+        application_fee_notes: notes || null,
+      })
+      .eq("id", id);
+    if (error) throw error;
+
+    revalidateApp();
+    return successState("Application fee marked as paid.");
+  } catch (error) {
+    return errorState(
+      error instanceof Error ? error.message : "Failed to update fee status."
+    );
+  }
+}
+
+/**
+ * Waive application fee.
+ */
+export async function waiveFeeAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = str(formData, "id");
+  const notes = optionalStr(formData, "fee_notes");
+  if (!id) return errorState("Missing application id.");
+
+  try {
+    await getCurrentOwnerId(); // Verify landlord is logged in
+    const supabase = await createAuthenticatedClient();
+
+    const { error } = await supabase
+      .from("applications")
+      .update({
+        application_fee_status: "waived",
+        application_fee_waived_at: new Date().toISOString(),
+        application_fee_paid_at: null,
+        application_fee_notes: notes || null,
+      })
+      .eq("id", id);
+    if (error) throw error;
+
+    revalidateApp();
+    return successState("Application fee waived.");
+  } catch (error) {
+    return errorState(
+      error instanceof Error ? error.message : "Failed to update fee status."
+    );
+  }
+}
+
+/**
+ * Reset application fee status to unpaid.
+ */
+export async function resetFeeStatusAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = str(formData, "id");
+  if (!id) return errorState("Missing application id.");
+
+  try {
+    await getCurrentOwnerId(); // Verify landlord is logged in
+    const supabase = await createAuthenticatedClient();
+
+    const { error } = await supabase
+      .from("applications")
+      .update({
+        application_fee_status: "unpaid",
+        application_fee_paid_at: null,
+        application_fee_waived_at: null,
+      })
+      .eq("id", id);
+    if (error) throw error;
+
+    revalidateApp();
+    return successState("Fee status reset to unpaid.");
+  } catch (error) {
+    return errorState(
+      error instanceof Error ? error.message : "Failed to update fee status."
+    );
+  }
+}
+
+/**
+ * Update application fee notes.
+ */
+export async function updateFeeNotesAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = str(formData, "id");
+  const notes = str(formData, "fee_notes") || "";
+  if (!id) return errorState("Missing application id.");
+
+  try {
+    await getCurrentOwnerId(); // Verify landlord is logged in
+    const supabase = await createAuthenticatedClient();
+
+    const { error } = await supabase
+      .from("applications")
+      .update({
+        application_fee_notes: notes || null,
+      })
+      .eq("id", id);
+    if (error) throw error;
+
+    revalidateApp();
+    return successState("Fee notes saved.");
+  } catch (error) {
+    return errorState(
+      error instanceof Error ? error.message : "Failed to save notes."
+    );
+  }
 }
