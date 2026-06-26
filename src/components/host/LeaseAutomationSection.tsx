@@ -55,11 +55,11 @@ export function LeaseAutomationSection({ context }: LeaseAutomationSectionProps)
   // Show existing lease status
   if (existingPreparedLease) {
     const statusLabels: Record<string, { label: string; className: string }> = {
-      sent: { label: "Lease Sent", className: "bg-blue-100 text-blue-700" },
-      viewed: { label: "Lease Viewed", className: "bg-indigo-100 text-indigo-700" },
-      signed: { label: "Lease Signed", className: "bg-green-100 text-green-700" },
-      completed: { label: "Lease Completed", className: "bg-emerald-100 text-emerald-700" },
-      cancelled: { label: "Lease Cancelled", className: "bg-slate-100 text-slate-600" },
+      sent: { label: "Agreement Sent", className: "bg-blue-100 text-blue-700" },
+      viewed: { label: "Agreement Viewed", className: "bg-indigo-100 text-indigo-700" },
+      signed: { label: "Agreement Signed", className: "bg-green-100 text-green-700" },
+      completed: { label: "Agreement Completed", className: "bg-emerald-100 text-emerald-700" },
+      cancelled: { label: "Agreement Cancelled", className: "bg-slate-100 text-slate-600" },
     };
     const statusConfig = statusLabels[existingPreparedLease.status] ?? statusLabels.sent;
 
@@ -72,7 +72,7 @@ export function LeaseAutomationSection({ context }: LeaseAutomationSectionProps)
                 <FileCheck className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <h2 className="font-semibold text-slate-900">Lease Already Sent</h2>
+                <h2 className="font-semibold text-slate-900">Agreement Sent</h2>
                 <p className="text-sm text-slate-500">
                   Sent on{" "}
                   {existingPreparedLease.sent_at
@@ -84,11 +84,11 @@ export function LeaseAutomationSection({ context }: LeaseAutomationSectionProps)
             <Badge className={statusConfig.className}>{statusConfig.label}</Badge>
           </div>
 
-          {/* Lease Reference Number */}
+          {/* Agreement Reference Number */}
           <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
             <div className="flex items-center gap-2">
               <Hash className="h-4 w-4 text-indigo-600" />
-              <span className="text-xs font-medium text-indigo-600">Lease Reference:</span>
+              <span className="text-xs font-medium text-indigo-600">Agreement Reference:</span>
               <code className="font-mono text-sm font-semibold text-indigo-900">
                 {existingPreparedLease.lease_reference_number}
               </code>
@@ -152,9 +152,9 @@ export function LeaseAutomationSection({ context }: LeaseAutomationSectionProps)
             <FileText className="h-5 w-5 text-indigo-600" />
           </div>
           <div>
-            <h2 className="font-semibold text-slate-900">Lease Automation</h2>
+            <h2 className="font-semibold text-slate-900">Monthly Agreement</h2>
             <p className="text-sm text-slate-500">
-              Automatically send a lease when approving this application.
+              Send a monthly stay agreement when approving this request.
             </p>
           </div>
         </div>
@@ -262,13 +262,13 @@ export function LeaseAutomationSection({ context }: LeaseAutomationSectionProps)
               <input type="hidden" name="id" value={application.id} />
               <SubmitButton pendingLabel="Sending...">
                 <Send className="mr-1.5 h-4 w-4" />
-                Approve & Send Lease
+                Approve & Send Agreement
               </SubmitButton>
             </form>
           ) : (
             <Button disabled>
               <Send className="mr-1.5 h-4 w-4" />
-              Approve & Send Lease
+              Approve & Send Agreement
             </Button>
           )}
 
@@ -285,14 +285,14 @@ export function LeaseAutomationSection({ context }: LeaseAutomationSectionProps)
             <Link href="/dashboard/leases/applications">
               <Button variant="outline">
                 <FileText className="mr-1.5 h-4 w-4" />
-                Go to Lease Templates
+                Go to Agreement Templates
               </Button>
             </Link>
           )}
 
           {!application.stay_type && (
             <span className="text-sm text-slate-500">
-              Assign a rental type to this application to enable lease automation.
+              Assign a rental type to this request to enable agreement automation.
             </span>
           )}
         </div>

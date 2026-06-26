@@ -91,6 +91,7 @@ export interface DemoSeedResult {
     leaseTemplateName: string | null;
     fieldsCreated: number;
     applicationsCreated: number;
+    preparedLeasesCreated: number;
     templateLinked: boolean;
   };
 }
@@ -193,7 +194,7 @@ const DEMO_APPLICANTS: DemoApplication[] = [
     lastName: "Approved",
     email: "marcus.approved@example.com",
     phone: "555-0102",
-    stayType: "crash_pad",
+    stayType: "month_to_month", // Use month_to_month to match demo template for agreement automation
     moveInOffset: 7,
     monthlyIncome: 3800,
     employmentStatus: "employed_full_time",
@@ -800,6 +801,7 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
       leaseTemplateName: null as string | null,
       fieldsCreated: 0,
       applicationsCreated: 0,
+      preparedLeasesCreated: 0,
       templateLinked: false,
     };
 
@@ -1273,6 +1275,234 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
         step: "Demo Applications",
         status: summary.applicationsCreated > 0 || statusesUpdated > 0 ? "success" : "skipped",
         detail,
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 7: Create prepared_lease for approved demo applications
+    // -------------------------------------------------------------------------
+
+    // Get approved demo applications that don't have a prepared_lease yet
+    const { data: approvedApps } = await supabase
+      .from("applications")
+      .select("*")
+      .eq("property_id", propertyId)
+      .eq("is_demo", true)
+      .eq("status", "approved")
+      .eq("stay_type", "month_to_month");
+
+    const approvedAppsList = (approvedApps ?? []) as Application[];
+    let preparedLeasesCreated = 0;
+
+    for (const app of approvedAppsList) {
+      // Check if prepared_lease already exists
+      const { data: existingLease } = await supabase
+        .from("prepared_leases")
+        .select("id")
+        .eq("application_id", app.id)
+        .neq("status", "cancelled")
+        .maybeSingle();
+
+      if (existingLease) continue;
+
+      // Get bed details for snapshots
+      let bedData: Bed | null = null;
+      let roomName: string | null = null;
+      if (app.bed_id) {
+        const { data: bedRow } = await supabase
+          .from("beds")
+          .select("*")
+          .eq("id", app.bed_id)
+          .maybeSingle();
+        bedData = (bedRow as Bed) ?? null;
+
+        if (bedData?.room_id) {
+          const { data: roomRow } = await supabase
+            .from("rooms")
+            .select("name")
+            .eq("id", bedData.room_id)
+            .maybeSingle();
+          roomName = roomRow?.name ?? null;
+        }
+      }
+
+      // Build snapshots
+      const applicantSnapshot = {
+        name: app.full_name ?? `${app.first_name} ${app.last_name}`.trim(),
+        email: app.email,
+        phone: app.phone,
+      };
+
+      const propertySnapshot = { name: property.name, address: property.address };
+      const roomSnapshot = roomName ? { name: roomName } : null;
+      const bedSnapshot = bedData?.label ? { label: bedData.label } : null;
+      const rentSnapshot = { monthly_rent: bedData?.monthly_rent ?? null };
+      const depositSnapshot = { deposit_amount: bedData?.deposit_amount ?? null };
+
+      const autofillSnapshot = {
+        tenantName: applicantSnapshot.name,
+        tenantEmail: app.email,
+        tenantPhone: app.phone,
+        propertyName: property.name,
+        roomName,
+        bedLabel: bedData?.label,
+        monthlyRent: bedData?.monthly_rent,
+        depositAmount: bedData?.deposit_amount,
+        moveInDate: app.desired_move_in,
+        stayType: app.stay_type,
+      };
+
+      // Generate lease reference number
+      const year = new Date().getFullYear();
+      const prefix = `RL-LEASE-${year}-`;
+      const { data: lastRef } = await supabase
+        .from("prepared_leases")
+        .select("lease_reference_number")
+        .like("lease_reference_number", `${prefix}%`)
+        .order("lease_reference_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let nextSeq = 1;
+      if (lastRef?.lease_reference_number) {
+        const lastSeqStr = lastRef.lease_reference_number.substring(prefix.length);
+        const lastSeqNum = parseInt(lastSeqStr, 10);
+        if (!isNaN(lastSeqNum)) nextSeq = lastSeqNum + 1;
+      }
+      const leaseReferenceNumber = `${prefix}${nextSeq.toString().padStart(6, "0")}`;
+
+      // Create prepared_lease
+      const now = new Date().toISOString();
+      const { data: preparedLease, error: plErr } = await supabase
+        .from("prepared_leases")
+        .insert({
+          owner_id: ownerId,
+          application_id: app.id,
+          lease_template_id: templateId,
+          property_id: propertyId,
+          room_id: bedData?.room_id ?? null,
+          bed_id: app.bed_id,
+          tenant_id: app.applicant_id,
+          rental_type: app.stay_type,
+          status: "sent",
+          lease_reference_number: leaseReferenceNumber,
+          applicant_snapshot: applicantSnapshot,
+          property_snapshot: propertySnapshot,
+          room_snapshot: roomSnapshot,
+          bed_snapshot: bedSnapshot,
+          rent_snapshot: rentSnapshot,
+          deposit_snapshot: depositSnapshot,
+          autofill_snapshot: autofillSnapshot,
+          sent_at: now,
+          is_demo: true,
+        })
+        .select()
+        .single();
+
+      if (plErr) {
+        steps.push({
+          step: `Prepared Lease for ${app.full_name}`,
+          status: "error",
+          detail: plErr.message,
+        });
+        continue;
+      }
+
+      // Copy template fields to prepared_lease_fields
+      const { data: templateFields } = await supabase
+        .from("lease_template_fields")
+        .select("*")
+        .eq("lease_template_id", templateId)
+        .order("sort_order", { ascending: true });
+
+      const SIGNATURE_FIELD_TYPES = [
+        "tenant_signature", "landlord_signature",
+        "tenant_initials", "landlord_initials",
+        "date_signed", "tenant_full_name", "landlord_full_name",
+      ];
+
+      const getSignatureTypePrefix = (fieldType: string): string | null => {
+        switch (fieldType) {
+          case "tenant_signature":
+          case "landlord_signature":
+            return "SIGN";
+          case "tenant_initials":
+          case "landlord_initials":
+            return "INIT";
+          case "date_signed":
+            return "DATE";
+          case "tenant_full_name":
+          case "landlord_full_name":
+            return "NAME";
+          default:
+            return null;
+        }
+      };
+
+      const fields = templateFields ?? [];
+      let sigFieldIdx = 0;
+      const preparedFields = fields.map((field, idx) => {
+        const isSignatureField = SIGNATURE_FIELD_TYPES.includes(field.field_type);
+        let signatureReferenceNumber: string | null = null;
+        let signatureInstanceKey: string | null = null;
+
+        if (isSignatureField) {
+          const typePrefix = getSignatureTypePrefix(field.field_type);
+          if (typePrefix) {
+            const parts = leaseReferenceNumber.split("-");
+            const refYear = parts[2];
+            const leaseSeq = parts[3];
+            const fieldSeq = (sigFieldIdx + 1).toString().padStart(3, "0");
+            signatureReferenceNumber = `RL-${typePrefix}-${refYear}-${leaseSeq}-${fieldSeq}`;
+            signatureInstanceKey = signatureReferenceNumber;
+            sigFieldIdx++;
+          }
+        }
+
+        const suffix = (idx + 1).toString().padStart(3, "0");
+        const preparedFieldKey = `PF-${field.field_key || `FIELD-${suffix}`}`;
+
+        return {
+          prepared_lease_id: preparedLease.id,
+          lease_template_field_id: field.id,
+          template_field_key: field.field_key || `FIELD-${idx + 1}`,
+          prepared_field_key: preparedFieldKey,
+          signature_instance_key: signatureInstanceKey,
+          signature_reference_number: signatureReferenceNumber,
+          field_type: field.field_type,
+          label: field.label,
+          required: field.required,
+          assigned_to: field.assigned_to,
+          page_number: field.page_number,
+          x: field.x,
+          y: field.y,
+          width: field.width,
+          height: field.height,
+          placement_note: field.placement_note,
+          sort_order: field.sort_order,
+          is_demo: true,
+        };
+      });
+
+      if (preparedFields.length > 0) {
+        await supabase.from("prepared_lease_fields").insert(preparedFields);
+      }
+
+      preparedLeasesCreated++;
+      summary.preparedLeasesCreated++;
+    }
+
+    if (preparedLeasesCreated > 0) {
+      steps.push({
+        step: "Demo Prepared Leases",
+        status: "success",
+        detail: `Created ${preparedLeasesCreated} prepared lease(s) for approved applications`,
+      });
+    } else if (approvedAppsList.length > 0) {
+      steps.push({
+        step: "Demo Prepared Leases",
+        status: "skipped",
+        detail: "Prepared leases already exist for approved applications",
       });
     }
 

@@ -14,6 +14,7 @@ import { PropertyPaymentsSnapshot } from "@/components/host/PropertyPaymentsSnap
 import { PropertyMaintenanceSnapshot } from "@/components/host/PropertyMaintenanceSnapshot";
 import { PropertyRulesPanel } from "@/components/host/PropertyRulesPanel";
 import { PropertyApplicationFeePanel } from "@/components/host/PropertyApplicationFeePanel";
+import { ListingSettingsPanel } from "@/components/host/ListingSettingsPanel";
 import { getPropertyWorkspace } from "@/lib/queries";
 import { computeNeedsAttention } from "@/lib/needsAttention";
 import { computeBedAvailability, type BedAvailability } from "@/lib/bedAvailability";
@@ -76,6 +77,15 @@ export default async function PropertyDetailPage({
 
   const issues = computeNeedsAttention(result.data);
 
+  // Compute rent/deposit ranges for listing settings panel
+  const allBeds = rooms.flatMap((r) => r.beds);
+  const rents = allBeds.map((b) => b.monthly_rent).filter((r) => r > 0);
+  const deposits = allBeds.map((b) => b.deposit_amount);
+  const minRent = rents.length > 0 ? Math.min(...rents) : null;
+  const maxRent = rents.length > 0 ? Math.max(...rents) : null;
+  const minDeposit = deposits.length > 0 ? Math.min(...deposits) : null;
+  const maxDeposit = deposits.length > 0 ? Math.max(...deposits) : null;
+
   return (
     <div className="space-y-6">
       <PropertyOperationsHeader property={property} roomCount={rooms.length} />
@@ -99,6 +109,18 @@ export default async function PropertyDetailPage({
           {/* B. Property Photos */}
           <div id="photos" className="scroll-mt-24">
             <PropertyPhotosSection propertyId={property.id} photos={media} />
+          </div>
+
+          {/* Listing Settings - Monthly Stay Marketplace */}
+          <div id="listing-settings" className="scroll-mt-24">
+            <ListingSettingsPanel
+              property={property}
+              bedCounts={bedCounts}
+              minRent={minRent}
+              maxRent={maxRent}
+              minDeposit={minDeposit}
+              maxDeposit={maxDeposit}
+            />
           </div>
 
           {/* C. Rooms & Beds */}

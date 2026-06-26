@@ -119,8 +119,12 @@ export function computeLeaseReadiness(ctx: LeaseContext): LeaseReadiness {
   return { items, ready };
 }
 
+// PRODUCT NOTE: Room Link is a MONTHLY-stay marketplace.
+// All options here represent minimum one-month stays.
+// See: src/lib/productConfig.ts for full product direction.
 export const LEASE_TERM_OPTIONS: { value: string; label: string }[] = [
   { value: "month_to_month", label: "Month-to-month" },
   { value: "fixed_term", label: "Fixed term" },
-  { value: "short_term_bed", label: "Short-term bed rental" },
+  // NOTE: "short_term_bed" means monthly bed rental, NOT nightly
+  { value: "short_term_bed", label: "Monthly bed rental" },
 ];

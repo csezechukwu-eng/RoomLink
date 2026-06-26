@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Calendar } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -45,9 +45,9 @@ export default async function ApplyPage({
       <Card className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Apply for {bed.label}</h1>
+            <h1 className="text-xl font-bold text-slate-900">Request Monthly Stay</h1>
             <p className="mt-1 text-sm text-slate-500">
-              {property.name} · {room?.name || "Room TBD"}
+              {bed.label} · {property.name} · {room?.name || "Room TBD"}
             </p>
           </div>
           <div className="text-right">
@@ -58,6 +58,18 @@ export default async function ApplyPage({
           </div>
         </div>
       </Card>
+
+      {/* Monthly Stay Notice */}
+      <div className="flex items-start gap-3 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+        <Calendar className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-medium text-indigo-900">Monthly Stay Booking</p>
+          <p className="text-sm text-indigo-700">
+            Room Link is built for monthly stays. The minimum booking period is 30 days.
+            Rent is collected monthly.
+          </p>
+        </div>
+      </div>
 
       {bed.status === "vacant" ? (
         <ApplicationForm

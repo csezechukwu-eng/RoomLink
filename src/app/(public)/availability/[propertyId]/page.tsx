@@ -5,18 +5,16 @@ import {
   ArrowLeft,
   BedDouble,
   DoorOpen,
-  Bath,
-  Wifi,
-  WashingMachine,
-  Car,
   ChevronDown,
   ImageIcon,
+  Calendar,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ErrorState";
 import { getAvailabilityDetail } from "@/lib/services/availability";
-import { labelForBunkType } from "@/lib/constants";
+import { labelForBunkType, labelForOccupancyType } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import { computeBedAvailability } from "@/lib/bedAvailability";
 import type { PropertyMedia } from "@/lib/types";
@@ -41,7 +39,7 @@ export default async function AvailabilityDetailPage({
   }
   if (!result.data) notFound();
 
-  const { property, rooms, totalBeds, vacantBeds, media } = result.data;
+  const { property, rooms, totalBeds, media } = result.data;
   const propertyPhotos = media.filter((m) => m.media_type === "property");
   const location = [property.address, property.city, property.state, property.zip]
     .filter(Boolean)
@@ -64,14 +62,28 @@ export default async function AvailabilityDetailPage({
       {/* Photo Gallery */}
       <PhotoGallery photos={propertyPhotos} />
 
-      {/* Amenities */}
+      {/* Monthly Stay Notice */}
+      <div className="flex items-start gap-3 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+        <Calendar className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-medium text-indigo-900">Monthly Stay Rental</p>
+          <p className="text-sm text-indigo-700">
+            Minimum 30-day stay required. Rent is collected monthly.
+          </p>
+        </div>
+      </div>
+
+      {/* Property Info */}
       <div className="flex flex-wrap gap-4 text-sm">
         <AmenityBadge icon={<BedDouble className="h-4 w-4" />} label={`${totalBeds} Beds`} />
         <AmenityBadge icon={<DoorOpen className="h-4 w-4" />} label={`${rooms.length} Rooms`} />
-        <AmenityBadge icon={<Bath className="h-4 w-4" />} label="3 Bathrooms" />
-        <AmenityBadge icon={<Wifi className="h-4 w-4" />} label="WiFi" />
-        <AmenityBadge icon={<WashingMachine className="h-4 w-4" />} label="Laundry" />
-        <AmenityBadge icon={<Car className="h-4 w-4" />} label="Parking" />
+        <AmenityBadge icon={<Calendar className="h-4 w-4" />} label="Min 30 days" />
+        {property.occupancy_type && (
+          <AmenityBadge
+            icon={<Users className="h-4 w-4" />}
+            label={labelForOccupancyType(property.occupancy_type)}
+          />
+        )}
       </div>
 
       {/* About & House Rules */}
@@ -96,9 +108,9 @@ export default async function AvailabilityDetailPage({
         </div>
       )}
 
-      {/* Available Beds Section */}
+      {/* Beds & Pricing */}
       <div>
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Available Beds</h2>
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Beds & Monthly Pricing</h2>
 
         {rooms.length === 0 ? (
           <p className="text-sm text-slate-500">No rooms listed yet.</p>
@@ -146,7 +158,7 @@ export default async function AvailabilityDetailPage({
                                 {computeBedAvailability(bed).label}
                               </span>
                               <Link href={`/apply/${bed.id}`}>
-                                <Button size="sm">Apply</Button>
+                                <Button size="sm">Request Stay</Button>
                               </Link>
                             </>
                           ) : (
@@ -178,7 +190,7 @@ function BackLink() {
       className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
     >
       <ArrowLeft className="h-4 w-4" />
-      Back to Properties
+      Back to Listings
     </Link>
   );
 }

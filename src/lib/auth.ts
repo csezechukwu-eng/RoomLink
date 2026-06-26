@@ -137,51 +137,31 @@ export async function setCurrentTenantId(tenantId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Billing Data Types
+// Stripe Connect Status (Future: Marketplace Payouts)
 // ---------------------------------------------------------------------------
 
-export interface LandlordBillingData {
+export interface LandlordPayoutStatus {
   id: string;
   email: string;
   full_name: string | null;
-  subscription_plan: "free" | "starter" | "pro" | "enterprise";
-  stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
-  stripe_subscription_status: string | null;
-  stripe_price_id: string | null;
-  stripe_current_period_start: string | null;
-  stripe_current_period_end: string | null;
-  stripe_cancel_at_period_end: boolean;
-  billing_email: string | null;
-  subscription_started_at: string | null;
-  subscription_canceled_at: string | null;
+  /** Whether Stripe Connect is set up for payouts */
   stripe_connect_enabled: boolean;
 }
 
 /**
- * Get the current landlord's billing data from the users table.
+ * Get the current landlord's payout status from the users table.
+ * Used for future Stripe Connect marketplace payouts.
  * Returns null if not authenticated or user not found.
  */
-export async function getLandlordBillingData(): Promise<LandlordBillingData | null> {
+export async function getLandlordPayoutStatus(): Promise<LandlordPayoutStatus | null> {
   const { createAuthenticatedClient } = await import("@/lib/supabase/server");
 
-  // Demo mode: return mock billing data
+  // Demo mode: return mock data
   if (isDemoMode()) {
     return {
       id: DEMO_OWNER_ID,
       email: "demo@roomlink.local",
       full_name: "Demo Landlord",
-      subscription_plan: "pro",
-      stripe_customer_id: null,
-      stripe_subscription_id: null,
-      stripe_subscription_status: "active",
-      stripe_price_id: null,
-      stripe_current_period_start: new Date().toISOString(),
-      stripe_current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      stripe_cancel_at_period_end: false,
-      billing_email: null,
-      subscription_started_at: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
-      subscription_canceled_at: null,
       stripe_connect_enabled: false,
     };
   }
@@ -198,17 +178,6 @@ export async function getLandlordBillingData(): Promise<LandlordBillingData | nu
       id,
       email,
       full_name,
-      subscription_plan,
-      stripe_customer_id,
-      stripe_subscription_id,
-      stripe_subscription_status,
-      stripe_price_id,
-      stripe_current_period_start,
-      stripe_current_period_end,
-      stripe_cancel_at_period_end,
-      billing_email,
-      subscription_started_at,
-      subscription_canceled_at,
       stripe_connect_enabled
     `)
     .eq("id", authUser.id)
@@ -220,20 +189,9 @@ export async function getLandlordBillingData(): Promise<LandlordBillingData | nu
       id: authUser.id,
       email: authUser.email || "",
       full_name: authUser.user_metadata?.full_name || null,
-      subscription_plan: "free",
-      stripe_customer_id: null,
-      stripe_subscription_id: null,
-      stripe_subscription_status: null,
-      stripe_price_id: null,
-      stripe_current_period_start: null,
-      stripe_current_period_end: null,
-      stripe_cancel_at_period_end: false,
-      billing_email: null,
-      subscription_started_at: null,
-      subscription_canceled_at: null,
       stripe_connect_enabled: false,
     };
   }
 
-  return data as LandlordBillingData;
+  return data as LandlordPayoutStatus;
 }

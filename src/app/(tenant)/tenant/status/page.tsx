@@ -1,4 +1,4 @@
-import { CheckCircle2, BedDouble, ClipboardList, FileSignature } from "lucide-react";
+import { CheckCircle2, BedDouble, ClipboardList, FileSignature, Clock } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
@@ -8,14 +8,13 @@ import { Card } from "@/components/ui/card";
 import { getCurrentTenantId } from "@/lib/auth";
 import { getTenantApplications } from "@/lib/services/applications";
 import { getTenantReservation } from "@/lib/services/reservations";
-import { getTenantLeaseDocuments } from "@/lib/services/leaseDocuments";
+import { getTenantPreparedLeases } from "@/lib/services/preparedLeases";
 import {
   APPLICATION_STATUS_STYLES,
   DEPOSIT_STATUS_STYLES,
   RESERVATION_STATUS_STYLES,
 } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
-import type { LeaseDocumentStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -28,11 +27,12 @@ function formatDate(value: string | null): string | null {
   });
 }
 
-const LEASE_STATUS_STYLES: Record<LeaseDocumentStatus, { label: string; badge: string }> = {
-  draft: { label: "Draft", badge: "bg-slate-100 text-slate-600" },
-  preparing: { label: "Preparing", badge: "bg-slate-100 text-slate-600" },
-  out_for_signature: { label: "Awaiting Signature", badge: "bg-amber-50 text-amber-700" },
-  completed: { label: "Signed", badge: "bg-emerald-50 text-emerald-700" },
+/** Status styles for prepared leases */
+const PREPARED_LEASE_STATUS_STYLES: Record<string, { label: string; badge: string }> = {
+  sent: { label: "Awaiting Signature", badge: "bg-amber-50 text-amber-700" },
+  viewed: { label: "Awaiting Signature", badge: "bg-amber-50 text-amber-700" },
+  signed: { label: "Signed", badge: "bg-emerald-50 text-emerald-700" },
+  completed: { label: "Completed", badge: "bg-emerald-50 text-emerald-700" },
   cancelled: { label: "Cancelled", badge: "bg-slate-100 text-slate-500" },
 };
 
@@ -46,7 +46,7 @@ export default async function TenantStatusPage({
   const [appsResult, reservationResult, leasesResult] = await Promise.all([
     getTenantApplications(tenantId),
     getTenantReservation(tenantId),
-    getTenantLeaseDocuments(tenantId),
+    getTenantPreparedLeases(tenantId),
   ]);
 
   if (appsResult.error !== null || reservationResult.error !== null || leasesResult.error !== null) {
@@ -71,15 +71,15 @@ export default async function TenantStatusPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="My status"
-        description="Your application, reservation, deposit, and assigned bed."
+        title="My Booking Status"
+        description="Your monthly stay request, reservation, deposit, and assigned bed."
       />
 
       {applied ? (
         <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            Application submitted! The host will review it and you&apos;ll see the
+            Request submitted! The host will review it and you&apos;ll see the
             decision here.
           </span>
         </div>
@@ -132,16 +132,16 @@ export default async function TenantStatusPage({
         )}
       </section>
 
-      {/* Applications */}
+      {/* Booking Requests */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Applications
+          Booking Requests
         </h2>
         {applications.length === 0 ? (
           <EmptyState
             icon={<ClipboardList className="h-5 w-5" />}
-            title="No applications yet"
-            description="Browse availability and apply for a bed to get started."
+            title="No booking requests yet"
+            description="Browse listings and request a monthly stay to get started."
           />
         ) : (
           <div className="space-y-3">
@@ -171,14 +171,14 @@ export default async function TenantStatusPage({
         )}
       </section>
 
-      {/* Leases */}
+      {/* Monthly Agreements */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Lease Agreements
+          Monthly Agreements
         </h2>
         {leases.length === 0 ? (
           <p className="text-sm text-slate-500">
-            No lease agreements yet. Once the landlord sends a lease for signing, it will appear here.
+            No agreements yet. Once the host sends an agreement for signing, it will appear here.
           </p>
         ) : (
           <div className="space-y-3">
@@ -186,9 +186,10 @@ export default async function TenantStatusPage({
               const line = [lease.room_snapshot?.name, lease.bed_snapshot?.label]
                 .filter(Boolean)
                 .join(" · ");
-              const style = LEASE_STATUS_STYLES[lease.status] ?? LEASE_STATUS_STYLES.draft;
+              const style = PREPARED_LEASE_STATUS_STYLES[lease.status] ?? PREPARED_LEASE_STATUS_STYLES.sent;
               const canSign =
-                lease.status === "out_for_signature" && !lease.tenant_signed_at;
+                (lease.status === "sent" || lease.status === "viewed") && !lease.tenant_signed_at;
+              const isSigned = lease.status === "signed" || lease.status === "completed";
 
               return (
                 <Card key={lease.id} className="p-5">
@@ -199,7 +200,7 @@ export default async function TenantStatusPage({
                       </div>
                       <div>
                         <p className="font-semibold text-slate-900">
-                          {lease.property_name ?? "Lease Agreement"}
+                          {lease.property_name ?? "Monthly Agreement"}
                         </p>
                         <p className="text-sm text-slate-500">
                           {line || "Bed rental agreement"}
@@ -218,23 +219,24 @@ export default async function TenantStatusPage({
                   </div>
 
                   <div className="mt-4 border-t border-slate-100 pt-4">
-                    {lease.status === "completed" ? (
+                    {isSigned ? (
                       <div className="flex items-center gap-2 text-sm text-emerald-700">
                         <CheckCircle2 className="h-4 w-4" />
-                        <span>Lease signed successfully</span>
+                        <span>Agreement signed successfully</span>
                       </div>
                     ) : canSign ? (
                       <Link
-                        href={`/sign/${lease.id}?token=${lease.signing_token}`}
+                        href={`/sign-agreement/${lease.id}?token=${lease.signing_token}`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
                       >
                         <FileSignature className="h-4 w-4" />
-                        Sign Lease
+                        Sign Agreement
                       </Link>
                     ) : (
-                      <p className="text-sm text-slate-500">
-                        Waiting for the landlord to send the lease.
-                      </p>
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <Clock className="h-4 w-4" />
+                        <span>Agreement sent · Waiting for your signature</span>
+                      </div>
                     )}
                   </div>
                 </Card>

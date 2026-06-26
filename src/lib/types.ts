@@ -5,6 +5,10 @@ export type BunkType = "top_bunk" | "bottom_bunk" | "single" | "other";
 export type BedStatus = "vacant" | "reserved" | "occupied" | "unavailable";
 export type MemberRole = "owner" | "manager" | "tenant";
 
+// Listing occupancy types - hosts must comply with fair housing laws
+export type PropertyOccupancyType = "coed" | "women_only_house" | "women_only_rooms_available";
+export type RoomOccupancyType = "coed" | "women_only";
+
 export interface Property {
   id: string;
   owner_id: string;
@@ -25,6 +29,13 @@ export interface Property {
   application_fee_amount: number | null;
   /** Instructions for paying the application fee */
   application_fee_instructions: string | null;
+  // Listing settings for monthly-stay marketplace
+  /** Occupancy type: coed, women_only_house, or women_only_rooms_available */
+  occupancy_type: PropertyOccupancyType | null;
+  /** Whether checkout photos are required from tenants */
+  checkout_photo_required: boolean;
+  /** Default minimum stay in days for new beds (30 = monthly) */
+  default_min_stay_days: number;
   created_at: string;
 }
 
@@ -34,6 +45,8 @@ export interface Room {
   name: string;
   description: string | null;
   max_occupancy: number;
+  /** Room-level occupancy override: coed or women_only */
+  occupancy_type: RoomOccupancyType | null;
   /** True if this is a demo/test room */
   is_demo: boolean;
   created_at: string;
@@ -106,10 +119,15 @@ export type UserRole = "owner" | "manager" | "tenant";
 export type VerificationStatus = "unverified" | "pending" | "verified";
 
 // ---------------------------------------------------------------------------
-// Subscription Billing Types (Room Link platform billing)
+// DEPRECATED: Subscription Billing Types
 // ---------------------------------------------------------------------------
+// These types are from the deprecated landlord subscription billing model.
+// Room Link now uses a transaction-fee model where landlords pay a 5% host fee
+// only when tenants pay rent through the platform.
+// These types are kept for database compatibility but should not be used in new code.
+// See: supabase/migrations/0025_deprecate_subscription_billing.sql
 
-/** Stripe subscription statuses from webhook events */
+/** @deprecated Subscription billing is no longer used */
 export type StripeSubscriptionStatus =
   | "incomplete"
   | "incomplete_expired"
@@ -120,8 +138,11 @@ export type StripeSubscriptionStatus =
   | "unpaid"
   | "paused";
 
-/** Room Link subscription plan tiers */
-export type SubscriptionPlan = "free" | "starter" | "pro" | "enterprise";
+/** @deprecated Subscription billing is no longer used */
+export type SubscriptionPlan = "free" | "monthly" | "yearly" | "starter" | "pro" | "enterprise";
+
+/** @deprecated Subscription billing is no longer used */
+export type SubscriptionInterval = "month" | "year";
 
 export interface User {
   id: string;
@@ -136,33 +157,57 @@ export interface User {
   created_at: string;
 
   // ---------------------------------------------------------------------------
-  // Subscription Billing Fields (landlord paying Room Link)
-  // These are SEPARATE from Stripe Connect fields for rent collection.
+  // DEPRECATED: Subscription Billing Fields
+  // ---------------------------------------------------------------------------
+  // These fields are from the deprecated landlord subscription billing model.
+  // Room Link now uses transaction-based fees (5% host fee on rent payments).
+  // These fields are kept for database compatibility but not actively used.
+  // See: supabase/migrations/0025_deprecate_subscription_billing.sql
+
+  /** @deprecated Subscription billing is no longer used */
+  stripe_customer_id: string | null;
+  /** @deprecated Subscription billing is no longer used */
+  stripe_subscription_id: string | null;
+  /** @deprecated Subscription billing is no longer used */
+  stripe_subscription_status: StripeSubscriptionStatus | null;
+  /** @deprecated Subscription billing is no longer used */
+  stripe_price_id: string | null;
+  /** @deprecated Subscription billing is no longer used */
+  stripe_current_period_start: string | null;
+  /** @deprecated Subscription billing is no longer used */
+  stripe_current_period_end: string | null;
+  /** @deprecated Subscription billing is no longer used */
+  stripe_cancel_at_period_end: boolean;
+  /** @deprecated Subscription billing is no longer used */
+  billing_email: string | null;
+  /** @deprecated Subscription billing is no longer used */
+  subscription_plan: SubscriptionPlan;
+  /** @deprecated Subscription billing is no longer used */
+  subscription_interval: SubscriptionInterval | null;
+  /** @deprecated Subscription billing is no longer used */
+  subscription_amount: number | null;
+  /** @deprecated Subscription billing is no longer used */
+  subscription_started_at: string | null;
+  /** @deprecated Subscription billing is no longer used */
+  subscription_canceled_at: string | null;
+  /** @deprecated Subscription billing is no longer used */
+  subscription_ended_at: string | null;
+  /** @deprecated Subscription billing is no longer used */
+  trial_started_at: string | null;
+  /** @deprecated Subscription billing is no longer used */
+  trial_ends_at: string | null;
+  /** @deprecated Subscription billing is no longer used */
+  trial_used: boolean;
+  /** @deprecated Subscription billing is no longer used */
+  billing_payment_method_summary: string | null;
+  /** @deprecated Subscription billing is no longer used */
+  billing_updated_at: string | null;
+
+  // ---------------------------------------------------------------------------
+  // Stripe Connect (Future: Marketplace Payouts)
   // ---------------------------------------------------------------------------
 
-  /** Stripe Customer ID - landlord as customer paying Room Link */
-  stripe_customer_id: string | null;
-  /** Stripe Subscription ID for Room Link platform access */
-  stripe_subscription_id: string | null;
-  /** Current subscription status from Stripe webhooks */
-  stripe_subscription_status: StripeSubscriptionStatus | null;
-  /** Stripe Price ID for current subscription tier */
-  stripe_price_id: string | null;
-  /** Start of current billing period */
-  stripe_current_period_start: string | null;
-  /** End of current billing period */
-  stripe_current_period_end: string | null;
-  /** Whether subscription cancels at period end */
-  stripe_cancel_at_period_end: boolean;
-  /** Email for billing communications */
-  billing_email: string | null;
-  /** Current plan tier */
-  subscription_plan: SubscriptionPlan;
-  /** When the user first subscribed to a paid plan */
-  subscription_started_at: string | null;
-  /** When the user canceled their subscription */
-  subscription_canceled_at: string | null;
-  /** Placeholder for future Stripe Connect rent collection */
+  /** Whether Stripe Connect is enabled for receiving rent payouts */
   stripe_connect_enabled: boolean;
 }
 
@@ -672,6 +717,8 @@ export interface PreparedLease {
   status: PreparedLeaseStatus;
   /** Unique reference number for the lease: RL-LEASE-YYYY-NNNNNN */
   lease_reference_number: string;
+  /** Unguessable secret used to authorize the public tenant signing link */
+  signing_token: string;
   applicant_snapshot: PreparedLeaseApplicantSnapshot;
   property_snapshot: PreparedLeasePropertySnapshot | null;
   room_snapshot: PreparedLeaseRoomSnapshot | null;

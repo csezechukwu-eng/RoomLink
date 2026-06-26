@@ -14,7 +14,7 @@ function formatDate(value: string | null): string | null {
   });
 }
 
-/** Applications scoped to one property. Real data only. */
+/** Monthly stay requests scoped to one property. Real data only. */
 export function PropertyApplicationsPanel({
   applications,
 }: {
@@ -24,7 +24,7 @@ export function PropertyApplicationsPanel({
     <section id="applications" className="scroll-mt-24 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Applications
+          Monthly Stay Requests
         </h2>
         {applications.length > 0 && (
           <Link
@@ -38,7 +38,7 @@ export function PropertyApplicationsPanel({
 
       {applications.length === 0 ? (
         <Card className="p-5 text-sm text-slate-500">
-          No applications for this property yet.
+          No booking requests for this property yet.
         </Card>
       ) : (
         <Card className="divide-y divide-slate-100">
@@ -74,7 +74,7 @@ export function PropertyApplicationsPanel({
                     className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
                   >
                     <FileSignature className="h-3.5 w-3.5" />
-                    Prepare Lease
+                    Send Agreement
                   </Link>
                 ) : (
                   <Link

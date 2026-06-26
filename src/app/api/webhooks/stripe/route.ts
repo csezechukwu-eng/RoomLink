@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { getAdminClient } from "@/lib/supabase/admin";
 
 /**
- * Stripe webhook handler for Room Link platform billing.
+ * Stripe webhook handler for Room Link.
  *
- * Handles subscription events for landlords paying Room Link.
- * NOT for Stripe Connect rent collection.
+ * BUSINESS MODEL (June 2025):
+ * Room Link uses a transaction-fee model. Landlords do not pay subscriptions.
+ * This webhook is prepared for future Stripe Connect marketplace payments.
+ *
+ * Future events to handle:
+ * - checkout.session.completed (tenant booking payment)
+ * - payment_intent.succeeded (monthly rent payment)
+ * - payment_intent.payment_failed
+ * - charge.refunded
+ * - account.updated (Stripe Connect onboarding)
+ *
+ * REMOVED: Subscription-related handlers (customer.subscription.*)
+ * These were for landlord SaaS billing which is no longer used.
  */
 
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -51,25 +61,33 @@ export async function POST(request: NextRequest) {
 
   try {
     switch (event.type) {
+      // =======================================================================
+      // FUTURE: Marketplace Payment Events (Stripe Connect)
+      // =======================================================================
+
       case "checkout.session.completed":
+        // Future: Handle tenant booking payment completion
         await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
         break;
 
-      case "customer.subscription.created":
-      case "customer.subscription.updated":
-        await handleSubscriptionChange(event.data.object as Stripe.Subscription);
+      case "payment_intent.succeeded":
+        // Future: Handle successful rent payment
+        console.log("[webhook] Payment succeeded:", (event.data.object as Stripe.PaymentIntent).id);
         break;
 
-      case "customer.subscription.deleted":
-        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+      case "payment_intent.payment_failed":
+        // Future: Handle failed rent payment
+        console.log("[webhook] Payment failed:", (event.data.object as Stripe.PaymentIntent).id);
         break;
 
-      case "invoice.payment_succeeded":
-        await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+      case "charge.refunded":
+        // Future: Handle refunds
+        console.log("[webhook] Charge refunded:", (event.data.object as Stripe.Charge).id);
         break;
 
-      case "invoice.payment_failed":
-        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+      case "account.updated":
+        // Future: Handle Stripe Connect account updates
+        console.log("[webhook] Connected account updated:", (event.data.object as Stripe.Account).id);
         break;
 
       default:
@@ -86,172 +104,30 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * Handle checkout session completion.
+ * Future: Process tenant booking payments through Stripe Connect.
+ */
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   console.log("[webhook] Checkout completed:", session.id);
 
-  // Only handle subscription checkouts
-  if (session.mode !== "subscription") {
-    return;
-  }
+  // Future implementation for marketplace payments:
+  // 1. Verify this is a booking/rent payment (check metadata)
+  // 2. Update reservation/booking status in database
+  // 3. Record payment in database
+  // 4. Trigger any post-payment workflows (notifications, etc.)
 
-  // Verify this is a Room Link platform subscription
   const billingType = session.metadata?.billing_type;
-  if (billingType !== "roomlink_platform_subscription") {
-    console.log("[webhook] Not a Room Link subscription, skipping");
+
+  // Skip legacy subscription checkouts (should not occur anymore)
+  if (billingType === "roomlink_platform_subscription") {
+    console.log("[webhook] Ignoring legacy subscription checkout");
     return;
   }
 
-  const customerId = session.customer as string;
-  const subscriptionId = session.subscription as string;
-  const userId = session.metadata?.owner_id || session.metadata?.user_id;
-
-  if (!userId) {
-    console.error("[webhook] No user ID in checkout metadata");
-    return;
+  // Future: Handle marketplace booking payments
+  if (billingType === "booking_payment" || billingType === "rent_payment") {
+    console.log("[webhook] Marketplace payment - implementation pending");
+    // TODO: Implement when Stripe Connect is ready
   }
-
-  const supabase = getAdminClient();
-
-  // Update user with customer and subscription IDs
-  const { error } = await supabase
-    .from("users")
-    .update({
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId,
-      subscription_started_at: new Date().toISOString(),
-    })
-    .eq("id", userId);
-
-  if (error) {
-    console.error("[webhook] Error updating user after checkout:", error);
-    throw error;
-  }
-
-  console.log(`[webhook] Updated user ${userId} with subscription ${subscriptionId}`);
-}
-
-async function handleSubscriptionChange(subscription: Stripe.Subscription) {
-  console.log("[webhook] Subscription changed:", subscription.id, subscription.status);
-
-  // Verify this is a Room Link platform subscription
-  const billingType = subscription.metadata?.billing_type;
-  if (billingType !== "roomlink_platform_subscription") {
-    console.log("[webhook] Not a Room Link subscription, skipping");
-    return;
-  }
-
-  const customerId = subscription.customer as string;
-  const userId = subscription.metadata?.owner_id || subscription.metadata?.user_id;
-
-  // Get price ID and plan name
-  const priceId = subscription.items.data[0]?.price?.id || null;
-  const planName = determinePlanFromPriceId(priceId);
-
-  // Access subscription period dates from the raw object
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const subData = subscription as any;
-  const periodStart = subData.current_period_start;
-  const periodEnd = subData.current_period_end;
-
-  const supabase = getAdminClient();
-
-  // Find user by customer ID or user ID
-  let query = supabase.from("users").update({
-    stripe_subscription_id: subscription.id,
-    stripe_subscription_status: subscription.status,
-    stripe_price_id: priceId,
-    stripe_current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
-    stripe_current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-    stripe_cancel_at_period_end: subscription.cancel_at_period_end,
-    subscription_plan: planName,
-  });
-
-  if (userId) {
-    query = query.eq("id", userId);
-  } else {
-    query = query.eq("stripe_customer_id", customerId);
-  }
-
-  const { error } = await query;
-
-  if (error) {
-    console.error("[webhook] Error updating subscription:", error);
-    throw error;
-  }
-
-  console.log(`[webhook] Updated subscription ${subscription.id} to status ${subscription.status}`);
-}
-
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  console.log("[webhook] Subscription deleted:", subscription.id);
-
-  const customerId = subscription.customer as string;
-  const userId = subscription.metadata?.owner_id || subscription.metadata?.user_id;
-
-  const supabase = getAdminClient();
-
-  let query = supabase.from("users").update({
-    stripe_subscription_status: "canceled",
-    stripe_cancel_at_period_end: false,
-    subscription_plan: "free",
-    subscription_canceled_at: new Date().toISOString(),
-  });
-
-  if (userId) {
-    query = query.eq("id", userId);
-  } else {
-    query = query.eq("stripe_customer_id", customerId);
-  }
-
-  const { error } = await query;
-
-  if (error) {
-    console.error("[webhook] Error handling subscription deletion:", error);
-    throw error;
-  }
-
-  console.log(`[webhook] Marked subscription ${subscription.id} as canceled`);
-}
-
-async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
-  console.log("[webhook] Invoice payment succeeded:", invoice.id);
-
-  // Update billing timestamp
-  const customerId = invoice.customer as string;
-  if (!customerId) return;
-
-  const supabase = getAdminClient();
-
-  // Just log for now - subscription webhook handles the main update
-  console.log(`[webhook] Payment succeeded for customer ${customerId}`);
-}
-
-async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
-  console.log("[webhook] Invoice payment failed:", invoice.id);
-
-  const customerId = invoice.customer as string;
-  if (!customerId) return;
-
-  // The subscription.updated webhook will handle status changes to past_due/unpaid
-  console.log(`[webhook] Payment failed for customer ${customerId}`);
-}
-
-/**
- * Determine the plan name from the Stripe price ID.
- * Update this mapping when you add more plans.
- */
-function determinePlanFromPriceId(priceId: string | null): string {
-  if (!priceId) return "free";
-
-  // Check environment variable first
-  const monthlyPriceId = process.env.STRIPE_ROOMLINK_MONTHLY_PRICE_ID;
-  if (priceId === monthlyPriceId) {
-    return "pro"; // Default to pro for the main subscription
-  }
-
-  // Add more price ID mappings as needed
-  // const starterPriceId = process.env.STRIPE_STARTER_PRICE_ID;
-  // const enterprisePriceId = process.env.STRIPE_ENTERPRISE_PRICE_ID;
-
-  return "pro";
 }

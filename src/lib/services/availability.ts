@@ -1,14 +1,31 @@
 import "server-only";
 import { getServiceClient } from "@/lib/supabase/server";
 import { ok, fail, type Result } from "@/lib/result";
-import type { Bed, Property, PropertyMedia, Room, RoomWithBeds } from "@/lib/types";
+import type { Bed, Property, PropertyMedia, PropertyOccupancyType, Room, RoomWithBeds } from "@/lib/types";
 
 export interface AvailabilityProperty extends Property {
   totalBeds: number;
   vacantBeds: number;
   minRent: number | null;
   maxRent: number | null;
+  minDeposit: number | null;
   coverPhoto: PropertyMedia | null;
+}
+
+/** Filter options for the public search page */
+export interface AvailabilityFilters {
+  /** Filter by city (case-insensitive partial match) */
+  city?: string;
+  /** Filter by state (exact match) */
+  state?: string;
+  /** Filter by occupancy type */
+  occupancyType?: PropertyOccupancyType;
+  /** Only show properties with at least this many vacant beds */
+  minBeds?: number;
+  /** Filter by minimum rent */
+  minRent?: number;
+  /** Filter by maximum rent */
+  maxRent?: number;
 }
 
 export interface AvailabilityDetail {
@@ -25,16 +42,33 @@ export interface BedForApplication {
   room: Room | null;
 }
 
-/** Public: all properties with availability + price summary. */
-export async function getAvailableProperties(): Promise<
-  Result<AvailabilityProperty[]>
-> {
+/** Public: all properties with availability + price summary.
+ * Only returns published properties (is_hidden = false).
+ * Supports optional filters for search page.
+ */
+export async function getAvailableProperties(
+  filters?: AvailabilityFilters
+): Promise<Result<AvailabilityProperty[]>> {
   try {
     const supabase = getServiceClient();
-    const { data: properties, error: pErr } = await supabase
+    // Only fetch published properties (is_hidden = false)
+    let query = supabase
       .from("properties")
       .select("*")
-      .order("name", { ascending: true });
+      .eq("is_hidden", false);
+
+    // Apply filters
+    if (filters?.city) {
+      query = query.ilike("city", `%${filters.city}%`);
+    }
+    if (filters?.state) {
+      query = query.eq("state", filters.state);
+    }
+    if (filters?.occupancyType) {
+      query = query.eq("occupancy_type", filters.occupancyType);
+    }
+
+    const { data: properties, error: pErr } = await query.order("name", { ascending: true });
     if (pErr) throw pErr;
 
     const list = (properties ?? []) as Property[];
@@ -43,7 +77,7 @@ export async function getAvailableProperties(): Promise<
     const ids = list.map((p) => p.id);
     const { data: beds, error: bErr } = await supabase
       .from("beds")
-      .select("property_id, status, monthly_rent")
+      .select("property_id, status, monthly_rent, deposit_amount")
       .in("property_id", ids);
     if (bErr) throw bErr;
 
@@ -65,14 +99,15 @@ export async function getAvailableProperties(): Promise<
 
     const byProp = new Map<
       string,
-      { total: number; vacant: number; rents: number[] }
+      { total: number; vacant: number; rents: number[]; deposits: number[] }
     >();
     for (const b of beds ?? []) {
-      const agg = byProp.get(b.property_id) ?? { total: 0, vacant: 0, rents: [] };
+      const agg = byProp.get(b.property_id) ?? { total: 0, vacant: 0, rents: [], deposits: [] };
       agg.total += 1;
       if (b.status === "vacant") {
         agg.vacant += 1;
         agg.rents.push(Number(b.monthly_rent));
+        agg.deposits.push(Number(b.deposit_amount ?? 0));
       }
       byProp.set(b.property_id, agg);
     }
@@ -83,34 +118,58 @@ export async function getAvailableProperties(): Promise<
       coverByProp.set(photo.property_id, photo);
     }
 
-    return ok(
-      list.map((p) => {
-        const agg = byProp.get(p.id) ?? { total: 0, vacant: 0, rents: [] };
-        return {
-          ...p,
-          totalBeds: agg.total,
-          vacantBeds: agg.vacant,
-          minRent: agg.rents.length ? Math.min(...agg.rents) : null,
-          maxRent: agg.rents.length ? Math.max(...agg.rents) : null,
-          coverPhoto: coverByProp.get(p.id) ?? null,
-        };
-      })
-    );
+    // Map properties with aggregated bed data
+    const mapped = list.map((p) => {
+      const agg = byProp.get(p.id) ?? { total: 0, vacant: 0, rents: [], deposits: [] };
+      return {
+        ...p,
+        totalBeds: agg.total,
+        vacantBeds: agg.vacant,
+        minRent: agg.rents.length ? Math.min(...agg.rents) : null,
+        maxRent: agg.rents.length ? Math.max(...agg.rents) : null,
+        minDeposit: agg.deposits.length ? Math.min(...agg.deposits) : null,
+        coverPhoto: coverByProp.get(p.id) ?? null,
+      };
+    });
+
+    // Apply post-aggregation filters
+    const filtered = mapped.filter((p) => {
+      // Filter by minimum vacant beds
+      if (filters?.minBeds && p.vacantBeds < filters.minBeds) {
+        return false;
+      }
+      // Filter by rent range (check if any vacant bed is in range)
+      if (filters?.minRent !== undefined && p.minRent !== null && p.maxRent !== null) {
+        // Property's max rent must be >= filter min rent
+        if (p.maxRent < filters.minRent) return false;
+      }
+      if (filters?.maxRent !== undefined && p.minRent !== null) {
+        // Property's min rent must be <= filter max rent
+        if (p.minRent > filters.maxRent) return false;
+      }
+      return true;
+    });
+
+    return ok(filtered);
   } catch (error) {
     return fail(error);
   }
 }
 
-/** Public: one property with its rooms + beds for the availability detail page. */
+/** Public: one property with its rooms + beds for the availability detail page.
+ * Only returns published properties (is_hidden = false).
+ */
 export async function getAvailabilityDetail(
   propertyId: string
 ): Promise<Result<AvailabilityDetail | null>> {
   try {
     const supabase = getServiceClient();
+    // Only fetch published properties
     const { data: property, error: pErr } = await supabase
       .from("properties")
       .select("*")
       .eq("id", propertyId)
+      .eq("is_hidden", false)
       .maybeSingle();
     if (pErr) throw pErr;
     if (!property) return ok(null);

@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, MapPin, BedDouble, ImageIcon } from "lucide-react";
+import { ArrowRight, MapPin, BedDouble, ImageIcon, Calendar, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { labelForPropertyType } from "@/lib/constants";
+import { labelForPropertyType, labelForOccupancyType } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import type { AvailabilityProperty } from "@/lib/services/availability";
 
@@ -15,6 +15,9 @@ export function AvailabilityCard({ property }: { property: AvailabilityProperty 
         ? formatCurrency(property.minRent)
         : `${formatCurrency(property.minRent)}–${formatCurrency(property.maxRent)}`
       : null;
+  const deposit = property.minDeposit !== null && property.minDeposit > 0
+    ? formatCurrency(property.minDeposit)
+    : null;
 
   return (
     <Link href={`/availability/${property.id}`} className="group block">
@@ -54,32 +57,53 @@ export function AvailabilityCard({ property }: { property: AvailabilityProperty 
             <ArrowRight className="h-5 w-5 shrink-0 text-slate-300 transition-colors group-hover:text-indigo-500" />
           </div>
 
-          <div className="flex items-end justify-between gap-3 border-t border-slate-100 pt-3">
-            <div>
-              {price ? (
-                <p className="text-sm">
-                  <span className="font-semibold text-slate-900">{price}</span>
-                  <span className="text-slate-500">/mo</span>
-                </p>
-              ) : (
-                <p className="text-sm text-slate-500">Pricing varies</p>
-              )}
-              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                <BedDouble className="h-3.5 w-3.5" />
-                {property.totalBeds} beds
-              </p>
+          {/* Price and Details */}
+          <div className="space-y-2 border-t border-slate-100 pt-3">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                {price ? (
+                  <p className="text-sm">
+                    <span className="font-semibold text-slate-900">{price}</span>
+                    <span className="text-slate-500">/mo</span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-slate-500">Pricing varies</p>
+                )}
+                {deposit && (
+                  <p className="text-xs text-slate-500">
+                    {deposit} deposit
+                  </p>
+                )}
+              </div>
+              <span
+                className={
+                  hasVacancy
+                    ? "inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20"
+                    : "inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500"
+                }
+              >
+                {hasVacancy
+                  ? `${property.vacantBeds} bed${property.vacantBeds === 1 ? "" : "s"} available`
+                  : "Fully booked"}
+              </span>
             </div>
-            <span
-              className={
-                hasVacancy
-                  ? "inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20"
-                  : "inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500"
-              }
-            >
-              {hasVacancy
-                ? `${property.vacantBeds} bed${property.vacantBeds === 1 ? "" : "s"} available`
-                : "Fully booked"}
-            </span>
+            {/* Minimum stay + beds + occupancy */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                Min 30 days
+              </span>
+              <span className="flex items-center gap-1">
+                <BedDouble className="h-3 w-3" />
+                {property.totalBeds} beds
+              </span>
+              {property.occupancy_type && (
+                <span className="flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  {labelForOccupancyType(property.occupancy_type)}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </Card>
