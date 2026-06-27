@@ -15,6 +15,7 @@ import { PropertyMaintenanceSnapshot } from "@/components/host/PropertyMaintenan
 import { PropertyRulesPanel } from "@/components/host/PropertyRulesPanel";
 import { PropertyApplicationFeePanel } from "@/components/host/PropertyApplicationFeePanel";
 import { ListingSettingsPanel } from "@/components/host/ListingSettingsPanel";
+import { ShareListingPanel } from "@/components/host/ShareListingPanel";
 import { getPropertyWorkspace } from "@/lib/queries";
 import { computeNeedsAttention } from "@/lib/needsAttention";
 import { computeBedAvailability, type BedAvailability } from "@/lib/bedAvailability";
@@ -95,6 +96,15 @@ export default async function PropertyDetailPage({
         pendingApplications={pendingApplications}
         openMaintenance={openMaintenance}
       />
+
+      {/* Share Listing - prominently placed after stats */}
+      <div id="share-listing" className="scroll-mt-24">
+        <ShareListingPanel
+          propertyId={property.id}
+          propertyName={property.name}
+          isPublished={!property.is_hidden}
+        />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Needs Attention — right column on desktop, top on mobile */}
