@@ -11,7 +11,6 @@ import {
   EyeOff,
   Share2,
 } from "lucide-react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 
@@ -92,9 +91,9 @@ export function ShareListingPanel({
   };
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3 rounded-xl border-2 border-indigo-200 bg-indigo-50/30 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="text-base font-bold text-indigo-900">
           Share Listing
         </h2>
         {isPublished ? (
@@ -110,78 +109,74 @@ export function ShareListingPanel({
         )}
       </div>
 
-      <Card className="p-5">
-        {/* Description text */}
-        <p className="text-sm text-slate-600 mb-4">
-          Share this public listing with tenants using a direct link or QR code.
-        </p>
+      {/* Description text */}
+      <p className="text-sm text-slate-600 mb-4">
+        Share this public listing with tenants using a direct link or QR code.
+      </p>
 
-        {!isPublished && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <p className="text-sm text-amber-800">
-              This property is not live yet. Publish the listing before sharing it.
-            </p>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {/* Action buttons - prominent and clear */}
-          <div className="flex flex-wrap gap-3">
-            <Button
-              type="button"
-              onClick={() => window.open(`/availability/${propertyId}`, "_blank")}
-              disabled={!isPublished}
-              className="flex items-center gap-2"
-            >
-              <ExternalLink className="h-4 w-4" />
-              View Live Listing
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCopy}
-              className="flex items-center gap-2"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-4 w-4 text-emerald-600" />
-                  <span className="text-emerald-600">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4" />
-                  Copy Link
-                </>
-              )}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setQrModalOpen(true)}
-              className="flex items-center gap-2"
-            >
-              <QrCode className="h-4 w-4" />
-              Create QR Code
-            </Button>
-          </div>
-
-          {/* Listing URL preview */}
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs text-slate-500 mb-1">Public listing URL</p>
-            <p className="text-sm font-mono text-slate-700 break-all">
-              {listingUrl || "Loading..."}
-            </p>
-          </div>
-
-          {!isPublished && (
-            <p className="text-xs text-slate-500">
-              You can still copy the link and generate a QR code, but the listing won&apos;t be visible until published.
-            </p>
-          )}
+      {!isPublished && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p className="text-sm text-amber-800">
+            This property is not live yet. Publish the listing before sharing it.
+          </p>
         </div>
-      </Card>
+      )}
+
+      {/* Action buttons - prominent and clear */}
+      <div className="flex flex-wrap gap-3 mb-4">
+        <Button
+          type="button"
+          onClick={() => window.open(`/availability/${propertyId}`, "_blank")}
+          disabled={!isPublished}
+          className="flex items-center gap-2 h-11 px-5 text-base"
+        >
+          <ExternalLink className="h-5 w-5" />
+          View Live Listing
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleCopy}
+          className="flex items-center gap-2 h-11 px-5 text-base"
+        >
+          {copied ? (
+            <>
+              <Check className="h-5 w-5 text-emerald-600" />
+              <span className="text-emerald-600">Copied!</span>
+            </>
+          ) : (
+            <>
+              <Copy className="h-5 w-5" />
+              Copy Link
+            </>
+          )}
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setQrModalOpen(true)}
+          className="flex items-center gap-2 h-11 px-5 text-base"
+        >
+          <QrCode className="h-5 w-5" />
+          Create QR Code
+        </Button>
+      </div>
+
+      {/* Listing URL preview */}
+      <div className="rounded-lg border border-slate-200 bg-white p-3">
+        <p className="text-xs text-slate-500 mb-1">Public listing URL</p>
+        <p className="text-sm font-mono text-slate-700 break-all">
+          {listingUrl || "Loading..."}
+        </p>
+      </div>
+
+      {!isPublished && (
+        <p className="text-xs text-slate-500 mt-2">
+          You can still copy the link and generate a QR code, but the listing won&apos;t be visible until published.
+        </p>
+      )}
 
       {/* QR Code Modal */}
       <Modal
