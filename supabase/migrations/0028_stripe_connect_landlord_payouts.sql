@@ -33,6 +33,10 @@ ALTER TABLE public.users
 ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS stripe_connect_onboarding_complete boolean NOT NULL DEFAULT false;
 
+-- Enabled flag (true when ready to receive payments)
+ALTER TABLE public.users
+  ADD COLUMN IF NOT EXISTS stripe_connect_enabled boolean NOT NULL DEFAULT false;
+
 -- Pending requirements from Stripe (for showing progress to landlord)
 ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS stripe_connect_requirements_due jsonb DEFAULT '[]';

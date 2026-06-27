@@ -170,27 +170,42 @@ export async function createStripeOnboardingLinkAction(): Promise<ActionState> {
   // 1. Authenticate landlord
   const user = await getCurrentUser();
   if (!user) {
+    console.error("[createStripeOnboardingLinkAction] No authenticated user");
     return errorState("Not authenticated. Please sign in.");
   }
 
   const ownerId = user.id;
   const email = user.email ?? "";
 
+  console.log("[createStripeOnboardingLinkAction] Starting for user:", {
+    userId: ownerId,
+    email: email ? `${email.slice(0, 3)}***` : "(no email)",
+    hasStripeKey: Boolean(process.env.STRIPE_SECRET_KEY),
+  });
+
   // 2. Get or create account
   const supabase = getServiceClient();
-  const { data: existing } = await supabase
+  const { data: existing, error: fetchError } = await supabase
     .from("users")
     .select("stripe_account_id")
     .eq("id", ownerId)
     .maybeSingle();
 
+  if (fetchError) {
+    console.error("[createStripeOnboardingLinkAction] DB fetch error:", fetchError);
+    return errorState("Unable to load account status. Please try again.");
+  }
+
   let accountId = existing?.stripe_account_id;
+  console.log("[createStripeOnboardingLinkAction] Existing account:", accountId ? `${accountId.slice(0, 10)}...` : "(none)");
 
   if (!accountId) {
     // Create account first
     try {
+      console.log("[createStripeOnboardingLinkAction] Creating new Stripe Connect account...");
       const result = await createConnectAccount(email, { landlordId: ownerId });
       accountId = result.accountId;
+      console.log("[createStripeOnboardingLinkAction] Account created:", `${accountId.slice(0, 10)}...`);
 
       // Store account ID
       const { error: updateError } = await supabase
@@ -204,25 +219,57 @@ export async function createStripeOnboardingLinkAction(): Promise<ActionState> {
         .eq("id", ownerId);
 
       if (updateError) {
-        console.error("[createStripeOnboardingLinkAction] DB update error:", updateError);
-        return errorState("Unable to save account. Please try again.");
+        console.error("[createStripeOnboardingLinkAction] DB update error:", {
+          code: updateError.code,
+          message: updateError.message,
+          details: updateError.details,
+          hint: updateError.hint,
+        });
+        return errorState("Stripe account created but could not save. Please contact support.");
       }
+      console.log("[createStripeOnboardingLinkAction] Account saved to database");
     } catch (err) {
-      console.error("[createStripeOnboardingLinkAction] Account creation error:", err);
-      return errorState("Unable to create account. Please try again.");
+      const error = err as Error;
+      console.error("[createStripeOnboardingLinkAction] Account creation error:", {
+        name: error.name,
+        message: error.message,
+        stack: error.stack?.slice(0, 500),
+      });
+
+      if (error.message.includes("not configured")) {
+        return errorState("Stripe is not configured for this environment.");
+      }
+
+      // Check for Stripe API errors
+      if ("type" in error && "code" in error) {
+        const stripeError = error as { type: string; code: string; message: string };
+        console.error("[createStripeOnboardingLinkAction] Stripe API error:", {
+          type: stripeError.type,
+          code: stripeError.code,
+        });
+        return errorState(`Stripe error: ${stripeError.message}`);
+      }
+
+      return errorState("Unable to create Stripe account. Please try again.");
     }
   }
 
   // 3. Create onboarding link
   try {
+    console.log("[createStripeOnboardingLinkAction] Creating onboarding link for:", `${accountId.slice(0, 10)}...`);
     const result = await createOnboardingLink(accountId);
+    console.log("[createStripeOnboardingLinkAction] Onboarding link created successfully");
 
     return successState("Onboarding link created.", {
       url: result.url,
     });
   } catch (err) {
-    console.error("[createStripeOnboardingLinkAction] Link creation error:", err);
-    return errorState("Unable to create onboarding link. Please try again.");
+    const error = err as Error;
+    console.error("[createStripeOnboardingLinkAction] Link creation error:", {
+      name: error.name,
+      message: error.message,
+    });
+    return errorState("Stripe account exists but onboarding link failed. Please try again.");
   }
 }
 
