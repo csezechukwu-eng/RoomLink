@@ -5,10 +5,12 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { StatusPill } from "@/components/StatusPill";
 import { Card } from "@/components/ui/card";
+import { PayRentButton } from "@/components/tenant/PayRentButton";
 import { getCurrentTenantId } from "@/lib/auth";
 import { getTenantRent } from "@/lib/services/rent";
 import { RENT_STATUS_STYLES } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
+import type { RentStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +28,20 @@ function formatDate(value: string | null): string | null {
     month: "short",
     day: "numeric",
   });
+}
+
+/**
+ * Check if a rent charge is payable (not paid, not waived).
+ * Payable statuses: "due", "overdue"
+ * Non-payable statuses: "paid", "waived"
+ */
+function isRentChargePayable(status: RentStatus, amount: number): boolean {
+  // Already paid or waived - not payable
+  if (status === "paid" || status === "waived") {
+    return false;
+  }
+  // Due or overdue - payable
+  return true;
 }
 
 export default async function TenantRentPage() {
@@ -71,6 +87,9 @@ export default async function TenantRentPage() {
         <div className="space-y-3">
           {charges.map((c) => {
             const due = formatDate(c.due_date);
+            const isPayable = isRentChargePayable(c.status, c.amount);
+            const amountMissing = !c.amount || Number(c.amount) <= 0;
+
             return (
               <Card key={c.id} className="p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -89,6 +108,22 @@ export default async function TenantRentPage() {
                     <StatusPill tone={RENT_STATUS_STYLES[c.status]} />
                   </div>
                 </div>
+
+                {/* Pay Now section for unpaid charges */}
+                {isPayable && !amountMissing ? (
+                  <div className="mt-3 flex items-center justify-end border-t border-slate-100 pt-3">
+                    <PayRentButton rentChargeId={c.id} />
+                  </div>
+                ) : null}
+
+                {/* Amount not configured warning */}
+                {isPayable && amountMissing ? (
+                  <div className="mt-3 border-t border-slate-100 pt-3">
+                    <p className="text-sm text-amber-600">
+                      Payment amount not configured. Please contact your landlord.
+                    </p>
+                  </div>
+                ) : null}
               </Card>
             );
           })}

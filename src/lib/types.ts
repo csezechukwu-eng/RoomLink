@@ -144,6 +144,18 @@ export type SubscriptionPlan = "free" | "monthly" | "yearly" | "starter" | "pro"
 /** @deprecated Subscription billing is no longer used */
 export type SubscriptionInterval = "month" | "year";
 
+// ---------------------------------------------------------------------------
+// Stripe Connect Types (Marketplace Payouts)
+// ---------------------------------------------------------------------------
+
+export type StripeConnectAccountType = "express" | "standard" | "custom";
+
+export type StripeConnectOnboardingStatus =
+  | "not_connected"
+  | "onboarding_incomplete"
+  | "pending_verification"
+  | "payouts_ready";
+
 export interface User {
   id: string;
   email: string;
@@ -204,11 +216,35 @@ export interface User {
   billing_updated_at: string | null;
 
   // ---------------------------------------------------------------------------
-  // Stripe Connect (Future: Marketplace Payouts)
+  // Stripe Connect (Marketplace Payouts)
   // ---------------------------------------------------------------------------
 
   /** Whether Stripe Connect is enabled for receiving rent payouts */
   stripe_connect_enabled: boolean;
+
+  /** Stripe Connect account ID (acct_xxx) */
+  stripe_account_id: string | null;
+
+  /** Stripe Connect account type: express, standard, or custom */
+  stripe_connect_account_type: StripeConnectAccountType | null;
+
+  /** Whether the landlord can receive charges (from Stripe account.charges_enabled) */
+  stripe_connect_charges_enabled: boolean;
+
+  /** Whether the landlord can receive payouts (from Stripe account.payouts_enabled) */
+  stripe_connect_payouts_enabled: boolean;
+
+  /** Whether the landlord has submitted onboarding details */
+  stripe_connect_details_submitted: boolean;
+
+  /** Room Link flag: true when landlord is fully ready for payments */
+  stripe_connect_onboarding_complete: boolean;
+
+  /** Array of pending Stripe requirements */
+  stripe_connect_requirements_due: string[];
+
+  /** Last time we synced status from Stripe */
+  stripe_connect_last_synced_at: string | null;
 }
 
 export type ApplicationStatus =
@@ -382,6 +418,18 @@ export interface Payment {
   payment_provider: string;
   status: PaymentStatus;
   recorded_at: string;
+
+  // Stripe Connect marketplace payment fields
+  /** Stripe Checkout Session ID for tracking */
+  stripe_checkout_session_id: string | null;
+  /** Stripe PaymentIntent ID for reconciliation */
+  stripe_payment_intent_id: string | null;
+  /** Room Link 5% host fee in cents */
+  host_fee_cents: number | null;
+  /** Amount landlord receives (rent - host fee) in cents */
+  landlord_payout_cents: number | null;
+  /** Stripe Connect account ID that received payout */
+  connected_account_id: string | null;
 }
 
 export interface Announcement {

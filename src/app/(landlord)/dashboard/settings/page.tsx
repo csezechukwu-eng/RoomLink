@@ -31,10 +31,22 @@ import {
   Trash2,
   ExternalLink,
   PenTool,
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+  CheckCircle,
 } from "lucide-react";
 import { SignaturePad } from "@/components/SignaturePad";
 import { saveSignatureAction, getSignature, deleteSignatureAction } from "@/lib/actions/signature";
+import {
+  getStripeConnectStatusAction,
+  createStripeOnboardingLinkAction,
+  refreshStripeConnectStatusAction,
+  createStripeDashboardLinkAction,
+  type ConnectStatusData,
+} from "@/lib/actions/stripeConnect";
 import { Card } from "@/components/ui/card";
+import type { StripeConnectOnboardingStatus } from "@/lib/types";
 
 // Types
 type SettingsTab = "profile" | "signature" | "properties" | "notifications" | "pricing" | "security" | "integrations";
@@ -550,8 +562,113 @@ function NotificationSettings() {
   );
 }
 
-// Pricing Settings - Host Fee Explanation
+// Pricing Settings - Host Fee Explanation + Stripe Connect
 function PricingSettings() {
+  const [connectStatus, setConnectStatus] = useState<ConnectStatusData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load initial status
+  useEffect(() => {
+    async function loadStatus() {
+      const result = await getStripeConnectStatusAction();
+      if (result.status === "success" && result.data) {
+        setConnectStatus(result.data);
+      }
+      setIsLoading(false);
+    }
+    loadStatus();
+  }, []);
+
+  // Handle Connect Stripe button click
+  async function handleConnectStripe() {
+    setIsConnecting(true);
+    setError(null);
+
+    const result = await createStripeOnboardingLinkAction();
+
+    if (result.status === "error") {
+      setError(result.message ?? "Unable to start onboarding. Please try again.");
+      setIsConnecting(false);
+      return;
+    }
+
+    if (result.data?.url) {
+      window.location.href = result.data.url;
+      // Keep loading state while redirecting
+    } else {
+      setError("Unable to get onboarding link. Please try again.");
+      setIsConnecting(false);
+    }
+  }
+
+  // Handle refresh status button click
+  async function handleRefreshStatus() {
+    setIsRefreshing(true);
+    setError(null);
+
+    const result = await refreshStripeConnectStatusAction();
+
+    if (result.status === "success" && result.data) {
+      setConnectStatus(result.data);
+    } else {
+      setError(result.message ?? "Unable to refresh status. Please try again.");
+    }
+
+    setIsRefreshing(false);
+  }
+
+  // Handle view dashboard button click
+  async function handleViewDashboard() {
+    const result = await createStripeDashboardLinkAction();
+
+    if (result.status === "success" && result.data?.url) {
+      window.open(result.data.url, "_blank");
+    } else {
+      setError(result.message ?? "Unable to open dashboard. Please try again.");
+    }
+  }
+
+  // Get status display info
+  function getStatusDisplay(status: StripeConnectOnboardingStatus) {
+    switch (status) {
+      case "not_connected":
+        return {
+          label: "Not Connected",
+          color: "text-slate-600",
+          bgColor: "bg-slate-100",
+          icon: CreditCard,
+        };
+      case "onboarding_incomplete":
+        return {
+          label: "Onboarding Incomplete",
+          color: "text-amber-600",
+          bgColor: "bg-amber-100",
+          icon: AlertCircle,
+        };
+      case "pending_verification":
+        return {
+          label: "Pending Verification",
+          color: "text-blue-600",
+          bgColor: "bg-blue-100",
+          icon: Clock,
+        };
+      case "payouts_ready":
+        return {
+          label: "Payouts Ready",
+          color: "text-emerald-600",
+          bgColor: "bg-emerald-100",
+          icon: CheckCircle,
+        };
+    }
+  }
+
+  const statusDisplay = connectStatus
+    ? getStatusDisplay(connectStatus.onboardingStatus)
+    : null;
+
   return (
     <div className="space-y-6">
       {/* How Room Link Pricing Works */}
@@ -656,29 +773,168 @@ function PricingSettings() {
         </div>
       </Card>
 
-      {/* Payouts Coming Soon */}
+      {/* Stripe Connect Payouts */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold text-slate-900">Payouts</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Receive monthly rent payments directly to your bank account.
-        </p>
-
-        <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center">
-          <CreditCard className="mx-auto h-10 w-10 text-slate-400" />
-          <p className="mt-3 font-medium text-slate-900">Stripe Connect Payouts</p>
-          <p className="mt-1 text-sm text-slate-500">
-            Connect your bank account to receive automatic payouts when tenants pay rent.
-          </p>
-          <p className="mt-3 text-xs text-slate-400">
-            Coming soon
-          </p>
-          <button
-            className="mt-4 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-400 cursor-not-allowed"
-            disabled
-          >
-            Connect Bank Account
-          </button>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Payouts</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Receive monthly rent payments directly to your bank account.
+            </p>
+          </div>
+          {connectStatus && connectStatus.onboardingStatus !== "not_connected" && (
+            <button
+              onClick={handleRefreshStatus}
+              disabled={isRefreshing}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              {isRefreshing ? "Refreshing..." : "Refresh"}
+            </button>
+          )}
         </div>
+
+        {/* Error message */}
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* Loading state */}
+        {isLoading ? (
+          <div className="mt-6 flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+          </div>
+        ) : (
+          <div className="mt-6">
+            {/* Status badge */}
+            {statusDisplay && (
+              <div className="mb-4 flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-700">Status:</span>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-medium ${statusDisplay.bgColor} ${statusDisplay.color}`}>
+                  <statusDisplay.icon className="h-4 w-4" />
+                  {statusDisplay.label}
+                </span>
+              </div>
+            )}
+
+            {/* Not connected */}
+            {connectStatus?.onboardingStatus === "not_connected" && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center">
+                <CreditCard className="mx-auto h-10 w-10 text-slate-400" />
+                <p className="mt-3 font-medium text-slate-900">Connect Stripe to Receive Payouts</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Set up your bank account to receive automatic payouts when tenants pay rent.
+                </p>
+                <button
+                  onClick={handleConnectStripe}
+                  disabled={isConnecting}
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {isConnecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4" />
+                      Connect Stripe
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Onboarding incomplete */}
+            {connectStatus?.onboardingStatus === "onboarding_incomplete" && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-6 text-center">
+                <AlertCircle className="mx-auto h-10 w-10 text-amber-500" />
+                <p className="mt-3 font-medium text-slate-900">Complete Your Stripe Setup</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  You started connecting Stripe but haven&apos;t finished. Complete your setup to receive payouts.
+                </p>
+                <button
+                  onClick={handleConnectStripe}
+                  disabled={isConnecting}
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {isConnecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="h-4 w-4" />
+                      Continue Setup
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Pending verification */}
+            {connectStatus?.onboardingStatus === "pending_verification" && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-6 text-center">
+                <Clock className="mx-auto h-10 w-10 text-blue-500" />
+                <p className="mt-3 font-medium text-slate-900">Verification in Progress</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Stripe is verifying your account. This usually takes 1-2 business days.
+                </p>
+                {connectStatus.requirementsDue.length > 0 && (
+                  <div className="mt-4 text-left">
+                    <p className="text-sm font-medium text-slate-700">Pending items:</p>
+                    <ul className="mt-1 list-inside list-disc text-sm text-slate-600">
+                      {connectStatus.requirementsDue.slice(0, 3).map((req) => (
+                        <li key={req}>{req.replace(/_/g, " ")}</li>
+                      ))}
+                      {connectStatus.requirementsDue.length > 3 && (
+                        <li>...and {connectStatus.requirementsDue.length - 3} more</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+                <button
+                  onClick={handleConnectStripe}
+                  disabled={isConnecting}
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+                >
+                  {isConnecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="h-4 w-4" />
+                      Update Information
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Payouts ready */}
+            {connectStatus?.onboardingStatus === "payouts_ready" && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-6 text-center">
+                <CheckCircle className="mx-auto h-10 w-10 text-emerald-500" />
+                <p className="mt-3 font-medium text-slate-900">Payouts Ready</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Your Stripe account is set up. When tenants pay rent, you&apos;ll receive 95% automatically.
+                </p>
+                <button
+                  onClick={handleViewDashboard}
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  View Stripe Dashboard
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
     </div>
   );
