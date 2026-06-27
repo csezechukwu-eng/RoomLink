@@ -573,9 +573,33 @@ function PricingSettings() {
   // Load initial status
   useEffect(() => {
     async function loadStatus() {
-      const result = await getStripeConnectStatusAction();
-      if (result.status === "success" && result.data) {
-        setConnectStatus(result.data);
+      try {
+        const result = await getStripeConnectStatusAction();
+        if (result.status === "success" && result.data) {
+          setConnectStatus(result.data);
+        } else if (result.status === "error") {
+          // If error, default to not_connected so button still shows
+          setConnectStatus({
+            onboardingStatus: "not_connected",
+            accountId: null,
+            chargesEnabled: false,
+            payoutsEnabled: false,
+            detailsSubmitted: false,
+            requirementsDue: [],
+          });
+          console.error("[PricingSettings] Status load error:", result.message);
+        }
+      } catch (err) {
+        // On exception, default to not_connected so button still shows
+        setConnectStatus({
+          onboardingStatus: "not_connected",
+          accountId: null,
+          chargesEnabled: false,
+          payoutsEnabled: false,
+          detailsSubmitted: false,
+          requirementsDue: [],
+        });
+        console.error("[PricingSettings] Status load exception:", err);
       }
       setIsLoading(false);
     }
@@ -930,6 +954,34 @@ function PricingSettings() {
                 >
                   <ExternalLink className="h-4 w-4" />
                   View Stripe Dashboard
+                </button>
+              </div>
+            )}
+
+            {/* Fallback: No status loaded - show connect button anyway */}
+            {!connectStatus && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-center">
+                <CreditCard className="mx-auto h-10 w-10 text-slate-400" />
+                <p className="mt-3 font-medium text-slate-900">Connect Stripe to Receive Payouts</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Set up your bank account to receive automatic payouts when tenants pay rent.
+                </p>
+                <button
+                  onClick={handleConnectStripe}
+                  disabled={isConnecting}
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {isConnecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4" />
+                      Connect Stripe
+                    </>
+                  )}
                 </button>
               </div>
             )}
