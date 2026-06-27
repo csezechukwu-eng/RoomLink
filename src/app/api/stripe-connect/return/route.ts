@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
-import { getCurrentOwnerId } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { getAccountStatus } from "@/lib/stripe/connect";
 
 /**
@@ -13,22 +13,31 @@ import { getAccountStatus } from "@/lib/stripe/connect";
 export async function GET(request: NextRequest) {
   try {
     // 1. Get authenticated landlord
-    const ownerId = await getCurrentOwnerId();
+    let user;
+    try {
+      user = await getCurrentUser();
+    } catch {
+      // Auth error - redirect to login
+      console.error("[stripe-connect/return] Auth error");
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
 
-    if (!ownerId) {
+    if (!user) {
       // Not authenticated - redirect to login
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
+    const ownerId = user.id;
+
     // 2. Get landlord's Stripe account ID
     const supabase = getServiceClient();
-    const { data: user } = await supabase
+    const { data: userData } = await supabase
       .from("users")
       .select("stripe_account_id")
       .eq("id", ownerId)
       .maybeSingle();
 
-    const accountId = user?.stripe_account_id;
+    const accountId = userData?.stripe_account_id;
 
     if (accountId) {
       // 3. Sync status from Stripe

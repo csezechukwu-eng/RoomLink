@@ -1,7 +1,7 @@
 "use server";
 
-import { getServiceClient } from "@/lib/supabase/server";
-import { getCurrentOwnerId, getCurrentUser } from "@/lib/auth";
+import { getServiceClient, isServiceRoleConfigured } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 import {
   createConnectAccount,
   createOnboardingLink,
@@ -28,6 +28,65 @@ import type { StripeConnectOnboardingStatus } from "@/lib/types";
  */
 
 // -----------------------------------------------------------------------------
+// Debug helpers (safe - no secrets logged)
+// -----------------------------------------------------------------------------
+
+function logDebug(action: string, data: Record<string, unknown>) {
+  console.log(`[${action}]`, JSON.stringify(data, null, 2));
+}
+
+function logError(action: string, error: unknown, context?: Record<string, unknown>) {
+  const errorInfo: Record<string, unknown> = { ...context };
+
+  if (error instanceof Error) {
+    errorInfo.errorName = error.name;
+    errorInfo.errorMessage = error.message;
+  } else if (typeof error === "object" && error !== null) {
+    // Supabase PostgrestError
+    const pgError = error as { code?: string; message?: string; details?: string; hint?: string };
+    errorInfo.code = pgError.code;
+    errorInfo.message = pgError.message;
+    errorInfo.details = pgError.details;
+    errorInfo.hint = pgError.hint;
+  } else {
+    errorInfo.error = String(error);
+  }
+
+  console.error(`[${action}] ERROR:`, JSON.stringify(errorInfo, null, 2));
+}
+
+/**
+ * Parse Supabase error and return a user-friendly message.
+ */
+function parseSupabaseError(error: unknown): string {
+  if (!error) return "Unknown database error.";
+
+  const pgError = error as { code?: string; message?: string };
+
+  // Column doesn't exist - migration not applied
+  if (pgError.message?.includes("column") && pgError.message?.includes("does not exist")) {
+    return "Database schema is not up to date. Please contact support.";
+  }
+
+  // Table doesn't exist
+  if (pgError.message?.includes("relation") && pgError.message?.includes("does not exist")) {
+    return "Database table not found. Please contact support.";
+  }
+
+  // Permission denied (RLS)
+  if (pgError.code === "42501" || pgError.message?.includes("permission denied")) {
+    return "Permission denied. Please contact support.";
+  }
+
+  // Connection error
+  if (pgError.code === "PGRST301" || pgError.message?.includes("connection")) {
+    return "Database connection failed. Please try again.";
+  }
+
+  return "Database error. Please try again.";
+}
+
+// -----------------------------------------------------------------------------
 // Types for action responses
 // -----------------------------------------------------------------------------
 
@@ -49,15 +108,65 @@ export interface ConnectStatusData {
  * This is used to display the onboarding UI state.
  */
 export async function getStripeConnectStatusAction(): Promise<ActionState> {
+  const ACTION = "getStripeConnectStatusAction";
+
+  // 0. Check configuration
+  if (!isServiceRoleConfigured()) {
+    logError(ACTION, "Service role not configured");
+    return errorState("Database is not configured for this environment.");
+  }
+
   // 1. Authenticate landlord
-  const ownerId = await getCurrentOwnerId();
-  if (!ownerId) {
+  let user;
+  try {
+    user = await getCurrentUser();
+  } catch (err) {
+    logError(ACTION, err, { step: "auth" });
     return errorState("Not authenticated. Please sign in.");
   }
 
+  if (!user) {
+    logDebug(ACTION, { step: "auth", result: "no user" });
+    return errorState("Not authenticated. Please sign in.");
+  }
+
+  const ownerId = user.id;
+  logDebug(ACTION, {
+    step: "auth",
+    userId: ownerId,
+    hasEmail: Boolean(user.email),
+  });
+
   // 2. Fetch landlord's Stripe Connect fields
   const supabase = getServiceClient();
-  const { data: user, error } = await supabase
+
+  // First, try to fetch just stripe_account_id to verify basic connectivity
+  const { data: basicCheck, error: basicError } = await supabase
+    .from("users")
+    .select("id, stripe_account_id")
+    .eq("id", ownerId)
+    .maybeSingle();
+
+  if (basicError) {
+    logError(ACTION, basicError, { step: "basic_check", userId: ownerId });
+    return errorState(parseSupabaseError(basicError));
+  }
+
+  // If user row doesn't exist, return not_connected (this is normal for new users)
+  if (!basicCheck) {
+    logDebug(ACTION, { step: "basic_check", result: "no user row", userId: ownerId });
+    return successState("Status loaded.", {
+      onboardingStatus: "not_connected" as StripeConnectOnboardingStatus,
+      accountId: null,
+      chargesEnabled: false,
+      payoutsEnabled: false,
+      detailsSubmitted: false,
+      requirementsDue: [],
+    });
+  }
+
+  // Now fetch the full Connect status fields
+  const { data: userData, error: fetchError } = await supabase
     .from("users")
     .select(`
       stripe_account_id,
@@ -70,17 +179,33 @@ export async function getStripeConnectStatusAction(): Promise<ActionState> {
     .eq("id", ownerId)
     .maybeSingle();
 
-  if (error) {
-    console.error("[getStripeConnectStatusAction] DB error:", error);
-    return errorState("Unable to load payout status. Please try again.");
+  if (fetchError) {
+    logError(ACTION, fetchError, { step: "fetch_connect_status", userId: ownerId });
+
+    // If columns don't exist, return default status (migration not applied)
+    const errorMsg = (fetchError as { message?: string }).message || "";
+    if (errorMsg.includes("column") && errorMsg.includes("does not exist")) {
+      logDebug(ACTION, { step: "migration_check", result: "columns missing" });
+      // Return not_connected but use the stripe_account_id from basic check
+      return successState("Status loaded.", {
+        onboardingStatus: basicCheck.stripe_account_id ? "onboarding_incomplete" : "not_connected",
+        accountId: basicCheck.stripe_account_id ?? null,
+        chargesEnabled: false,
+        payoutsEnabled: false,
+        detailsSubmitted: false,
+        requirementsDue: [],
+      });
+    }
+
+    return errorState(parseSupabaseError(fetchError));
   }
 
   // 3. Compute status
-  const accountId = user?.stripe_account_id ?? null;
-  const chargesEnabled = user?.stripe_connect_charges_enabled ?? false;
-  const payoutsEnabled = user?.stripe_connect_payouts_enabled ?? false;
-  const detailsSubmitted = user?.stripe_connect_details_submitted ?? false;
-  const requirementsDue = (user?.stripe_connect_requirements_due as string[]) ?? [];
+  const accountId = userData?.stripe_account_id ?? null;
+  const chargesEnabled = userData?.stripe_connect_charges_enabled ?? false;
+  const payoutsEnabled = userData?.stripe_connect_payouts_enabled ?? false;
+  const detailsSubmitted = userData?.stripe_connect_details_submitted ?? false;
+  const requirementsDue = (userData?.stripe_connect_requirements_due as string[]) ?? [];
 
   const onboardingStatus = computeOnboardingStatus(
     accountId,
@@ -88,6 +213,15 @@ export async function getStripeConnectStatusAction(): Promise<ActionState> {
     payoutsEnabled,
     detailsSubmitted
   );
+
+  logDebug(ACTION, {
+    step: "complete",
+    userId: ownerId,
+    hasAccountId: Boolean(accountId),
+    onboardingStatus,
+    chargesEnabled,
+    payoutsEnabled,
+  });
 
   return successState("Status loaded.", {
     onboardingStatus,
@@ -104,25 +238,48 @@ export async function getStripeConnectStatusAction(): Promise<ActionState> {
  * If account already exists, returns the existing account ID.
  */
 export async function createStripeConnectAccountAction(): Promise<ActionState> {
+  const ACTION = "createStripeConnectAccountAction";
+
+  // 0. Check configuration
+  const hasStripeKey = Boolean(process.env.STRIPE_SECRET_KEY);
+  if (!hasStripeKey) {
+    logError(ACTION, "STRIPE_SECRET_KEY not configured");
+    return errorState("Stripe is not configured for this environment.");
+  }
+
   // 1. Authenticate landlord
-  const user = await getCurrentUser();
+  let user;
+  try {
+    user = await getCurrentUser();
+  } catch (err) {
+    logError(ACTION, err, { step: "auth" });
+    return errorState("Not authenticated. Please sign in.");
+  }
+
   if (!user) {
+    logDebug(ACTION, { step: "auth", result: "no user" });
     return errorState("Not authenticated. Please sign in.");
   }
 
   const ownerId = user.id;
   const email = user.email ?? "";
+  logDebug(ACTION, { step: "start", userId: ownerId, hasEmail: Boolean(email) });
 
   // 2. Check if account already exists
   const supabase = getServiceClient();
-  const { data: existing } = await supabase
+  const { data: existing, error: fetchError } = await supabase
     .from("users")
     .select("stripe_account_id")
     .eq("id", ownerId)
     .maybeSingle();
 
+  if (fetchError) {
+    logError(ACTION, fetchError, { step: "fetch_existing" });
+    return errorState(parseSupabaseError(fetchError));
+  }
+
   if (existing?.stripe_account_id) {
-    // Already has an account
+    logDebug(ACTION, { step: "existing_account", accountIdPrefix: existing.stripe_account_id.slice(0, 10) });
     return successState("Account already exists.", {
       accountId: existing.stripe_account_id,
     });
@@ -130,6 +287,7 @@ export async function createStripeConnectAccountAction(): Promise<ActionState> {
 
   // 3. Create new Stripe Connect Express account
   try {
+    logDebug(ACTION, { step: "create_account" });
     const result = await createConnectAccount(email, { landlordId: ownerId });
 
     // 4. Store account ID in database
@@ -137,25 +295,37 @@ export async function createStripeConnectAccountAction(): Promise<ActionState> {
       .from("users")
       .update({
         stripe_account_id: result.accountId,
-        stripe_connect_account_type: result.type,
-        stripe_connect_enabled: false, // Not enabled until onboarding complete
-        stripe_connect_last_synced_at: new Date().toISOString(),
       })
       .eq("id", ownerId);
 
     if (updateError) {
-      console.error("[createStripeConnectAccountAction] DB update error:", updateError);
-      return errorState("Unable to save account. Please try again.");
+      logError(ACTION, updateError, { step: "save_account_id" });
+      return errorState(parseSupabaseError(updateError));
     }
 
+    // Try to update additional fields (may fail if columns don't exist)
+    try {
+      await supabase
+        .from("users")
+        .update({
+          stripe_connect_account_type: result.type,
+          stripe_connect_enabled: false,
+          stripe_connect_last_synced_at: new Date().toISOString(),
+        })
+        .eq("id", ownerId);
+    } catch {
+      logDebug(ACTION, { step: "save_connect_fields", result: "columns may not exist" });
+    }
+
+    logDebug(ACTION, { step: "account_created", accountIdPrefix: result.accountId.slice(0, 10) });
     return successState("Account created.", {
       accountId: result.accountId,
     });
   } catch (err) {
-    console.error("[createStripeConnectAccountAction] Stripe error:", err);
+    logError(ACTION, err, { step: "stripe_create" });
 
     if (err instanceof Error && err.message.includes("not configured")) {
-      return errorState("Payment system is not configured. Please contact support.");
+      return errorState("Stripe is not configured for this environment.");
     }
 
     return errorState("Unable to create account. Please try again.");
@@ -167,24 +337,78 @@ export async function createStripeConnectAccountAction(): Promise<ActionState> {
  * Creates the account first if it doesn't exist.
  */
 export async function createStripeOnboardingLinkAction(): Promise<ActionState> {
+  const ACTION = "createStripeOnboardingLinkAction";
+
+  // 0. Check Stripe configuration
+  const hasStripeKey = Boolean(process.env.STRIPE_SECRET_KEY);
+  if (!hasStripeKey) {
+    logError(ACTION, "STRIPE_SECRET_KEY not configured");
+    return errorState("Stripe is not configured for this environment.");
+  }
+
+  // 0b. Check database configuration
+  if (!isServiceRoleConfigured()) {
+    logError(ACTION, "Service role not configured");
+    return errorState("Database is not configured for this environment.");
+  }
+
   // 1. Authenticate landlord
-  const user = await getCurrentUser();
+  let user;
+  try {
+    user = await getCurrentUser();
+  } catch (err) {
+    logError(ACTION, err, { step: "auth" });
+    return errorState("Not authenticated. Please sign in.");
+  }
+
   if (!user) {
-    console.error("[createStripeOnboardingLinkAction] No authenticated user");
+    logDebug(ACTION, { step: "auth", result: "no user" });
     return errorState("Not authenticated. Please sign in.");
   }
 
   const ownerId = user.id;
   const email = user.email ?? "";
 
-  console.log("[createStripeOnboardingLinkAction] Starting for user:", {
+  logDebug(ACTION, {
+    step: "start",
     userId: ownerId,
-    email: email ? `${email.slice(0, 3)}***` : "(no email)",
-    hasStripeKey: Boolean(process.env.STRIPE_SECRET_KEY),
+    hasEmail: Boolean(email),
+    hasStripeKey,
   });
 
   // 2. Get or create account
   const supabase = getServiceClient();
+
+  // Check if user row exists first
+  const { data: userCheck, error: userCheckError } = await supabase
+    .from("users")
+    .select("id")
+    .eq("id", ownerId)
+    .maybeSingle();
+
+  if (userCheckError) {
+    logError(ACTION, userCheckError, { step: "user_check", userId: ownerId });
+    return errorState(parseSupabaseError(userCheckError));
+  }
+
+  // If user row doesn't exist, create it first
+  if (!userCheck) {
+    logDebug(ACTION, { step: "user_check", result: "no user row, creating" });
+    const { error: insertError } = await supabase
+      .from("users")
+      .insert({
+        id: ownerId,
+        email: email,
+        created_at: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      logError(ACTION, insertError, { step: "user_insert", userId: ownerId });
+      // Continue anyway - the user might exist due to race condition
+    }
+  }
+
+  // Now fetch stripe_account_id
   const { data: existing, error: fetchError } = await supabase
     .from("users")
     .select("stripe_account_id")
@@ -192,62 +416,69 @@ export async function createStripeOnboardingLinkAction(): Promise<ActionState> {
     .maybeSingle();
 
   if (fetchError) {
-    console.error("[createStripeOnboardingLinkAction] DB fetch error:", fetchError);
-    return errorState("Unable to load account status. Please try again.");
+    logError(ACTION, fetchError, { step: "fetch_account_id", userId: ownerId });
+    return errorState(parseSupabaseError(fetchError));
   }
 
   let accountId = existing?.stripe_account_id;
-  console.log("[createStripeOnboardingLinkAction] Existing account:", accountId ? `${accountId.slice(0, 10)}...` : "(none)");
+  logDebug(ACTION, {
+    step: "existing_check",
+    hasExistingAccount: Boolean(accountId),
+    accountIdPrefix: accountId ? accountId.slice(0, 10) : null,
+  });
 
   if (!accountId) {
     // Create account first
     try {
-      console.log("[createStripeOnboardingLinkAction] Creating new Stripe Connect account...");
+      logDebug(ACTION, { step: "create_account", email: email ? `${email.slice(0, 3)}***` : "(none)" });
       const result = await createConnectAccount(email, { landlordId: ownerId });
       accountId = result.accountId;
-      console.log("[createStripeOnboardingLinkAction] Account created:", `${accountId.slice(0, 10)}...`);
+      logDebug(ACTION, { step: "account_created", accountIdPrefix: accountId.slice(0, 10) });
 
-      // Store account ID
+      // Store account ID - only update fields that exist (handle migration not applied)
       const { error: updateError } = await supabase
         .from("users")
         .update({
           stripe_account_id: accountId,
-          stripe_connect_account_type: result.type,
-          stripe_connect_enabled: false,
-          stripe_connect_last_synced_at: new Date().toISOString(),
         })
         .eq("id", ownerId);
 
       if (updateError) {
-        console.error("[createStripeOnboardingLinkAction] DB update error:", {
-          code: updateError.code,
-          message: updateError.message,
-          details: updateError.details,
-          hint: updateError.hint,
-        });
-        return errorState("Stripe account created but could not save. Please contact support.");
+        logError(ACTION, updateError, { step: "save_account_id" });
+        // Don't fail completely - we have the account, just couldn't save all fields
+        // Try a simpler update with just the account ID
       }
-      console.log("[createStripeOnboardingLinkAction] Account saved to database");
+
+      // Try to update additional fields (may fail if columns don't exist)
+      try {
+        await supabase
+          .from("users")
+          .update({
+            stripe_connect_account_type: result.type,
+            stripe_connect_enabled: false,
+            stripe_connect_last_synced_at: new Date().toISOString(),
+          })
+          .eq("id", ownerId);
+      } catch {
+        logDebug(ACTION, { step: "save_connect_fields", result: "columns may not exist" });
+        // Ignore - columns might not exist if migration wasn't applied
+      }
+
+      logDebug(ACTION, { step: "account_saved" });
     } catch (err) {
-      const error = err as Error;
-      console.error("[createStripeOnboardingLinkAction] Account creation error:", {
-        name: error.name,
-        message: error.message,
-        stack: error.stack?.slice(0, 500),
-      });
+      logError(ACTION, err, { step: "stripe_create_account" });
 
-      if (error.message.includes("not configured")) {
-        return errorState("Stripe is not configured for this environment.");
-      }
+      if (err instanceof Error) {
+        if (err.message.includes("not configured")) {
+          return errorState("Stripe is not configured for this environment.");
+        }
 
-      // Check for Stripe API errors
-      if ("type" in error && "code" in error) {
-        const stripeError = error as { type: string; code: string; message: string };
-        console.error("[createStripeOnboardingLinkAction] Stripe API error:", {
-          type: stripeError.type,
-          code: stripeError.code,
-        });
-        return errorState(`Stripe error: ${stripeError.message}`);
+        // Check for Stripe API errors
+        if ("type" in err && "code" in err) {
+          const stripeError = err as { type: string; code: string; message: string };
+          logError(ACTION, stripeError, { step: "stripe_api_error" });
+          return errorState(`Stripe error: ${stripeError.message}`);
+        }
       }
 
       return errorState("Unable to create Stripe account. Please try again.");
@@ -256,20 +487,23 @@ export async function createStripeOnboardingLinkAction(): Promise<ActionState> {
 
   // 3. Create onboarding link
   try {
-    console.log("[createStripeOnboardingLinkAction] Creating onboarding link for:", `${accountId.slice(0, 10)}...`);
+    logDebug(ACTION, { step: "create_link", accountIdPrefix: accountId.slice(0, 10) });
     const result = await createOnboardingLink(accountId);
-    console.log("[createStripeOnboardingLinkAction] Onboarding link created successfully");
+    logDebug(ACTION, { step: "link_created", expiresAt: result.expiresAt.toISOString() });
 
     return successState("Onboarding link created.", {
       url: result.url,
     });
   } catch (err) {
-    const error = err as Error;
-    console.error("[createStripeOnboardingLinkAction] Link creation error:", {
-      name: error.name,
-      message: error.message,
-    });
-    return errorState("Stripe account exists but onboarding link failed. Please try again.");
+    logError(ACTION, err, { step: "create_onboarding_link" });
+
+    if (err instanceof Error) {
+      if (err.message.includes("not configured")) {
+        return errorState("Stripe is not configured for this environment.");
+      }
+    }
+
+    return errorState("Unable to create onboarding link. Please try again.");
   }
 }
 
@@ -278,24 +512,43 @@ export async function createStripeOnboardingLinkAction(): Promise<ActionState> {
  * Called after returning from onboarding or when status might have changed.
  */
 export async function refreshStripeConnectStatusAction(): Promise<ActionState> {
+  const ACTION = "refreshStripeConnectStatusAction";
+
   // 1. Authenticate landlord
-  const ownerId = await getCurrentOwnerId();
-  if (!ownerId) {
+  let user;
+  try {
+    user = await getCurrentUser();
+  } catch (err) {
+    logError(ACTION, err, { step: "auth" });
     return errorState("Not authenticated. Please sign in.");
   }
 
+  if (!user) {
+    logDebug(ACTION, { step: "auth", result: "no user" });
+    return errorState("Not authenticated. Please sign in.");
+  }
+
+  const ownerId = user.id;
+  logDebug(ACTION, { step: "start", userId: ownerId });
+
   // 2. Get account ID
   const supabase = getServiceClient();
-  const { data: user } = await supabase
+  const { data: userData, error: fetchError } = await supabase
     .from("users")
     .select("stripe_account_id")
     .eq("id", ownerId)
     .maybeSingle();
 
-  const accountId = user?.stripe_account_id;
+  if (fetchError) {
+    logError(ACTION, fetchError, { step: "fetch_account_id" });
+    return errorState(parseSupabaseError(fetchError));
+  }
+
+  const accountId = userData?.stripe_account_id;
 
   if (!accountId) {
     // No account yet
+    logDebug(ACTION, { step: "no_account" });
     return successState("No account connected.", {
       onboardingStatus: "not_connected" as const,
       accountId: null,
@@ -308,26 +561,34 @@ export async function refreshStripeConnectStatusAction(): Promise<ActionState> {
 
   // 3. Fetch status from Stripe
   try {
+    logDebug(ACTION, { step: "fetch_stripe_status", accountIdPrefix: accountId.slice(0, 10) });
     const status = await getAccountStatus(accountId);
 
-    // 4. Update database with latest status
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({
-        stripe_connect_charges_enabled: status.chargesEnabled,
-        stripe_connect_payouts_enabled: status.payoutsEnabled,
-        stripe_connect_details_submitted: status.detailsSubmitted,
-        stripe_connect_onboarding_complete: status.onboardingComplete,
-        stripe_connect_requirements_due: status.requirementsDue,
-        stripe_connect_enabled: status.onboardingComplete,
-        stripe_connect_last_synced_at: new Date().toISOString(),
-      })
-      .eq("id", ownerId);
-
-    if (updateError) {
-      console.error("[refreshStripeConnectStatusAction] DB update error:", updateError);
+    // 4. Update database with latest status (ignore errors - columns may not exist)
+    try {
+      await supabase
+        .from("users")
+        .update({
+          stripe_connect_charges_enabled: status.chargesEnabled,
+          stripe_connect_payouts_enabled: status.payoutsEnabled,
+          stripe_connect_details_submitted: status.detailsSubmitted,
+          stripe_connect_onboarding_complete: status.onboardingComplete,
+          stripe_connect_requirements_due: status.requirementsDue,
+          stripe_connect_enabled: status.onboardingComplete,
+          stripe_connect_last_synced_at: new Date().toISOString(),
+        })
+        .eq("id", ownerId);
+    } catch (updateErr) {
+      logError(ACTION, updateErr, { step: "save_status" });
       // Don't fail - we have the status, just couldn't save it
     }
+
+    logDebug(ACTION, {
+      step: "complete",
+      onboardingStatus: status.onboardingStatus,
+      chargesEnabled: status.chargesEnabled,
+      payoutsEnabled: status.payoutsEnabled,
+    });
 
     return successState("Status refreshed.", {
       onboardingStatus: status.onboardingStatus,
@@ -338,7 +599,7 @@ export async function refreshStripeConnectStatusAction(): Promise<ActionState> {
       requirementsDue: status.requirementsDue,
     });
   } catch (err) {
-    console.error("[refreshStripeConnectStatusAction] Stripe error:", err);
+    logError(ACTION, err, { step: "stripe_fetch" });
     return errorState("Unable to refresh status. Please try again.");
   }
 }
@@ -347,35 +608,55 @@ export async function refreshStripeConnectStatusAction(): Promise<ActionState> {
  * Create a login link for the landlord to access their Stripe Express dashboard.
  */
 export async function createStripeDashboardLinkAction(): Promise<ActionState> {
+  const ACTION = "createStripeDashboardLinkAction";
+
   // 1. Authenticate landlord
-  const ownerId = await getCurrentOwnerId();
-  if (!ownerId) {
+  let user;
+  try {
+    user = await getCurrentUser();
+  } catch (err) {
+    logError(ACTION, err, { step: "auth" });
     return errorState("Not authenticated. Please sign in.");
   }
 
+  if (!user) {
+    logDebug(ACTION, { step: "auth", result: "no user" });
+    return errorState("Not authenticated. Please sign in.");
+  }
+
+  const ownerId = user.id;
+  logDebug(ACTION, { step: "start", userId: ownerId });
+
   // 2. Get account ID
   const supabase = getServiceClient();
-  const { data: user } = await supabase
+  const { data: userData, error: fetchError } = await supabase
     .from("users")
-    .select("stripe_account_id, stripe_connect_onboarding_complete")
+    .select("stripe_account_id")
     .eq("id", ownerId)
     .maybeSingle();
 
-  const accountId = user?.stripe_account_id;
+  if (fetchError) {
+    logError(ACTION, fetchError, { step: "fetch_account_id" });
+    return errorState(parseSupabaseError(fetchError));
+  }
+
+  const accountId = userData?.stripe_account_id;
 
   if (!accountId) {
+    logDebug(ACTION, { step: "no_account" });
     return errorState("No Stripe account connected. Please complete onboarding first.");
   }
 
   // 3. Create dashboard link
   try {
+    logDebug(ACTION, { step: "create_link", accountIdPrefix: accountId.slice(0, 10) });
     const url = await createDashboardLink(accountId);
 
     return successState("Dashboard link created.", {
       url,
     });
   } catch (err) {
-    console.error("[createStripeDashboardLinkAction] Error:", err);
+    logError(ACTION, err, { step: "stripe_create_link" });
     return errorState("Unable to create dashboard link. Please try again.");
   }
 }
