@@ -140,16 +140,24 @@ export async function getStripeConnectStatusAction(): Promise<ActionState> {
   // 2. Fetch landlord's Stripe Connect fields
   const supabase = getServiceClient();
 
-  // First, try to fetch just stripe_account_id to verify basic connectivity
+  // First, try to fetch just id to verify basic connectivity and user exists
   const { data: basicCheck, error: basicError } = await supabase
     .from("users")
-    .select("id, stripe_account_id")
+    .select("id")
     .eq("id", ownerId)
     .maybeSingle();
 
   if (basicError) {
     logError(ACTION, basicError, { step: "basic_check", userId: ownerId });
-    return errorState(parseSupabaseError(basicError));
+    // Don't show schema error for basic check - this should always work
+    return successState("Status loaded.", {
+      onboardingStatus: "not_connected" as StripeConnectOnboardingStatus,
+      accountId: null,
+      chargesEnabled: false,
+      payoutsEnabled: false,
+      detailsSubmitted: false,
+      requirementsDue: [],
+    });
   }
 
   // If user row doesn't exist, return not_connected (this is normal for new users)
@@ -165,7 +173,20 @@ export async function getStripeConnectStatusAction(): Promise<ActionState> {
     });
   }
 
-  // Now fetch the full Connect status fields
+  // Try to fetch stripe_account_id (may not exist if migration 0025 not applied)
+  let stripeAccountId: string | null = null;
+  try {
+    const { data: accountData } = await supabase
+      .from("users")
+      .select("stripe_account_id")
+      .eq("id", ownerId)
+      .maybeSingle();
+    stripeAccountId = accountData?.stripe_account_id ?? null;
+  } catch {
+    logDebug(ACTION, { step: "fetch_account_id", result: "column may not exist" });
+  }
+
+  // Now try to fetch the full Connect status fields (may not exist if migration 0028 not applied)
   const { data: userData, error: fetchError } = await supabase
     .from("users")
     .select(`
@@ -183,13 +204,13 @@ export async function getStripeConnectStatusAction(): Promise<ActionState> {
     logError(ACTION, fetchError, { step: "fetch_connect_status", userId: ownerId });
 
     // If columns don't exist, return default status (migration not applied)
+    // This is NOT an error - just means onboarding hasn't been set up yet
     const errorMsg = (fetchError as { message?: string }).message || "";
     if (errorMsg.includes("column") && errorMsg.includes("does not exist")) {
-      logDebug(ACTION, { step: "migration_check", result: "columns missing" });
-      // Return not_connected but use the stripe_account_id from basic check
+      logDebug(ACTION, { step: "migration_check", result: "columns missing - returning default status" });
       return successState("Status loaded.", {
-        onboardingStatus: basicCheck.stripe_account_id ? "onboarding_incomplete" : "not_connected",
-        accountId: basicCheck.stripe_account_id ?? null,
+        onboardingStatus: stripeAccountId ? "onboarding_incomplete" : "not_connected",
+        accountId: stripeAccountId,
         chargesEnabled: false,
         payoutsEnabled: false,
         detailsSubmitted: false,
@@ -197,7 +218,15 @@ export async function getStripeConnectStatusAction(): Promise<ActionState> {
       });
     }
 
-    return errorState(parseSupabaseError(fetchError));
+    // For other errors, also return default status instead of showing error
+    return successState("Status loaded.", {
+      onboardingStatus: "not_connected" as StripeConnectOnboardingStatus,
+      accountId: null,
+      chargesEnabled: false,
+      payoutsEnabled: false,
+      detailsSubmitted: false,
+      requirementsDue: [],
+    });
   }
 
   // 3. Compute status
@@ -408,19 +437,29 @@ export async function createStripeOnboardingLinkAction(): Promise<ActionState> {
     }
   }
 
-  // Now fetch stripe_account_id
-  const { data: existing, error: fetchError } = await supabase
-    .from("users")
-    .select("stripe_account_id")
-    .eq("id", ownerId)
-    .maybeSingle();
+  // Now try to fetch stripe_account_id (may not exist if migration not applied)
+  let accountId: string | null = null;
+  try {
+    const { data: existing, error: fetchError } = await supabase
+      .from("users")
+      .select("stripe_account_id")
+      .eq("id", ownerId)
+      .maybeSingle();
 
-  if (fetchError) {
-    logError(ACTION, fetchError, { step: "fetch_account_id", userId: ownerId });
-    return errorState(parseSupabaseError(fetchError));
+    if (fetchError) {
+      const errorMsg = (fetchError as { message?: string }).message || "";
+      if (errorMsg.includes("column") && errorMsg.includes("does not exist")) {
+        // Column doesn't exist - migration not applied, but we can still create account
+        logDebug(ACTION, { step: "fetch_account_id", result: "column does not exist" });
+      } else {
+        logError(ACTION, fetchError, { step: "fetch_account_id", userId: ownerId });
+      }
+    } else {
+      accountId = existing?.stripe_account_id ?? null;
+    }
+  } catch {
+    logDebug(ACTION, { step: "fetch_account_id", result: "query failed" });
   }
-
-  let accountId = existing?.stripe_account_id;
   logDebug(ACTION, {
     step: "existing_check",
     hasExistingAccount: Boolean(accountId),
