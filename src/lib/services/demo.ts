@@ -2053,62 +2053,155 @@ export async function seedDemoRentPayments(): Promise<Result<DemoRentPaymentResu
       const tenant = DEMO_RENT_TENANTS[i];
       const bed = demoBeds[i % demoBeds.length];
 
-      // Look for existing tenant user by email
+      // =========================================================================
+      // STEP A: Find or create demo tenant user in public.users table
+      // rent_charges.tenant_id references public.users(id)
+      // =========================================================================
       let tenantUserId: string | null = null;
-      const { data: existingUser } = await supabase
+
+      // First, check if user already exists (case-insensitive email match)
+      const { data: existingUser, error: lookupErr } = await supabase
         .from("users")
-        .select("id")
-        .eq("email", tenant.email)
+        .select("id, email")
+        .ilike("email", tenant.email)
         .maybeSingle();
+
+      if (lookupErr) {
+        console.error(`[seedDemoRentPayments] Error looking up user ${tenant.email}:`, lookupErr.message);
+      }
 
       if (existingUser) {
         tenantUserId = existingUser.id;
-        console.log(`[seedDemoRentPayments] Reusing tenant user: ${tenant.email}`);
+        console.log(`[seedDemoRentPayments] Found existing tenant user: ${tenant.email} -> ${tenantUserId}`);
+        steps.push({
+          step: `Tenant User ${tenant.name}`,
+          status: "skipped",
+          detail: `Reusing existing user`,
+          id: tenantUserId ?? undefined,
+        });
       } else {
-        // Create a demo tenant user in public.users table
-        // Note: users table doesn't have is_demo column, we identify demo tenants by email pattern
-        const { data: newUser, error: userErr } = await supabase
+        // User doesn't exist - create new demo tenant in public.users
+        console.log(`[seedDemoRentPayments] Creating new tenant user: ${tenant.email}`);
+
+        const { data: newUser, error: insertErr } = await supabase
           .from("users")
           .insert({
-            email: tenant.email,
+            email: tenant.email.toLowerCase(), // Ensure lowercase
             full_name: tenant.name,
             phone: "555-DEMO",
             role: "tenant",
             verification_status: "verified",
           })
-          .select()
+          .select("id")
           .single();
 
-        if (userErr) {
-          console.error(`[seedDemoRentPayments] Could not create user ${tenant.email}: ${userErr.message}`);
+        if (insertErr) {
+          console.error(`[seedDemoRentPayments] Insert failed for ${tenant.email}:`, insertErr.message, insertErr.code);
+
+          // If duplicate key error, try to find the existing user
+          if (insertErr.code === "23505") {
+            const { data: retryUser } = await supabase
+              .from("users")
+              .select("id")
+              .ilike("email", tenant.email)
+              .maybeSingle();
+
+            if (retryUser) {
+              tenantUserId = retryUser.id;
+              console.log(`[seedDemoRentPayments] Found user after duplicate error: ${tenantUserId}`);
+              steps.push({
+                step: `Tenant User ${tenant.name}`,
+                status: "skipped",
+                detail: `Found existing (duplicate key)`,
+                id: tenantUserId ?? undefined,
+              });
+            } else {
+              steps.push({
+                step: `Tenant User ${tenant.name}`,
+                status: "error",
+                detail: `Duplicate key but user not found`,
+              });
+              continue;
+            }
+          } else {
+            steps.push({
+              step: `Tenant User ${tenant.name}`,
+              status: "error",
+              detail: `Insert failed: ${insertErr.message}`,
+            });
+            continue;
+          }
+        } else if (newUser?.id) {
+          tenantUserId = newUser.id;
+          console.log(`[seedDemoRentPayments] Created tenant user: ${tenant.name} -> ${tenantUserId}`);
           steps.push({
             step: `Tenant User ${tenant.name}`,
-            status: "error",
-            detail: `Failed to create tenant: ${userErr.message}`,
+            status: "success",
+            detail: `Created in users table`,
+            id: tenantUserId ?? undefined,
           });
-          // Skip this tenant - cannot create rent charge without valid user
-          continue;
-        }
+        } else {
+          // Insert succeeded but no data returned
+          console.error(`[seedDemoRentPayments] Insert succeeded but no ID returned for ${tenant.email}`);
 
-        tenantUserId = newUser.id;
-        console.log(`[seedDemoRentPayments] Created tenant user: ${tenant.name} (id: ${tenantUserId})`);
-        steps.push({
-          step: `Tenant User ${tenant.name}`,
-          status: "success",
-          detail: `Created tenant in users table`,
-          id: tenantUserId,
-        });
+          // Try to fetch the user we just created
+          const { data: fetchedUser } = await supabase
+            .from("users")
+            .select("id")
+            .ilike("email", tenant.email)
+            .maybeSingle();
+
+          if (fetchedUser?.id) {
+            tenantUserId = fetchedUser.id;
+            console.log(`[seedDemoRentPayments] Fetched user after insert: ${tenantUserId}`);
+            steps.push({
+              step: `Tenant User ${tenant.name}`,
+              status: "success",
+              detail: `Created and fetched`,
+              id: tenantUserId ?? undefined,
+            });
+          } else {
+            steps.push({
+              step: `Tenant User ${tenant.name}`,
+              status: "error",
+              detail: `Insert succeeded but cannot find user`,
+            });
+            continue;
+          }
+        }
       }
 
-      // Safety check - should never happen but be defensive
+      // =========================================================================
+      // STEP B: VERIFY tenant user exists before creating rent charge
+      // This is critical - we must confirm the FK target exists
+      // =========================================================================
       if (!tenantUserId) {
         steps.push({
           step: `Rent Charge ${tenant.name}`,
           status: "error",
-          detail: "No valid tenant ID available",
+          detail: "No tenant ID - skipping rent charge",
         });
         continue;
       }
+
+      // Verify the tenant user actually exists in the database
+      const { data: verifiedUser, error: verifyErr } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", tenantUserId)
+        .maybeSingle();
+
+      if (verifyErr || !verifiedUser) {
+        console.error(`[seedDemoRentPayments] VERIFICATION FAILED: tenant ${tenantUserId} does not exist!`);
+        steps.push({
+          step: `Rent Charge ${tenant.name}`,
+          status: "error",
+          detail: `Tenant ID ${tenantUserId} not found in users table`,
+        });
+        continue;
+      }
+
+      console.log(`[seedDemoRentPayments] VERIFIED tenant exists: ${tenantUserId}`);
 
       // Check if rent charge already exists for this tenant/property
       const { data: existingRentCharge } = await supabase
