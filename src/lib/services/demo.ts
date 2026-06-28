@@ -2054,7 +2054,7 @@ export async function seedDemoRentPayments(): Promise<Result<DemoRentPaymentResu
       const bed = demoBeds[i % demoBeds.length];
 
       // Look for existing tenant user by email
-      let tenantUserId: string;
+      let tenantUserId: string | null = null;
       const { data: existingUser } = await supabase
         .from("users")
         .select("id")
@@ -2065,27 +2065,49 @@ export async function seedDemoRentPayments(): Promise<Result<DemoRentPaymentResu
         tenantUserId = existingUser.id;
         console.log(`[seedDemoRentPayments] Reusing tenant user: ${tenant.email}`);
       } else {
-        // Create a demo tenant user
+        // Create a demo tenant user in public.users table
+        // Note: users table doesn't have is_demo column, we identify demo tenants by email pattern
         const { data: newUser, error: userErr } = await supabase
           .from("users")
           .insert({
             email: tenant.email,
             full_name: tenant.name,
+            phone: "555-DEMO",
             role: "tenant",
-            is_demo: true,
+            verification_status: "verified",
           })
           .select()
           .single();
 
         if (userErr) {
-          // User might exist with different casing or constraint issue
-          console.log(`[seedDemoRentPayments] Could not create user ${tenant.email}: ${userErr.message}`);
-          // Generate a UUID for the tenant
-          tenantUserId = crypto.randomUUID();
-        } else {
-          tenantUserId = newUser.id;
-          console.log(`[seedDemoRentPayments] Created tenant user: ${tenant.name}`);
+          console.error(`[seedDemoRentPayments] Could not create user ${tenant.email}: ${userErr.message}`);
+          steps.push({
+            step: `Tenant User ${tenant.name}`,
+            status: "error",
+            detail: `Failed to create tenant: ${userErr.message}`,
+          });
+          // Skip this tenant - cannot create rent charge without valid user
+          continue;
         }
+
+        tenantUserId = newUser.id;
+        console.log(`[seedDemoRentPayments] Created tenant user: ${tenant.name} (id: ${tenantUserId})`);
+        steps.push({
+          step: `Tenant User ${tenant.name}`,
+          status: "success",
+          detail: `Created tenant in users table`,
+          id: tenantUserId,
+        });
+      }
+
+      // Safety check - should never happen but be defensive
+      if (!tenantUserId) {
+        steps.push({
+          step: `Rent Charge ${tenant.name}`,
+          status: "error",
+          detail: "No valid tenant ID available",
+        });
+        continue;
       }
 
       // Check if rent charge already exists for this tenant/property
