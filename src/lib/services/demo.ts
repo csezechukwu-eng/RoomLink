@@ -1909,6 +1909,350 @@ export async function getDemoApplicationIds(): Promise<Result<string[]>> {
 }
 
 // ---------------------------------------------------------------------------
+// Demo Rent Payments
+// ---------------------------------------------------------------------------
+
+export interface DemoRentPaymentResult {
+  success: boolean;
+  rentChargesCreated: number;
+  paymentsCreated: number;
+  steps: DemoSeedStep[];
+}
+
+/**
+ * Demo tenant configurations for rent payment testing.
+ * Each tenant will have a rent charge with a different status.
+ */
+const DEMO_RENT_TENANTS = [
+  {
+    name: "Jane Paid",
+    firstName: "Jane",
+    lastName: "Paid",
+    email: "jane.paid.demo@example.com",
+    rentStatus: "paid" as const,
+    paymentProvider: "manual" as const,
+    daysFromNow: -5, // Due 5 days ago (but paid)
+  },
+  {
+    name: "Marcus Stripe",
+    firstName: "Marcus",
+    lastName: "Stripe",
+    email: "marcus.stripe.demo@example.com",
+    rentStatus: "paid" as const,
+    paymentProvider: "stripe" as const,
+    daysFromNow: -10, // Due 10 days ago (but paid via Stripe)
+  },
+  {
+    name: "Olivia Unpaid",
+    firstName: "Olivia",
+    lastName: "Unpaid",
+    email: "olivia.unpaid.demo@example.com",
+    rentStatus: "due" as const,
+    paymentProvider: null,
+    daysFromNow: 5, // Due in 5 days
+  },
+  {
+    name: "Grace Overdue",
+    firstName: "Grace",
+    lastName: "Overdue",
+    email: "grace.overdue.demo@example.com",
+    rentStatus: "overdue" as const,
+    paymentProvider: null,
+    daysFromNow: -15, // Due 15 days ago (overdue)
+  },
+  {
+    name: "Henry Waived",
+    firstName: "Henry",
+    lastName: "Waived",
+    email: "henry.waived.demo@example.com",
+    rentStatus: "waived" as const,
+    paymentProvider: null,
+    daysFromNow: -3, // Due 3 days ago (waived)
+  },
+];
+
+/**
+ * Seed demo rent charges and payments for testing the landlord rent dashboard.
+ * Creates demo tenants, rent charges with different statuses, and payments.
+ * Idempotent - safe to run multiple times.
+ */
+export async function seedDemoRentPayments(): Promise<Result<DemoRentPaymentResult>> {
+  try {
+    console.log("[seedDemoRentPayments] Starting demo rent payment seed...");
+
+    const ownerId = await getCurrentOwnerId();
+    const supabase = getServiceClient();
+
+    if (!supabase) {
+      return fail("Database service client unavailable.");
+    }
+
+    const steps: DemoSeedStep[] = [];
+    let rentChargesCreated = 0;
+    let paymentsCreated = 0;
+
+    // -------------------------------------------------------------------------
+    // Step 1: Find or create demo property
+    // -------------------------------------------------------------------------
+    const { data: demoProperty } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("owner_id", ownerId)
+      .eq("is_demo", true)
+      .maybeSingle();
+
+    if (!demoProperty) {
+      steps.push({
+        step: "Demo Property",
+        status: "error",
+        detail: "No demo property found. Run 'Load Full Demo Data' first.",
+      });
+      return ok({ success: false, rentChargesCreated: 0, paymentsCreated: 0, steps });
+    }
+
+    const propertyId = demoProperty.id;
+    steps.push({
+      step: "Demo Property",
+      status: "skipped",
+      detail: `Using "${demoProperty.name}"`,
+      id: propertyId,
+    });
+
+    // -------------------------------------------------------------------------
+    // Step 2: Get demo beds
+    // -------------------------------------------------------------------------
+    const { data: demoBeds } = await supabase
+      .from("beds")
+      .select("*")
+      .eq("property_id", propertyId)
+      .eq("is_demo", true);
+
+    if (!demoBeds || demoBeds.length === 0) {
+      steps.push({
+        step: "Demo Beds",
+        status: "error",
+        detail: "No demo beds found. Run 'Load Full Demo Data' first.",
+      });
+      return ok({ success: false, rentChargesCreated: 0, paymentsCreated: 0, steps });
+    }
+
+    steps.push({
+      step: "Demo Beds",
+      status: "skipped",
+      detail: `Found ${demoBeds.length} demo bed(s)`,
+    });
+
+    // -------------------------------------------------------------------------
+    // Step 3: Create demo tenant users and rent charges
+    // -------------------------------------------------------------------------
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    for (let i = 0; i < DEMO_RENT_TENANTS.length; i++) {
+      const tenant = DEMO_RENT_TENANTS[i];
+      const bed = demoBeds[i % demoBeds.length];
+
+      // Look for existing tenant user by email
+      let tenantUserId: string;
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", tenant.email)
+        .maybeSingle();
+
+      if (existingUser) {
+        tenantUserId = existingUser.id;
+        console.log(`[seedDemoRentPayments] Reusing tenant user: ${tenant.email}`);
+      } else {
+        // Create a demo tenant user
+        const { data: newUser, error: userErr } = await supabase
+          .from("users")
+          .insert({
+            email: tenant.email,
+            full_name: tenant.name,
+            role: "tenant",
+            is_demo: true,
+          })
+          .select()
+          .single();
+
+        if (userErr) {
+          // User might exist with different casing or constraint issue
+          console.log(`[seedDemoRentPayments] Could not create user ${tenant.email}: ${userErr.message}`);
+          // Generate a UUID for the tenant
+          tenantUserId = crypto.randomUUID();
+        } else {
+          tenantUserId = newUser.id;
+          console.log(`[seedDemoRentPayments] Created tenant user: ${tenant.name}`);
+        }
+      }
+
+      // Check if rent charge already exists for this tenant/property
+      const { data: existingRentCharge } = await supabase
+        .from("rent_charges")
+        .select("id")
+        .eq("property_id", propertyId)
+        .eq("tenant_id", tenantUserId)
+        .maybeSingle();
+
+      if (existingRentCharge) {
+        steps.push({
+          step: `Rent Charge ${tenant.name}`,
+          status: "skipped",
+          detail: "Already exists",
+          id: existingRentCharge.id,
+        });
+        continue;
+      }
+
+      // Calculate due date
+      const dueDate = new Date(now);
+      dueDate.setDate(dueDate.getDate() + tenant.daysFromNow);
+      const dueDateStr = dueDate.toISOString().slice(0, 10);
+
+      // Monthly rent amount from bed
+      const monthlyRent = bed.monthly_rent ?? 650;
+
+      // Create rent charge
+      const { data: rentCharge, error: rcErr } = await supabase
+        .from("rent_charges")
+        .insert({
+          tenant_id: tenantUserId,
+          property_id: propertyId,
+          bed_id: bed.id,
+          period_start: thisMonthStart.toISOString().slice(0, 10),
+          period_end: thisMonthEnd.toISOString().slice(0, 10),
+          due_date: dueDateStr,
+          amount: monthlyRent,
+          status: tenant.rentStatus,
+          paid_at: tenant.rentStatus === "paid" ? now.toISOString() : null,
+        })
+        .select()
+        .single();
+
+      if (rcErr) {
+        steps.push({
+          step: `Rent Charge ${tenant.name}`,
+          status: "error",
+          detail: rcErr.message,
+        });
+        continue;
+      }
+
+      rentChargesCreated++;
+      steps.push({
+        step: `Rent Charge ${tenant.name}`,
+        status: "success",
+        detail: `${tenant.rentStatus} - $${monthlyRent} due ${dueDateStr}`,
+        id: rentCharge.id,
+      });
+
+      // Create payment for paid charges
+      if (tenant.rentStatus === "paid" && tenant.paymentProvider) {
+        const amountCents = Math.round(monthlyRent * 100);
+        const hostFeeCents = tenant.paymentProvider === "stripe" ? Math.round(amountCents * 0.05) : 0;
+        const landlordPayoutCents = amountCents - hostFeeCents;
+
+        const { data: payment, error: payErr } = await supabase
+          .from("payments")
+          .insert({
+            tenant_id: tenantUserId,
+            rent_charge_id: rentCharge.id,
+            property_id: propertyId,
+            kind: "rent",
+            amount: monthlyRent,
+            payment_provider: tenant.paymentProvider,
+            status: "recorded",
+            host_fee_cents: tenant.paymentProvider === "stripe" ? hostFeeCents : null,
+            landlord_payout_cents: tenant.paymentProvider === "stripe" ? landlordPayoutCents : null,
+          })
+          .select()
+          .single();
+
+        if (payErr) {
+          steps.push({
+            step: `Payment ${tenant.name}`,
+            status: "error",
+            detail: payErr.message,
+          });
+        } else {
+          paymentsCreated++;
+          const feeNote = tenant.paymentProvider === "stripe"
+            ? ` (5% fee: $${(hostFeeCents / 100).toFixed(2)})`
+            : " (manual)";
+          steps.push({
+            step: `Payment ${tenant.name}`,
+            status: "success",
+            detail: `$${monthlyRent}${feeNote}`,
+            id: payment.id,
+          });
+        }
+      }
+    }
+
+    console.log(`[seedDemoRentPayments] Created ${rentChargesCreated} rent charges, ${paymentsCreated} payments`);
+
+    return ok({
+      success: true,
+      rentChargesCreated,
+      paymentsCreated,
+      steps,
+    });
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+/**
+ * Reset demo rent payment data (rent charges and payments).
+ */
+export async function resetDemoRentPayments(): Promise<Result<{ chargesDeleted: number; paymentsDeleted: number }>> {
+  try {
+    const ownerId = await getCurrentOwnerId();
+    const supabase = getServiceClient();
+
+    // Get demo property
+    const { data: demoProperty } = await supabase
+      .from("properties")
+      .select("id")
+      .eq("owner_id", ownerId)
+      .eq("is_demo", true)
+      .maybeSingle();
+
+    if (!demoProperty) {
+      return ok({ chargesDeleted: 0, paymentsDeleted: 0 });
+    }
+
+    // Delete payments for demo property
+    const { count: paymentsDeleted } = await supabase
+      .from("payments")
+      .delete({ count: "exact" })
+      .eq("property_id", demoProperty.id);
+
+    // Delete rent charges for demo property
+    const { count: chargesDeleted } = await supabase
+      .from("rent_charges")
+      .delete({ count: "exact" })
+      .eq("property_id", demoProperty.id);
+
+    // Delete demo tenant users
+    const demoEmails = DEMO_RENT_TENANTS.map((t) => t.email);
+    await supabase
+      .from("users")
+      .delete()
+      .in("email", demoEmails);
+
+    return ok({
+      chargesDeleted: chargesDeleted ?? 0,
+      paymentsDeleted: paymentsDeleted ?? 0,
+    });
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Legacy exports for backward compatibility
 // ---------------------------------------------------------------------------
 

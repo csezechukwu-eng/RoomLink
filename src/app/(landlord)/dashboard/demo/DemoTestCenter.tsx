@@ -20,6 +20,7 @@ import {
   Eye,
   Loader2,
   ArrowRight,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ import {
   checkDemoReadinessAction,
   seedFullDemoDataAction,
   resetFullDemoDataAction,
+  seedDemoRentPaymentsAction,
 } from "@/lib/actions/demo";
 import type {
   FullDemoReadinessResult,
@@ -135,6 +137,30 @@ export function DemoTestCenter({
     }
   };
 
+  const handleLoadRentDemo = async () => {
+    console.log("[DemoTestCenter] Load Demo Rent Data clicked");
+    setLoading(true);
+    setError(null);
+    setSeedSteps([]);
+    setLastAction(null);
+    try {
+      const result = await seedDemoRentPaymentsAction();
+      console.log("[DemoTestCenter] seedDemoRentPaymentsAction result:", JSON.stringify(result, null, 2));
+      if (result.status === "error") {
+        setError(result.message ?? "Unknown error occurred");
+      } else {
+        setSeedSteps(result.data?.steps || []);
+        setLastAction(result.message ?? "Demo rent data loaded");
+      }
+      await refreshReadiness();
+    } catch (e) {
+      console.error("[DemoTestCenter] Exception caught:", e);
+      setError(e instanceof Error ? e.message : "Failed to load demo rent data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const hasDemoData =
     readiness?.demoProperty ||
     (readiness?.demoApplications?.length ?? 0) > 0 ||
@@ -180,6 +206,19 @@ export function DemoTestCenter({
                 <Play className="mr-2 h-4 w-4" />
               )}
               Load Full Demo Data
+            </Button>
+
+            <Button
+              onClick={handleLoadRentDemo}
+              disabled={loading}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <DollarSign className="mr-2 h-4 w-4" />
+              )}
+              Load Demo Rent Data
             </Button>
 
             {hasDemoData && (
@@ -490,6 +529,12 @@ export function DemoTestCenter({
               icon={<FileSignature className="h-4 w-4" />}
               title="My Lease Applications"
               description="View sent leases"
+            />
+            <QuickLink
+              href="/dashboard/rent"
+              icon={<DollarSign className="h-4 w-4" />}
+              title="Rent & Payments"
+              description="View rent charges and payments"
             />
             {readiness?.demoApplications[0] && (
               <QuickLink

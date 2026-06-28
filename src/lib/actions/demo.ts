@@ -7,6 +7,9 @@ import {
   resetFullDemoData,
   linkTemplateToStayType,
   getDemoApplicationIds,
+  seedDemoRentPayments,
+  resetDemoRentPayments,
+  type DemoSeedStep,
 } from "@/lib/services/demo";
 import type { LeaseStayType } from "@/lib/types";
 import type { ActionState } from "@/lib/actions/types";
@@ -208,4 +211,96 @@ export async function getDemoApplicationIdsAction(): Promise<ActionState> {
     message: `Found ${result.data.length} demo application(s)`,
     data: result.data,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Seed Demo Rent Payments
+// ---------------------------------------------------------------------------
+
+export async function seedDemoRentPaymentsAction(): Promise<ActionState> {
+  console.log("[seedDemoRentPaymentsAction] Starting...");
+
+  try {
+    const result = await seedDemoRentPayments();
+
+    if (result.error !== null) {
+      console.error("[seedDemoRentPaymentsAction] Error:", result.error);
+      return {
+        status: "error",
+        message: result.error,
+      };
+    }
+
+    if (!result.data.success) {
+      const errorSteps = result.data.steps.filter((s: DemoSeedStep) => s.status === "error");
+      const errorMessages = errorSteps.map((s: DemoSeedStep) => `${s.step}: ${s.detail}`).join("; ");
+      return {
+        status: "error",
+        message: errorMessages || "Failed to create demo rent payments",
+        data: result.data,
+      };
+    }
+
+    revalidatePath("/dashboard/rent");
+    revalidatePath("/dashboard/demo");
+    revalidatePath("/tenant/rent");
+
+    const { rentChargesCreated, paymentsCreated, steps } = result.data;
+
+    let message = "";
+    if (rentChargesCreated > 0 || paymentsCreated > 0) {
+      message = `Created ${rentChargesCreated} rent charge(s) and ${paymentsCreated} payment(s)`;
+    } else {
+      message = "Demo rent data already exists";
+    }
+
+    return {
+      status: "success",
+      message,
+      data: { steps, rentChargesCreated, paymentsCreated },
+    };
+  } catch (e) {
+    console.error("[seedDemoRentPaymentsAction] Exception:", e);
+    return {
+      status: "error",
+      message: e instanceof Error ? e.message : "Failed to seed demo rent payments",
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reset Demo Rent Payments
+// ---------------------------------------------------------------------------
+
+export async function resetDemoRentPaymentsAction(): Promise<ActionState> {
+  try {
+    const result = await resetDemoRentPayments();
+
+    if (result.error !== null) {
+      return {
+        status: "error",
+        message: result.error,
+      };
+    }
+
+    revalidatePath("/dashboard/rent");
+    revalidatePath("/dashboard/demo");
+    revalidatePath("/tenant/rent");
+
+    const { chargesDeleted, paymentsDeleted } = result.data;
+    const parts = [];
+    if (chargesDeleted > 0) parts.push(`${chargesDeleted} rent charge(s)`);
+    if (paymentsDeleted > 0) parts.push(`${paymentsDeleted} payment(s)`);
+
+    return {
+      status: "success",
+      message: parts.length > 0 ? `Deleted ${parts.join(" and ")}` : "No demo rent data to delete",
+      data: result.data,
+    };
+  } catch (e) {
+    return {
+      status: "error",
+      message: e instanceof Error ? e.message : "Failed to reset demo rent payments",
+    };
+  }
 }
