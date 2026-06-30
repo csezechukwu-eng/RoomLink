@@ -59,23 +59,71 @@ export function getStripeConfigDiagnostics(): {
 }
 
 /**
- * Get the base URL for redirects.
+ * Get the canonical base URL for redirects.
  *
- * IMPORTANT: NEXT_PUBLIC_APP_URL (custom domain) takes priority over VERCEL_URL.
- * VERCEL_URL is auto-set to the deployment URL (e.g., roomlink-xxx.vercel.app),
- * which causes cookie domain mismatches when using a custom domain.
+ * CRITICAL: This URL is used for:
+ * - Stripe Identity return URLs
+ * - Stripe Connect return/refresh URLs
+ * - Supabase auth email redirects (emailRedirectTo)
+ * - All absolute URL construction
+ *
+ * PRIORITY ORDER:
+ * 1. NEXT_PUBLIC_APP_URL (canonical production domain - e.g., https://renta-bed.com)
+ * 2. VERCEL_URL (Vercel preview deployments only)
+ * 3. localhost (local development only)
+ *
+ * IMPORTANT:
+ * - In production, NEXT_PUBLIC_APP_URL MUST be set to the custom domain
+ * - VERCEL_URL is auto-set by Vercel to the deployment URL (e.g., roomlink-xxx.vercel.app)
+ * - Using VERCEL_URL in production causes cookie domain mismatches with custom domains
  */
 export function getBaseUrl(): string {
-  // Production URL (custom domain) - MUST be checked first
+  // 1. Canonical production URL (custom domain) - MUST be checked first
   if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL;
+    // Normalize: remove trailing slash
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
   }
-  // Vercel deployment URL (fallback for preview deployments)
+
+  // 2. Production warning - NEXT_PUBLIC_APP_URL should be set
+  const isProduction = process.env.NODE_ENV === "production";
+  const isVercel = !!process.env.VERCEL;
+
+  if (isProduction && isVercel) {
+    console.warn(
+      "[getBaseUrl] WARNING: NEXT_PUBLIC_APP_URL is not set in production. " +
+      "Falling back to VERCEL_URL which may cause redirect issues. " +
+      "Set NEXT_PUBLIC_APP_URL=https://renta-bed.com in Vercel environment variables."
+    );
+  }
+
+  // 3. Vercel preview/development fallback
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
-  // Local development
+
+  // 4. Local development
   return "http://localhost:3000";
+}
+
+/**
+ * Get diagnostic info about URL configuration (safe for logging).
+ */
+export function getUrlConfigDiagnostics(): {
+  hasCanonicalUrl: boolean;
+  canonicalUrl: string | undefined;
+  vercelUrl: string | undefined;
+  nodeEnv: string;
+  isVercel: boolean;
+  resolvedBaseUrl: string;
+} {
+  return {
+    hasCanonicalUrl: !!process.env.NEXT_PUBLIC_APP_URL,
+    canonicalUrl: process.env.NEXT_PUBLIC_APP_URL,
+    vercelUrl: process.env.VERCEL_URL,
+    nodeEnv: process.env.NODE_ENV || "unknown",
+    isVercel: !!process.env.VERCEL,
+    resolvedBaseUrl: getBaseUrl(),
+  };
 }
 
 // =============================================================================

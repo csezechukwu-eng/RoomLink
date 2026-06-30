@@ -69,6 +69,9 @@ export async function createIdentityVerificationSession(
   const baseUrl = getBaseUrl();
   const finalReturnUrl = returnUrl || `${baseUrl}/api/identity/return`;
 
+  console.log("[createIdentityVerificationSession] Base URL:", baseUrl);
+  console.log("[createIdentityVerificationSession] Return URL:", finalReturnUrl);
+
   try {
     const session = await stripe.identity.verificationSessions.create({
       type: "document",

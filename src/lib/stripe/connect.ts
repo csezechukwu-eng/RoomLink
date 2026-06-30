@@ -131,11 +131,17 @@ export async function createOnboardingLink(
   }
 
   const baseUrl = getBaseUrl();
+  const refreshUrl = `${baseUrl}/api/stripe-connect/refresh`;
+  const returnUrl = `${baseUrl}/api/stripe-connect/return`;
+
+  console.log("[createOnboardingLink] Base URL:", baseUrl);
+  console.log("[createOnboardingLink] Refresh URL:", refreshUrl);
+  console.log("[createOnboardingLink] Return URL:", returnUrl);
 
   const accountLink = await stripe.accountLinks.create({
     account: accountId,
-    refresh_url: `${baseUrl}/api/stripe-connect/refresh`,
-    return_url: `${baseUrl}/api/stripe-connect/return`,
+    refresh_url: refreshUrl,
+    return_url: returnUrl,
     type: "account_onboarding",
   });
 

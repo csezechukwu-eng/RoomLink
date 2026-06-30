@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from "next/server";
-import { getBaseUrl } from "@/lib/stripe/server";
+import { getBaseUrl, getUrlConfigDiagnostics } from "@/lib/stripe/server";
 import { getAuthUser } from "@/lib/supabase/server";
 import { getServiceClient, isServiceRoleConfigured } from "@/lib/supabase/server";
 import { getIdentityVerificationStatus, isStripeIdentityConfigured } from "@/lib/stripe/identity";
@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
 
   console.log("[identity/return] ===== STRIPE IDENTITY RETURN START =====");
   console.log("[identity/return] Timestamp:", timestamp);
+  console.log("[identity/return] URL Config:", getUrlConfigDiagnostics());
   console.log("[identity/return] Base URL:", baseUrl);
 
   // Get authenticated user

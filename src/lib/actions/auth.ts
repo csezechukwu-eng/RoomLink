@@ -62,6 +62,9 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
 
     // Get base URL for email confirmation redirect
     const baseUrl = getBaseUrl();
+    const emailRedirectTo = `${baseUrl}/auth/callback`;
+
+    console.log("[signUp] Email redirect URL:", emailRedirectTo);
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -70,7 +73,7 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
         data: {
           full_name: fullName,
         },
-        emailRedirectTo: `${baseUrl}/auth/callback`,
+        emailRedirectTo,
       },
     });
 
