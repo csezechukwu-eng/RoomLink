@@ -1,12 +1,22 @@
 import "server-only";
 import { stripe, getBaseUrl } from "./server";
+import { getServiceClient, isServiceRoleConfigured } from "@/lib/supabase/server";
+import {
+  generateStateToken,
+  hashStateToken,
+  getStateTokenExpiry,
+} from "./identityStateToken";
 import type { VerificationStatus } from "@/lib/types";
 
 /**
  * Stripe Identity helpers for landlord identity verification.
  *
- * Uses Stripe Identity for document verification to ensure
- * landlords are who they claim to be.
+ * ARCHITECTURE:
+ * Uses state-token based return URLs for secure verification flow:
+ * 1. Generate cryptographically secure state token
+ * 2. Store hashed token in identity_verification_attempts table
+ * 3. Send raw token in Stripe return_url
+ * 4. Return route validates token without requiring active session
  */
 
 // -----------------------------------------------------------------------------
@@ -17,6 +27,7 @@ export interface VerificationSessionResult {
   sessionId: string;
   url: string;
   status: VerificationStatus;
+  attemptId: string;
 }
 
 export interface VerificationSessionStatus {
@@ -25,8 +36,14 @@ export interface VerificationSessionStatus {
   lastError: string | null;
 }
 
+export interface SyncResult {
+  status: VerificationStatus;
+  updated: boolean;
+  verifiedAt: string | null;
+}
+
 // -----------------------------------------------------------------------------
-// Helpers
+// Status Mapping
 // -----------------------------------------------------------------------------
 
 /**
@@ -38,17 +55,17 @@ export interface VerificationSessionStatus {
  * - verified: Verification completed successfully
  * - canceled: Verification was canceled
  *
- * Our status mapping:
- * - not_started: No session exists or user hasn't started
- * - pending: User started verification but not complete
- * - processing: Stripe is reviewing documents
- * - verified: Successfully verified
- * - needs_attention: User needs to resubmit or fix something
- * - canceled: Verification was canceled
+ * Our status mapping (per requirements):
+ * - no session → not_started
+ * - requires_input (no error) → pending (in progress)
+ * - requires_input (with error) → needs_attention
+ * - processing → processing
+ * - verified → verified
+ * - canceled → canceled
  */
 export function mapStripeStatusToVerificationStatus(
   stripeStatus: string,
-  hasSubmittedBefore?: boolean
+  hasError?: boolean
 ): VerificationStatus {
   switch (stripeStatus) {
     case "verified":
@@ -56,9 +73,8 @@ export function mapStripeStatusToVerificationStatus(
     case "processing":
       return "processing";
     case "requires_input":
-      // If user has submitted before and needs to resubmit, it's needs_attention
-      // Otherwise, they just haven't started the verification yet
-      return hasSubmittedBefore ? "needs_attention" : "pending";
+      // If there's a last_error, user needs to fix something
+      return hasError ? "needs_attention" : "pending";
     case "canceled":
       return "canceled";
     default:
@@ -66,17 +82,24 @@ export function mapStripeStatusToVerificationStatus(
   }
 }
 
+// -----------------------------------------------------------------------------
+// Session Creation
+// -----------------------------------------------------------------------------
+
 /**
- * Create a new Stripe Identity verification session.
+ * Create a new Stripe Identity verification session with state token.
  *
- * @param userId - The landlord's user ID (for metadata)
- * @param returnUrl - URL to redirect to after verification
- * @returns Session ID and hosted verification URL
- * @throws Error if Stripe is not configured or Identity is not enabled
+ * This is the main entry point for starting verification:
+ * 1. Generate secure state token
+ * 2. Create attempt record with hashed token
+ * 3. Create Stripe session with return_url including raw token
+ * 4. Update user record with session ID
+ *
+ * @param userId - The landlord's user ID
+ * @returns Session info including URL to redirect to
  */
-export async function createIdentityVerificationSession(
-  userId: string,
-  returnUrl?: string
+export async function createIdentityVerificationSessionWithAttempt(
+  userId: string
 ): Promise<VerificationSessionResult> {
   if (!stripe) {
     throw new Error(
@@ -84,36 +107,107 @@ export async function createIdentityVerificationSession(
     );
   }
 
-  const baseUrl = getBaseUrl();
-  const finalReturnUrl = returnUrl || `${baseUrl}/api/identity/return`;
+  if (!isServiceRoleConfigured()) {
+    throw new Error("Database is not configured for this environment.");
+  }
 
-  console.log("[createIdentityVerificationSession] Base URL:", baseUrl);
-  console.log("[createIdentityVerificationSession] Return URL:", finalReturnUrl);
+  const supabase = getServiceClient();
+  const baseUrl = getBaseUrl();
+
+  // 1. Generate secure state token
+  const stateToken = generateStateToken();
+  const stateTokenHash = hashStateToken(stateToken);
+  const expiresAt = getStateTokenExpiry();
+
+  console.log("[createIdentityVerificationSessionWithAttempt] Base URL:", baseUrl);
+  console.log("[createIdentityVerificationSessionWithAttempt] State token generated");
+
+  // 2. Create attempt record (before Stripe call, so we have attempt_id)
+  const { data: attempt, error: attemptError } = await supabase
+    .from("identity_verification_attempts")
+    .insert({
+      user_id: userId,
+      state_token_hash: stateTokenHash,
+      status: "created",
+      expires_at: expiresAt.toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (attemptError || !attempt) {
+    console.error("[createIdentityVerificationSessionWithAttempt] Failed to create attempt:", attemptError);
+    throw new Error("Failed to create verification attempt");
+  }
+
+  const attemptId = attempt.id;
+  console.log("[createIdentityVerificationSessionWithAttempt] Attempt created:", attemptId);
+
+  // 3. Build return URL with state token
+  const returnUrl = `${baseUrl}/api/identity/return?state=${stateToken}`;
+  console.log("[createIdentityVerificationSessionWithAttempt] Return URL:", returnUrl.substring(0, 50) + "...");
 
   try {
+    // 4. Create Stripe session with metadata
     const session = await stripe.identity.verificationSessions.create({
       type: "document",
       metadata: {
         platform: "roomlink",
         user_id: userId,
+        attempt_id: attemptId,
+        purpose: "landlord_identity_verification",
       },
       options: {
         document: {
-          // Allow passport, driver's license, or ID card
           allowed_types: ["driving_license", "passport", "id_card"],
-          // Require front and back for licenses/IDs
           require_matching_selfie: true,
         },
       },
-      return_url: finalReturnUrl,
+      return_url: returnUrl,
     });
+
+    console.log("[createIdentityVerificationSessionWithAttempt] Stripe session created:", session.id);
+
+    // 5. Update attempt with Stripe session ID
+    const { error: updateAttemptError } = await supabase
+      .from("identity_verification_attempts")
+      .update({
+        stripe_verification_session_id: session.id,
+        status: "pending",
+      })
+      .eq("id", attemptId);
+
+    if (updateAttemptError) {
+      console.error("[createIdentityVerificationSessionWithAttempt] Failed to update attempt:", updateAttemptError);
+      // Continue anyway - the attempt record exists
+    }
+
+    // 6. Update user record with session ID and status
+    const { error: updateUserError } = await supabase
+      .from("users")
+      .update({
+        identity_verification_session_id: session.id,
+        verification_status: "pending",
+      })
+      .eq("id", userId);
+
+    if (updateUserError) {
+      console.error("[createIdentityVerificationSessionWithAttempt] Failed to update user:", updateUserError);
+      // Continue anyway - the Stripe session was created
+    }
 
     return {
       sessionId: session.id,
       url: session.url || "",
       status: mapStripeStatusToVerificationStatus(session.status, false),
+      attemptId,
     };
   } catch (error) {
+    // Mark attempt as failed
+    await supabase
+      .from("identity_verification_attempts")
+      .update({ status: "canceled" })
+      .eq("id", attemptId);
+
     // Check if Identity is not enabled on the Stripe account
     if (error instanceof Error) {
       if (error.message.includes("identity") || error.message.includes("Identity")) {
@@ -126,12 +220,12 @@ export async function createIdentityVerificationSession(
   }
 }
 
+// -----------------------------------------------------------------------------
+// Status Retrieval
+// -----------------------------------------------------------------------------
+
 /**
- * Get the status of an existing verification session.
- *
- * @param sessionId - The verification session ID
- * @returns Session status
- * @throws Error if Stripe is not configured or session not found
+ * Get the status of an existing verification session from Stripe.
  */
 export async function getIdentityVerificationStatus(
   sessionId: string
@@ -144,22 +238,157 @@ export async function getIdentityVerificationStatus(
 
   const session = await stripe.identity.verificationSessions.retrieve(sessionId);
 
-  // Check if user has submitted before (has a verification report)
-  // This helps distinguish between "hasn't started" vs "needs to resubmit"
-  const hasSubmittedBefore = !!session.last_verification_report;
+  // Check if there's an error (indicates user needs to fix something)
+  const hasError = !!session.last_error;
 
   return {
     sessionId: session.id,
-    status: mapStripeStatusToVerificationStatus(session.status, hasSubmittedBefore),
+    status: mapStripeStatusToVerificationStatus(session.status, hasError),
     lastError: session.last_error?.reason || null,
   };
 }
 
 /**
+ * Sync identity status from Stripe to database.
+ * Called on page load and from return route.
+ */
+export async function syncIdentityStatusFromStripe(
+  userId: string,
+  sessionId: string
+): Promise<SyncResult> {
+  if (!stripe) {
+    throw new Error("Stripe is not configured.");
+  }
+
+  if (!isServiceRoleConfigured()) {
+    throw new Error("Database is not configured.");
+  }
+
+  const supabase = getServiceClient();
+
+  try {
+    // Fetch current status from Stripe
+    const session = await stripe.identity.verificationSessions.retrieve(sessionId);
+    const hasError = !!session.last_error;
+    const newStatus = mapStripeStatusToVerificationStatus(session.status, hasError);
+
+    console.log("[syncIdentityStatusFromStripe] Stripe status:", session.status);
+    console.log("[syncIdentityStatusFromStripe] Mapped status:", newStatus);
+    console.log("[syncIdentityStatusFromStripe] Has error:", hasError);
+
+    // Update user record
+    const updateData: Record<string, unknown> = {
+      verification_status: newStatus,
+    };
+
+    let verifiedAt: string | null = null;
+    if (newStatus === "verified") {
+      verifiedAt = new Date().toISOString();
+      updateData.identity_verified_at = verifiedAt;
+    }
+
+    const { error: updateError } = await supabase
+      .from("users")
+      .update(updateData)
+      .eq("id", userId);
+
+    if (updateError) {
+      console.error("[syncIdentityStatusFromStripe] Failed to update user:", updateError);
+      return { status: newStatus, updated: false, verifiedAt: null };
+    }
+
+    // Also update any matching attempt record
+    await supabase
+      .from("identity_verification_attempts")
+      .update({
+        status: newStatus,
+        stripe_status: session.status,
+        stripe_last_error: session.last_error?.reason || null,
+        last_synced_at: new Date().toISOString(),
+      })
+      .eq("stripe_verification_session_id", sessionId);
+
+    console.log("[syncIdentityStatusFromStripe] Database updated");
+    return { status: newStatus, updated: true, verifiedAt };
+  } catch (error) {
+    console.error("[syncIdentityStatusFromStripe] Error:", error);
+    throw error;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Attempt Validation (for return route)
+// -----------------------------------------------------------------------------
+
+/**
+ * Validate a state token and find the matching attempt.
+ * Used by the return route to identify the verification without requiring session.
+ */
+export async function validateStateTokenAndGetAttempt(
+  stateToken: string
+): Promise<{
+  valid: boolean;
+  attemptId?: string;
+  userId?: string;
+  sessionId?: string;
+  expired?: boolean;
+}> {
+  if (!isServiceRoleConfigured()) {
+    return { valid: false };
+  }
+
+  const supabase = getServiceClient();
+  const tokenHash = hashStateToken(stateToken);
+
+  // Find attempt by hash
+  const { data: attempt, error } = await supabase
+    .from("identity_verification_attempts")
+    .select("id, user_id, stripe_verification_session_id, expires_at, return_consumed_at")
+    .eq("state_token_hash", tokenHash)
+    .maybeSingle();
+
+  if (error || !attempt) {
+    console.log("[validateStateTokenAndGetAttempt] No attempt found for hash");
+    return { valid: false };
+  }
+
+  // Check if expired
+  const expiresAt = new Date(attempt.expires_at);
+  if (expiresAt.getTime() < Date.now()) {
+    console.log("[validateStateTokenAndGetAttempt] Token expired");
+    return { valid: false, expired: true };
+  }
+
+  // Check if already consumed (optional - allows reuse within expiry window)
+  // We'll allow re-consumption for retries
+
+  return {
+    valid: true,
+    attemptId: attempt.id,
+    userId: attempt.user_id,
+    sessionId: attempt.stripe_verification_session_id,
+  };
+}
+
+/**
+ * Mark an attempt's return as consumed.
+ */
+export async function markAttemptReturnConsumed(attemptId: string): Promise<void> {
+  if (!isServiceRoleConfigured()) return;
+
+  const supabase = getServiceClient();
+  await supabase
+    .from("identity_verification_attempts")
+    .update({ return_consumed_at: new Date().toISOString() })
+    .eq("id", attemptId);
+}
+
+// -----------------------------------------------------------------------------
+// Utilities
+// -----------------------------------------------------------------------------
+
+/**
  * Cancel an in-progress verification session.
- *
- * @param sessionId - The verification session ID
- * @throws Error if Stripe is not configured
  */
 export async function cancelIdentityVerificationSession(
   sessionId: string

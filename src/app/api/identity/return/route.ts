@@ -1,23 +1,33 @@
 import { NextResponse, NextRequest } from "next/server";
-import { getBaseUrl, getUrlConfigDiagnostics } from "@/lib/stripe/server";
-import { getAuthUser } from "@/lib/supabase/server";
-import { getServiceClient, isServiceRoleConfigured } from "@/lib/supabase/server";
-import { getIdentityVerificationStatus, isStripeIdentityConfigured } from "@/lib/stripe/identity";
 import { revalidatePath } from "next/cache";
+import { getBaseUrl } from "@/lib/stripe/server";
+import {
+  validateStateTokenAndGetAttempt,
+  markAttemptReturnConsumed,
+  syncIdentityStatusFromStripe,
+  isStripeIdentityConfigured,
+} from "@/lib/stripe/identity";
+import { isServiceRoleConfigured } from "@/lib/supabase/server";
 
 /**
- * Identity verification return handler.
+ * Identity verification return handler (PUBLIC ROUTE).
  *
- * After the user completes verification in Stripe's hosted UI,
- * they're redirected here. We refresh the status from Stripe,
- * update the database, and redirect back to the onboarding flow.
+ * ARCHITECTURE:
+ * This route uses state-token validation instead of relying on session cookies.
  *
- * CRITICAL: This route must:
- * 1. Authenticate the user from session cookies
- * 2. Find their Stripe Identity session ID
- * 3. Fetch latest status from Stripe
- * 4. Update Supabase
- * 5. Add refresh_status=true to trigger UI refresh
+ * Flow:
+ * 1. Stripe redirects here with ?state=<token>
+ * 2. We hash the token and find the matching attempt
+ * 3. We retrieve the Stripe session status
+ * 4. We update the database (user record + attempt record)
+ * 5. We redirect to onboarding with fresh status
+ *
+ * IMPORTANT:
+ * - This route MUST be public (no auth required)
+ * - Database updates use service role, not user session
+ * - State token validates the request, not the session cookie
+ *
+ * If validation fails, redirect to login with redirect param.
  */
 export async function GET(request: NextRequest) {
   const baseUrl = getBaseUrl();
@@ -26,139 +36,113 @@ export async function GET(request: NextRequest) {
   console.log("[identity/return] ===== STRIPE IDENTITY RETURN START =====");
   console.log("[identity/return] Timestamp:", timestamp);
   console.log("[identity/return] Request URL:", request.url);
-  console.log("[identity/return] URL Config:", getUrlConfigDiagnostics());
   console.log("[identity/return] Base URL:", baseUrl);
 
-  // Log cookie information (names only for security)
-  const cookieNames = request.cookies.getAll().map(c => c.name);
-  console.log("[identity/return] Cookies present:", cookieNames);
-  console.log("[identity/return] Has sb-access-token:", cookieNames.some(n => n.includes("sb-") && n.includes("auth-token")));
+  // 1. Get state token from query
+  const { searchParams } = request.nextUrl;
+  const stateToken = searchParams.get("state");
 
-  // Get authenticated user
-  const authUser = await getAuthUser();
-  if (!authUser) {
-    console.error("[identity/return] FAILED: User not authenticated");
-    console.error("[identity/return] Cookie count:", cookieNames.length);
-    console.error("[identity/return] Supabase cookies:", cookieNames.filter(n => n.startsWith("sb-")));
-    console.error("[identity/return] This likely means:");
-    console.error("[identity/return]   1. Session expired, OR");
-    console.error("[identity/return]   2. Cookie domain mismatch (original login was on different domain), OR");
-    console.error("[identity/return]   3. Cookies not sent by browser");
-    const loginUrl = new URL("/login", baseUrl);
-    loginUrl.searchParams.set("redirect", "/onboarding/landlord?step=identity");
-    console.log("[identity/return] Redirecting to:", loginUrl.toString());
-    return NextResponse.redirect(loginUrl);
+  if (!stateToken) {
+    console.error("[identity/return] ERROR: No state token in URL");
+    return redirectToLoginWithError(baseUrl, "missing_state");
   }
 
-  const ownerId = authUser.id;
-  console.log("[identity/return] Authenticated user ID:", ownerId);
-  console.log("[identity/return] User email:", authUser.email);
+  console.log("[identity/return] State token received (length):", stateToken.length);
 
-  // Check configurations
+  // 2. Check configurations
   if (!isStripeIdentityConfigured()) {
-    console.error("[identity/return] FAILED: Stripe Identity not configured (STRIPE_SECRET_KEY missing)");
-    return NextResponse.redirect(
-      new URL("/onboarding/landlord?step=identity&error=stripe_not_configured", baseUrl)
-    );
+    console.error("[identity/return] ERROR: Stripe not configured");
+    return redirectToOnboardingWithError(baseUrl, "stripe_not_configured");
   }
-  console.log("[identity/return] Stripe Identity: configured");
 
   if (!isServiceRoleConfigured()) {
-    console.error("[identity/return] FAILED: Service role not configured (SUPABASE_SERVICE_ROLE_KEY missing)");
-    return NextResponse.redirect(
-      new URL("/onboarding/landlord?step=identity&error=db_not_configured", baseUrl)
-    );
+    console.error("[identity/return] ERROR: Database not configured");
+    return redirectToOnboardingWithError(baseUrl, "db_not_configured");
   }
-  console.log("[identity/return] Supabase service role: configured");
 
-  let finalStatus = "unverified";
+  // 3. Validate state token and find attempt
+  console.log("[identity/return] Validating state token...");
+  const validation = await validateStateTokenAndGetAttempt(stateToken);
 
+  if (!validation.valid) {
+    console.error("[identity/return] ERROR: State token validation failed");
+    console.error("[identity/return] Expired:", validation.expired);
+
+    if (validation.expired) {
+      return redirectToOnboardingWithError(baseUrl, "token_expired");
+    }
+    return redirectToLoginWithError(baseUrl, "invalid_state");
+  }
+
+  const { attemptId, userId, sessionId } = validation;
+  console.log("[identity/return] Validation successful:");
+  console.log("[identity/return]   - Attempt ID:", attemptId);
+  console.log("[identity/return]   - User ID:", userId);
+  console.log("[identity/return]   - Session ID:", sessionId?.substring(0, 15) + "...");
+
+  if (!userId || !sessionId) {
+    console.error("[identity/return] ERROR: Missing user ID or session ID");
+    return redirectToLoginWithError(baseUrl, "incomplete_attempt");
+  }
+
+  // 4. Mark attempt as consumed
+  if (attemptId) {
+    await markAttemptReturnConsumed(attemptId);
+    console.log("[identity/return] Attempt marked as consumed");
+  }
+
+  // 5. Sync status from Stripe to database
   try {
-    const supabase = getServiceClient();
+    console.log("[identity/return] Syncing status from Stripe...");
+    const syncResult = await syncIdentityStatusFromStripe(userId, sessionId);
 
-    // Get stored session ID for this user
-    const { data: userData, error: fetchError } = await supabase
-      .from("users")
-      .select("identity_verification_session_id, verification_status")
-      .eq("id", ownerId)
-      .maybeSingle();
+    console.log("[identity/return] Sync complete:");
+    console.log("[identity/return]   - Status:", syncResult.status);
+    console.log("[identity/return]   - Updated:", syncResult.updated);
+    console.log("[identity/return]   - Verified at:", syncResult.verifiedAt);
 
-    if (fetchError) {
-      console.error("[identity/return] FAILED to fetch user data:", fetchError);
-      return NextResponse.redirect(
-        new URL("/onboarding/landlord?step=identity&error=fetch_failed&refresh_status=true", baseUrl)
-      );
-    }
-
-    console.log("[identity/return] Current DB status:", userData?.verification_status);
-    console.log("[identity/return] Session ID exists:", !!userData?.identity_verification_session_id);
-
-    const sessionId = userData?.identity_verification_session_id;
-    if (!sessionId) {
-      console.log("[identity/return] No verification session found - user may not have started verification");
-      return NextResponse.redirect(
-        new URL("/onboarding/landlord?step=identity&refresh_status=true", baseUrl)
-      );
-    }
-
-    console.log("[identity/return] Fetching Stripe status for session:", sessionId.substring(0, 10) + "...");
-
-    // Fetch status from Stripe
-    const stripeStatus = await getIdentityVerificationStatus(sessionId);
-    console.log("[identity/return] Stripe API returned:");
-    console.log("[identity/return]   - status:", stripeStatus.status);
-    console.log("[identity/return]   - lastError:", stripeStatus.lastError);
-
-    finalStatus = stripeStatus.status;
-
-    // Update database with the status
-    const updateData: Record<string, unknown> = {
-      verification_status: stripeStatus.status,
-    };
-
-    if (stripeStatus.status === "verified") {
-      updateData.identity_verified_at = new Date().toISOString();
-      console.log("[identity/return] Setting identity_verified_at timestamp");
-    }
-
-    console.log("[identity/return] Updating database with:", updateData);
-
-    const { error: updateError, data: updateResult } = await supabase
-      .from("users")
-      .update(updateData)
-      .eq("id", ownerId)
-      .select("verification_status");
-
-    if (updateError) {
-      console.error("[identity/return] FAILED to update database:", updateError);
-      console.error("[identity/return] Error code:", updateError.code);
-      console.error("[identity/return] Error message:", updateError.message);
-    } else {
-      console.log("[identity/return] SUCCESS: Database updated");
-      console.log("[identity/return] Updated row verification_status:", updateResult?.[0]?.verification_status);
-    }
-
-    // Force revalidate to clear any cached data
-    console.log("[identity/return] Revalidating paths...");
+    // 6. Revalidate pages to clear cache
+    console.log("[identity/return] Revalidating pages...");
     revalidatePath("/onboarding/landlord", "page");
     revalidatePath("/dashboard", "page");
 
   } catch (error) {
-    console.error("[identity/return] EXCEPTION:", error);
-    if (error instanceof Error) {
-      console.error("[identity/return] Error name:", error.name);
-      console.error("[identity/return] Error message:", error.message);
-    }
+    console.error("[identity/return] ERROR syncing status:", error);
+    // Continue to redirect even if sync fails - user can refresh
   }
 
+  // 7. Redirect to onboarding
   console.log("[identity/return] ===== STRIPE IDENTITY RETURN END =====");
-  console.log("[identity/return] Final status:", finalStatus);
+  console.log("[identity/return] Redirecting to onboarding...");
 
-  // Redirect with refresh_status=true to signal UI to refresh
   const redirectUrl = new URL("/onboarding/landlord", baseUrl);
   redirectUrl.searchParams.set("step", "identity");
-  redirectUrl.searchParams.set("refresh_status", "true");
-  redirectUrl.searchParams.set("t", String(timestamp)); // Cache buster
+  redirectUrl.searchParams.set("synced", "true");
+  redirectUrl.searchParams.set("t", String(timestamp));
 
   return NextResponse.redirect(redirectUrl);
+}
+
+/**
+ * Redirect to login page with redirect back to onboarding.
+ */
+function redirectToLoginWithError(baseUrl: string, error: string): NextResponse {
+  const loginUrl = new URL("/login", baseUrl);
+  loginUrl.searchParams.set("redirect", "/onboarding/landlord?step=identity");
+  if (error) {
+    loginUrl.searchParams.set("error", error);
+  }
+  console.log("[identity/return] Redirecting to login:", loginUrl.toString());
+  return NextResponse.redirect(loginUrl);
+}
+
+/**
+ * Redirect to onboarding with error param.
+ */
+function redirectToOnboardingWithError(baseUrl: string, error: string): NextResponse {
+  const url = new URL("/onboarding/landlord", baseUrl);
+  url.searchParams.set("step", "identity");
+  url.searchParams.set("error", error);
+  console.log("[identity/return] Redirecting to onboarding with error:", url.toString());
+  return NextResponse.redirect(url);
 }

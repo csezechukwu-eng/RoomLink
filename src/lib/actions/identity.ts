@@ -5,9 +5,10 @@ import { getServiceClient, isServiceRoleConfigured } from "@/lib/supabase/server
 import { getAuthUser } from "@/lib/supabase/server";
 import { isDemoMode, DEMO_OWNER_ID } from "@/lib/auth";
 import {
-  createIdentityVerificationSession,
+  createIdentityVerificationSessionWithAttempt,
   getIdentityVerificationStatus,
   isStripeIdentityConfigured,
+  syncIdentityStatusFromStripe,
 } from "@/lib/stripe/identity";
 import type { ActionState } from "@/lib/actions/types";
 import { errorState, successState } from "@/lib/actions/_shared";
@@ -16,9 +17,17 @@ import type { VerificationStatus } from "@/lib/types";
 /**
  * Server actions for Stripe Identity verification.
  *
+ * ARCHITECTURE:
+ * Uses a state-token system for secure return URL handling:
+ * 1. Generate secure random state token
+ * 2. Store hashed version in identity_verification_attempts table
+ * 3. Send raw token in Stripe return_url
+ * 4. Return route validates token without requiring active session
+ *
  * SECURITY:
  * - All actions require authenticated landlord
- * - Session IDs are stored per-user for webhook matching
+ * - State tokens are hashed before storage
+ * - Attempts expire after 1 hour
  * - DEMO_MODE returns mock data for testing
  */
 
@@ -30,6 +39,7 @@ export interface IdentityStatusData {
   status: VerificationStatus;
   sessionId: string | null;
   verifiedAt: string | null;
+  attemptId?: string | null;
 }
 
 // -----------------------------------------------------------------------------
@@ -38,6 +48,7 @@ export interface IdentityStatusData {
 
 /**
  * Get the current identity verification status for the landlord.
+ * Also syncs with Stripe if there's an active verification session.
  */
 export async function getIdentityStatusAction(): Promise<ActionState> {
   // Demo mode returns mock verified status
@@ -63,6 +74,7 @@ export async function getIdentityStatusAction(): Promise<ActionState> {
   try {
     const supabase = getServiceClient();
 
+    // Get user data
     const { data: userData, error } = await supabase
       .from("users")
       .select("verification_status, identity_verification_session_id, identity_verified_at")
@@ -74,9 +86,26 @@ export async function getIdentityStatusAction(): Promise<ActionState> {
       return errorState("Failed to fetch status. Please try again.");
     }
 
+    const currentStatus = (userData?.verification_status as VerificationStatus) || "not_started";
+    const sessionId = userData?.identity_verification_session_id || null;
+
+    // If there's a session and status is not final, sync with Stripe
+    if (sessionId && !["verified", "canceled"].includes(currentStatus)) {
+      console.log("[getIdentityStatusAction] Syncing with Stripe...");
+      const syncResult = await syncIdentityStatusFromStripe(ownerId, sessionId);
+      if (syncResult.updated) {
+        console.log("[getIdentityStatusAction] Status updated to:", syncResult.status);
+        return successState("Status loaded.", {
+          status: syncResult.status,
+          sessionId,
+          verifiedAt: syncResult.verifiedAt || null,
+        });
+      }
+    }
+
     return successState("Status loaded.", {
-      status: (userData?.verification_status as VerificationStatus) || "not_started",
-      sessionId: userData?.identity_verification_session_id || null,
+      status: currentStatus,
+      sessionId,
       verifiedAt: userData?.identity_verified_at || null,
     });
   } catch (error) {
@@ -86,8 +115,14 @@ export async function getIdentityStatusAction(): Promise<ActionState> {
 }
 
 /**
- * Create or reuse a Stripe Identity verification session.
+ * Create a new Stripe Identity verification session with state token.
  * Returns the hosted verification URL to redirect to.
+ *
+ * Flow:
+ * 1. Generate secure state token
+ * 2. Create attempt record with hashed token
+ * 3. Create Stripe session with return_url including raw token
+ * 4. Return URL for client redirect
  */
 export async function createIdentityVerificationAction(): Promise<ActionState> {
   console.log("[createIdentityVerificationAction] Starting...");
@@ -126,17 +161,13 @@ export async function createIdentityVerificationAction(): Promise<ActionState> {
   try {
     const supabase = getServiceClient();
 
-    // Check for existing session
+    // Check if already verified
     const { data: userData } = await supabase
       .from("users")
-      .select("identity_verification_session_id, verification_status")
+      .select("verification_status, identity_verification_session_id")
       .eq("id", ownerId)
       .maybeSingle();
 
-    console.log("[createIdentityVerificationAction] Current status:", userData?.verification_status);
-    console.log("[createIdentityVerificationAction] Existing session:", userData?.identity_verification_session_id?.substring(0, 15));
-
-    // If already verified, no need for new session
     if (userData?.verification_status === "verified") {
       console.log("[createIdentityVerificationAction] Already verified");
       return successState("Already verified.", {
@@ -146,60 +177,19 @@ export async function createIdentityVerificationAction(): Promise<ActionState> {
       });
     }
 
-    // If there's an existing pending session, try to reuse it
-    if (userData?.identity_verification_session_id) {
-      try {
-        const existingStatus = await getIdentityVerificationStatus(
-          userData.identity_verification_session_id
-        );
-        console.log("[createIdentityVerificationAction] Existing session status:", existingStatus.status);
+    // Create new verification session with state token
+    console.log("[createIdentityVerificationAction] Creating session with state token...");
+    const result = await createIdentityVerificationSessionWithAttempt(ownerId);
 
-        if (existingStatus.status === "pending") {
-          // Create a new session URL for the existing session
-          console.log("[createIdentityVerificationAction] Reusing pending session, creating new URL");
-          const result = await createIdentityVerificationSession(ownerId);
-          return successState("Verification session created.", {
-            url: result.url,
-            sessionId: result.sessionId,
-          });
-        }
-      } catch (e) {
-        console.log("[createIdentityVerificationAction] Existing session check failed:", e);
-        // Session may have expired or been canceled, create new one
-      }
-    }
-
-    // Create new verification session
-    console.log("[createIdentityVerificationAction] Creating new session...");
-    const result = await createIdentityVerificationSession(ownerId);
-    console.log("[createIdentityVerificationAction] New session ID:", result.sessionId.substring(0, 15));
-    console.log("[createIdentityVerificationAction] Session URL exists:", !!result.url);
-
-    // Store session ID - CRITICAL: Must succeed before redirect
-    console.log("[createIdentityVerificationAction] Saving session ID to database...");
-    const { error: updateError, data: updateResult } = await supabase
-      .from("users")
-      .update({
-        identity_verification_session_id: result.sessionId,
-        verification_status: "pending",
-      })
-      .eq("id", ownerId)
-      .select("identity_verification_session_id, verification_status");
-
-    if (updateError) {
-      console.error("[createIdentityVerificationAction] FAILED to save session ID:", updateError);
-      console.error("[createIdentityVerificationAction] Error code:", updateError.code);
-      console.error("[createIdentityVerificationAction] Error message:", updateError.message);
-      // This is critical - if we can't save the session ID, we can't sync status later
-      // But we continue anyway as the webhook can still work via metadata
-    } else {
-      console.log("[createIdentityVerificationAction] SUCCESS: Session saved to DB");
-      console.log("[createIdentityVerificationAction] DB now shows:", updateResult);
-    }
+    console.log("[createIdentityVerificationAction] Session created:");
+    console.log("[createIdentityVerificationAction]   - Session ID:", result.sessionId.substring(0, 15) + "...");
+    console.log("[createIdentityVerificationAction]   - Attempt ID:", result.attemptId);
+    console.log("[createIdentityVerificationAction]   - URL exists:", !!result.url);
 
     return successState("Verification session created.", {
       url: result.url,
       sessionId: result.sessionId,
+      attemptId: result.attemptId,
     });
   } catch (error) {
     console.error("[createIdentityVerificationAction] Error:", error);
@@ -218,7 +208,7 @@ export async function createIdentityVerificationAction(): Promise<ActionState> {
 
 /**
  * Refresh the identity verification status from Stripe.
- * Called after returning from the hosted verification page.
+ * Called when the onboarding page loads to get fresh status.
  */
 export async function refreshIdentityStatusAction(): Promise<ActionState> {
   console.log("[refreshIdentityStatusAction] Starting...");
@@ -254,10 +244,10 @@ export async function refreshIdentityStatusAction(): Promise<ActionState> {
   try {
     const supabase = getServiceClient();
 
-    // Get stored session ID AND current status
+    // Get user's verification session ID
     const { data: userData, error: fetchError } = await supabase
       .from("users")
-      .select("identity_verification_session_id, verification_status")
+      .select("identity_verification_session_id, verification_status, identity_verified_at")
       .eq("id", ownerId)
       .maybeSingle();
 
@@ -266,52 +256,41 @@ export async function refreshIdentityStatusAction(): Promise<ActionState> {
       return errorState("Failed to fetch session. Please try again.");
     }
 
-    console.log("[refreshIdentityStatusAction] Current DB status:", userData?.verification_status);
-    console.log("[refreshIdentityStatusAction] Session ID exists:", !!userData?.identity_verification_session_id);
-
     const sessionId = userData?.identity_verification_session_id;
+    const currentStatus = (userData?.verification_status as VerificationStatus) || "not_started";
+
+    console.log("[refreshIdentityStatusAction] Current status:", currentStatus);
+    console.log("[refreshIdentityStatusAction] Session ID exists:", !!sessionId);
+
+    // If no session, return not started
     if (!sessionId) {
-      console.log("[refreshIdentityStatusAction] No session found");
       return successState("No verification session found.", {
         status: "not_started" as VerificationStatus,
         verifiedAt: null,
       });
     }
 
-    // Fetch status from Stripe
-    console.log("[refreshIdentityStatusAction] Fetching from Stripe...");
-    const stripeResult = await getIdentityVerificationStatus(sessionId);
-    console.log("[refreshIdentityStatusAction] Stripe status:", stripeResult.status);
-
-    // Update database
-    const updateData: Record<string, unknown> = {
-      verification_status: stripeResult.status,
-    };
-
-    if (stripeResult.status === "verified") {
-      updateData.identity_verified_at = new Date().toISOString();
+    // If already in final state, return current
+    if (currentStatus === "verified") {
+      return successState("Status loaded.", {
+        status: currentStatus,
+        verifiedAt: userData?.identity_verified_at || null,
+      });
     }
 
-    const { error: updateError } = await supabase
-      .from("users")
-      .update(updateData)
-      .eq("id", ownerId);
+    // Sync with Stripe
+    console.log("[refreshIdentityStatusAction] Syncing with Stripe...");
+    const syncResult = await syncIdentityStatusFromStripe(ownerId, sessionId);
 
-    if (updateError) {
-      console.error("[refreshIdentityStatusAction] Update error:", updateError);
-      // Continue anyway - return the status from Stripe
-    } else {
-      console.log("[refreshIdentityStatusAction] DB updated successfully");
-    }
+    console.log("[refreshIdentityStatusAction] Sync result:", syncResult);
 
-    // Revalidate
+    // Revalidate pages
     revalidatePath("/onboarding/landlord");
     revalidatePath("/dashboard");
 
-    console.log("[refreshIdentityStatusAction] Returning status:", stripeResult.status);
     return successState("Status refreshed.", {
-      status: stripeResult.status,
-      verifiedAt: stripeResult.status === "verified" ? new Date().toISOString() : null,
+      status: syncResult.status,
+      verifiedAt: syncResult.verifiedAt || null,
     });
   } catch (error) {
     console.error("[refreshIdentityStatusAction] Error:", error);

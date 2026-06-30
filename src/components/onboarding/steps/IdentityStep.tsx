@@ -43,31 +43,60 @@ export function IdentityStep({ state, onContinue }: IdentityStepProps) {
   // Refresh status on mount in case we're returning from Stripe verification
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    // Always refresh if URL says to, or if status is anything except verified/not_started
-    const shouldRefresh =
-      params.get("demo_verified") === "true" ||
-      params.get("refresh_status") === "true" ||
+
+    // Determine if we should refresh
+    const hasSyncParam = params.get("synced") === "true";
+    const hasRefreshParam = params.get("refresh_status") === "true";
+    const hasDemoParam = params.get("demo_verified") === "true";
+    const isInProgressStatus =
       verificationStatus === "pending" ||
       verificationStatus === "processing" ||
       verificationStatus === "needs_attention";
 
+    const shouldRefresh = hasSyncParam || hasRefreshParam || hasDemoParam || isInProgressStatus;
+
+    console.log("[IdentityStep] Mount check:", {
+      synced: hasSyncParam,
+      refresh: hasRefreshParam,
+      demo: hasDemoParam,
+      inProgress: isInProgressStatus,
+      shouldRefresh,
+      currentStatus: verificationStatus,
+    });
+
     if (shouldRefresh) {
       console.log("[IdentityStep] Refreshing verification status...");
-      console.log("[IdentityStep] Current status:", verificationStatus);
       startTransition(async () => {
         const result = await refreshIdentityStatusAction();
         console.log("[IdentityStep] Refresh result:", result);
         if (result.status === "success" && result.data) {
           console.log("[IdentityStep] Setting status to:", result.data.status);
           setVerificationStatus(result.data.status);
+        }
 
-          // Clean up URL params after refresh
-          if (params.get("refresh_status") === "true") {
-            const url = new URL(window.location.href);
-            url.searchParams.delete("refresh_status");
-            url.searchParams.delete("t");
-            window.history.replaceState({}, "", url.toString());
-          }
+        // Clean up URL params after refresh
+        const url = new URL(window.location.href);
+        let needsCleanup = false;
+
+        if (params.get("synced")) {
+          url.searchParams.delete("synced");
+          needsCleanup = true;
+        }
+        if (params.get("refresh_status")) {
+          url.searchParams.delete("refresh_status");
+          needsCleanup = true;
+        }
+        if (params.get("t")) {
+          url.searchParams.delete("t");
+          needsCleanup = true;
+        }
+        if (params.get("error")) {
+          // Keep error param for user feedback, but log it
+          console.log("[IdentityStep] Error from return:", params.get("error"));
+        }
+
+        if (needsCleanup) {
+          window.history.replaceState({}, "", url.toString());
         }
       });
     }
