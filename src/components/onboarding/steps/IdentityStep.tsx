@@ -40,18 +40,34 @@ export function IdentityStep({ state, onContinue }: IdentityStepProps) {
   const [isAttested, setIsAttested] = useState(!!data.authorityAttestedAt);
   const [error, setError] = useState<string | null>(null);
 
-  // Refresh status on mount in case we're returning from verification
+  // Refresh status on mount in case we're returning from Stripe verification
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("demo_verified") === "true" || verificationStatus === "pending") {
+    const shouldRefresh =
+      params.get("demo_verified") === "true" ||
+      params.get("refresh_status") === "true" ||
+      verificationStatus === "pending";
+
+    if (shouldRefresh) {
+      console.log("[IdentityStep] Refreshing verification status...");
       startTransition(async () => {
         const result = await refreshIdentityStatusAction();
+        console.log("[IdentityStep] Refresh result:", result);
         if (result.status === "success" && result.data) {
+          console.log("[IdentityStep] Setting status to:", result.data.status);
           setVerificationStatus(result.data.status);
+
+          // Clean up URL params after refresh
+          if (params.get("refresh_status") === "true") {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("refresh_status");
+            url.searchParams.delete("t");
+            window.history.replaceState({}, "", url.toString());
+          }
         }
       });
     }
-  }, [verificationStatus]);
+  }, []); // Only run once on mount
 
   const handleStartVerification = () => {
     setError(null);

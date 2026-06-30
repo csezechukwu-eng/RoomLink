@@ -90,8 +90,11 @@ export async function getIdentityStatusAction(): Promise<ActionState> {
  * Returns the hosted verification URL to redirect to.
  */
 export async function createIdentityVerificationAction(): Promise<ActionState> {
+  console.log("[createIdentityVerificationAction] Starting...");
+
   // Demo mode returns a fake URL
   if (isDemoMode()) {
+    console.log("[createIdentityVerificationAction] Demo mode");
     return successState("Verification session created.", {
       url: "/onboarding/landlord?step=identity&demo_verified=true",
       sessionId: "vs_demo_123",
@@ -101,18 +104,22 @@ export async function createIdentityVerificationAction(): Promise<ActionState> {
   // Get owner ID from auth
   const authUser = await getAuthUser();
   if (!authUser) {
+    console.error("[createIdentityVerificationAction] Not authenticated");
     return errorState("Not authenticated. Please sign in.");
   }
   const ownerId = authUser.id;
+  console.log("[createIdentityVerificationAction] User ID:", ownerId);
 
   // Check if Stripe Identity is configured
   if (!isStripeIdentityConfigured()) {
+    console.error("[createIdentityVerificationAction] Stripe not configured");
     return errorState(
       "Identity verification is not configured. Please contact support."
     );
   }
 
   if (!isServiceRoleConfigured()) {
+    console.error("[createIdentityVerificationAction] DB not configured");
     return errorState("Database is not configured for this environment.");
   }
 
@@ -126,8 +133,12 @@ export async function createIdentityVerificationAction(): Promise<ActionState> {
       .eq("id", ownerId)
       .maybeSingle();
 
+    console.log("[createIdentityVerificationAction] Current status:", userData?.verification_status);
+    console.log("[createIdentityVerificationAction] Existing session:", userData?.identity_verification_session_id?.substring(0, 15));
+
     // If already verified, no need for new session
     if (userData?.verification_status === "verified") {
+      console.log("[createIdentityVerificationAction] Already verified");
       return successState("Already verified.", {
         url: null,
         sessionId: userData.identity_verification_session_id,
@@ -141,35 +152,49 @@ export async function createIdentityVerificationAction(): Promise<ActionState> {
         const existingStatus = await getIdentityVerificationStatus(
           userData.identity_verification_session_id
         );
+        console.log("[createIdentityVerificationAction] Existing session status:", existingStatus.status);
 
         if (existingStatus.status === "pending") {
           // Create a new session URL for the existing session
+          console.log("[createIdentityVerificationAction] Reusing pending session, creating new URL");
           const result = await createIdentityVerificationSession(ownerId);
           return successState("Verification session created.", {
             url: result.url,
             sessionId: result.sessionId,
           });
         }
-      } catch {
+      } catch (e) {
+        console.log("[createIdentityVerificationAction] Existing session check failed:", e);
         // Session may have expired or been canceled, create new one
       }
     }
 
     // Create new verification session
+    console.log("[createIdentityVerificationAction] Creating new session...");
     const result = await createIdentityVerificationSession(ownerId);
+    console.log("[createIdentityVerificationAction] New session ID:", result.sessionId.substring(0, 15));
+    console.log("[createIdentityVerificationAction] Session URL exists:", !!result.url);
 
-    // Store session ID
-    const { error: updateError } = await supabase
+    // Store session ID - CRITICAL: Must succeed before redirect
+    console.log("[createIdentityVerificationAction] Saving session ID to database...");
+    const { error: updateError, data: updateResult } = await supabase
       .from("users")
       .update({
         identity_verification_session_id: result.sessionId,
         verification_status: "pending",
       })
-      .eq("id", ownerId);
+      .eq("id", ownerId)
+      .select("identity_verification_session_id, verification_status");
 
     if (updateError) {
-      console.error("[createIdentityVerificationAction] Update error:", updateError);
-      // Continue anyway - the session was created
+      console.error("[createIdentityVerificationAction] FAILED to save session ID:", updateError);
+      console.error("[createIdentityVerificationAction] Error code:", updateError.code);
+      console.error("[createIdentityVerificationAction] Error message:", updateError.message);
+      // This is critical - if we can't save the session ID, we can't sync status later
+      // But we continue anyway as the webhook can still work via metadata
+    } else {
+      console.log("[createIdentityVerificationAction] SUCCESS: Session saved to DB");
+      console.log("[createIdentityVerificationAction] DB now shows:", updateResult);
     }
 
     return successState("Verification session created.", {
@@ -196,8 +221,11 @@ export async function createIdentityVerificationAction(): Promise<ActionState> {
  * Called after returning from the hosted verification page.
  */
 export async function refreshIdentityStatusAction(): Promise<ActionState> {
+  console.log("[refreshIdentityStatusAction] Starting...");
+
   // Demo mode returns mock data
   if (isDemoMode()) {
+    console.log("[refreshIdentityStatusAction] Demo mode - returning verified");
     return successState("Status refreshed.", {
       status: "verified" as VerificationStatus,
       verifiedAt: new Date().toISOString(),
@@ -207,25 +235,29 @@ export async function refreshIdentityStatusAction(): Promise<ActionState> {
   // Get owner ID from auth
   const authUser = await getAuthUser();
   if (!authUser) {
+    console.error("[refreshIdentityStatusAction] Not authenticated");
     return errorState("Not authenticated. Please sign in.");
   }
   const ownerId = authUser.id;
+  console.log("[refreshIdentityStatusAction] User ID:", ownerId);
 
   if (!isStripeIdentityConfigured()) {
+    console.error("[refreshIdentityStatusAction] Stripe not configured");
     return errorState("Identity verification is not configured.");
   }
 
   if (!isServiceRoleConfigured()) {
+    console.error("[refreshIdentityStatusAction] DB not configured");
     return errorState("Database is not configured for this environment.");
   }
 
   try {
     const supabase = getServiceClient();
 
-    // Get stored session ID
+    // Get stored session ID AND current status
     const { data: userData, error: fetchError } = await supabase
       .from("users")
-      .select("identity_verification_session_id")
+      .select("identity_verification_session_id, verification_status")
       .eq("id", ownerId)
       .maybeSingle();
 
@@ -234,8 +266,12 @@ export async function refreshIdentityStatusAction(): Promise<ActionState> {
       return errorState("Failed to fetch session. Please try again.");
     }
 
+    console.log("[refreshIdentityStatusAction] Current DB status:", userData?.verification_status);
+    console.log("[refreshIdentityStatusAction] Session ID exists:", !!userData?.identity_verification_session_id);
+
     const sessionId = userData?.identity_verification_session_id;
     if (!sessionId) {
+      console.log("[refreshIdentityStatusAction] No session found");
       return successState("No verification session found.", {
         status: "unverified" as VerificationStatus,
         verifiedAt: null,
@@ -243,14 +279,16 @@ export async function refreshIdentityStatusAction(): Promise<ActionState> {
     }
 
     // Fetch status from Stripe
-    const status = await getIdentityVerificationStatus(sessionId);
+    console.log("[refreshIdentityStatusAction] Fetching from Stripe...");
+    const stripeResult = await getIdentityVerificationStatus(sessionId);
+    console.log("[refreshIdentityStatusAction] Stripe status:", stripeResult.status);
 
     // Update database
     const updateData: Record<string, unknown> = {
-      verification_status: status.status,
+      verification_status: stripeResult.status,
     };
 
-    if (status.status === "verified") {
+    if (stripeResult.status === "verified") {
       updateData.identity_verified_at = new Date().toISOString();
     }
 
@@ -261,16 +299,19 @@ export async function refreshIdentityStatusAction(): Promise<ActionState> {
 
     if (updateError) {
       console.error("[refreshIdentityStatusAction] Update error:", updateError);
-      // Continue anyway
+      // Continue anyway - return the status from Stripe
+    } else {
+      console.log("[refreshIdentityStatusAction] DB updated successfully");
     }
 
     // Revalidate
     revalidatePath("/onboarding/landlord");
     revalidatePath("/dashboard");
 
+    console.log("[refreshIdentityStatusAction] Returning status:", stripeResult.status);
     return successState("Status refreshed.", {
-      status: status.status,
-      verifiedAt: status.status === "verified" ? new Date().toISOString() : null,
+      status: stripeResult.status,
+      verifiedAt: stripeResult.status === "verified" ? new Date().toISOString() : null,
     });
   } catch (error) {
     console.error("[refreshIdentityStatusAction] Error:", error);
