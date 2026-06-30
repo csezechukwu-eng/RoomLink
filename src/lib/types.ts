@@ -37,6 +37,23 @@ export interface Property {
   /** Default minimum stay in days for new beds (30 = monthly) */
   default_min_stay_days: number;
   created_at: string;
+
+  // ---------------------------------------------------------------------------
+  // Onboarding Listing Fields
+  // ---------------------------------------------------------------------------
+
+  /** Whether the property is furnished */
+  furnished: boolean;
+  /** Whether utilities are included in rent */
+  utilities_included: boolean;
+  /** Whether WiFi is included */
+  wifi: boolean;
+  /** Laundry facilities description */
+  laundry: string | null;
+  /** Parking availability description */
+  parking: string | null;
+  /** Neighborhood and transit information */
+  neighborhood: string | null;
 }
 
 export interface Room {
@@ -156,6 +173,8 @@ export type StripeConnectOnboardingStatus =
   | "pending_verification"
   | "payouts_ready";
 
+export type LandlordType = "individual" | "company" | "property_manager";
+
 export interface User {
   id: string;
   email: string;
@@ -167,6 +186,35 @@ export interface User {
   signature_data: string | null;
   signature_updated_at: string | null;
   created_at: string;
+
+  // ---------------------------------------------------------------------------
+  // Landlord Onboarding Fields
+  // ---------------------------------------------------------------------------
+
+  /** Display name shown to tenants (can differ from legal name) */
+  display_name: string | null;
+  /** Type of landlord: individual, company, or property_manager */
+  landlord_type: LandlordType | null;
+  /** Emergency contact name */
+  emergency_contact_name: string | null;
+  /** Emergency contact phone */
+  emergency_contact_phone: string | null;
+  /** URL to the landlord profile photo */
+  avatar_url: string | null;
+  /** Stripe Identity verification session ID */
+  identity_verification_session_id: string | null;
+  /** When identity was verified via Stripe Identity */
+  identity_verified_at: string | null;
+  /** When landlord attested authority to manage property */
+  authority_attested_at: string | null;
+  /** When landlord acknowledged compliance requirements */
+  compliance_ack_at: string | null;
+  /** When landlord completed the onboarding flow */
+  onboarding_completed_at: string | null;
+  /** Draft property being created during onboarding */
+  onboarding_draft_property_id: string | null;
+  /** Whether landlord dismissed the onboarding banner */
+  onboarding_dismissed: boolean;
 
   // ---------------------------------------------------------------------------
   // DEPRECATED: Subscription Billing Fields

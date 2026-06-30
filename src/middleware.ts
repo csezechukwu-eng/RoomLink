@@ -17,7 +17,7 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 
 // Routes that require authentication
-const PROTECTED_ROUTES = ["/dashboard"];
+const PROTECTED_ROUTES = ["/dashboard", "/onboarding"];
 
 // Routes that authenticated users should not access (redirect to dashboard)
 const AUTH_ROUTES = ["/login", "/signup"];
@@ -96,8 +96,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from auth routes
+  // Send to onboarding first - it will redirect to dashboard if already complete
   if (isAuthRoute && isAuthenticated) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL("/onboarding/landlord", request.url));
   }
 
   return response;

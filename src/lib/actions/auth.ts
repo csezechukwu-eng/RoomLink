@@ -1,11 +1,48 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createAuthenticatedClient } from "@/lib/supabase/server";
+import { createAuthenticatedClient, getServiceClient, isServiceRoleConfigured } from "@/lib/supabase/server";
+import { getBaseUrl } from "@/lib/stripe/server";
 
 export type AuthActionResult = {
   error?: string;
 };
+
+/**
+ * Check if a user has completed landlord onboarding.
+ * Returns the appropriate redirect URL.
+ */
+async function getPostAuthRedirect(userId: string): Promise<string> {
+  if (!isServiceRoleConfigured()) {
+    // Default to onboarding if we can't check
+    return "/onboarding/landlord";
+  }
+
+  try {
+    const supabase = getServiceClient();
+    const { data: userData, error } = await supabase
+      .from("users")
+      .select("onboarding_completed_at")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[getPostAuthRedirect] Error:", error);
+      return "/onboarding/landlord";
+    }
+
+    // If no user row or onboarding not complete, go to onboarding
+    if (!userData || !userData.onboarding_completed_at) {
+      return "/onboarding/landlord";
+    }
+
+    // Onboarding complete - go to dashboard
+    return "/dashboard";
+  } catch (err) {
+    console.error("[getPostAuthRedirect] Unexpected error:", err);
+    return "/onboarding/landlord";
+  }
+}
 
 export async function signUp(formData: FormData): Promise<AuthActionResult> {
   const fullName = formData.get("fullName") as string;
@@ -23,6 +60,9 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
   try {
     const supabase = await createAuthenticatedClient();
 
+    // Get base URL for email confirmation redirect
+    const baseUrl = getBaseUrl();
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -30,6 +70,7 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
         data: {
           full_name: fullName,
         },
+        emailRedirectTo: `${baseUrl}/auth/callback`,
       },
     });
 
@@ -54,8 +95,8 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
     return { error: "An unexpected error occurred. Please try again." };
   }
 
-  // Redirect to dashboard on success
-  redirect("/dashboard");
+  // Redirect to onboarding on success (new landlord signups start onboarding)
+  redirect("/onboarding/landlord");
 }
 
 export async function signIn(formData: FormData): Promise<AuthActionResult> {
@@ -66,10 +107,12 @@ export async function signIn(formData: FormData): Promise<AuthActionResult> {
     return { error: "Email and password are required" };
   }
 
+  let userId: string | null = null;
+
   try {
     const supabase = await createAuthenticatedClient();
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -84,13 +127,16 @@ export async function signIn(formData: FormData): Promise<AuthActionResult> {
       }
       return { error: error.message };
     }
+
+    userId = data.user?.id || null;
   } catch (err) {
     console.error("Signin error:", err);
     return { error: "An unexpected error occurred. Please try again." };
   }
 
-  // Redirect to dashboard on success
-  redirect("/dashboard");
+  // Determine redirect based on onboarding status
+  const redirectUrl = userId ? await getPostAuthRedirect(userId) : "/onboarding/landlord";
+  redirect(redirectUrl);
 }
 
 export async function signOut(): Promise<void> {

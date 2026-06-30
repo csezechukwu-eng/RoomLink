@@ -12,6 +12,9 @@ import { createClient } from "@supabase/supabase-js";
  * Events handled:
  * - checkout.session.completed (tenant rent payment)
  * - account.updated (Stripe Connect onboarding status sync)
+ * - identity.verification_session.verified (landlord ID verification complete)
+ * - identity.verification_session.requires_input (verification needs action)
+ * - identity.verification_session.canceled (verification canceled)
  *
  * Future events:
  * - payment_intent.payment_failed
@@ -105,6 +108,25 @@ export async function POST(request: NextRequest) {
       case "account.updated":
         // Stripe Connect account status changed (onboarding progress, verification, etc.)
         await handleAccountUpdated(event.data.object as Stripe.Account);
+        break;
+
+      // =======================================================================
+      // Identity Verification Events (Stripe Identity)
+      // =======================================================================
+
+      case "identity.verification_session.verified":
+        // Landlord identity verification completed successfully
+        await handleIdentityVerified(event.data.object as Stripe.Identity.VerificationSession);
+        break;
+
+      case "identity.verification_session.requires_input":
+        // Verification needs user action (e.g., clearer photo needed)
+        await handleIdentityRequiresInput(event.data.object as Stripe.Identity.VerificationSession);
+        break;
+
+      case "identity.verification_session.canceled":
+        // Verification was canceled
+        await handleIdentityCanceled(event.data.object as Stripe.Identity.VerificationSession);
         break;
 
       default:
@@ -460,4 +482,124 @@ async function handleAccountUpdated(account: Stripe.Account) {
     userId: user.id,
     onboardingComplete,
   });
+}
+
+// =============================================================================
+// Identity Verification Event Handlers
+// =============================================================================
+
+/**
+ * Handle identity verification completed successfully.
+ * Updates the user's verification status to "verified".
+ */
+async function handleIdentityVerified(session: Stripe.Identity.VerificationSession) {
+  console.log("[webhook] Identity verified:", session.id);
+
+  const userId = session.metadata?.user_id;
+  if (!userId) {
+    console.log("[webhook] No user_id in identity session metadata:", session.id);
+    return;
+  }
+
+  let supabase;
+  try {
+    supabase = getWebhookSupabaseClient();
+  } catch (error) {
+    console.error("[webhook] Supabase not configured:", error);
+    return;
+  }
+
+  // Update user verification status
+  const { error: updateError } = await supabase
+    .from("users")
+    .update({
+      verification_status: "verified",
+      identity_verified_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+    .eq("identity_verification_session_id", session.id);
+
+  if (updateError) {
+    console.error("[webhook] Error updating user identity status:", updateError);
+    return;
+  }
+
+  console.log("[webhook] User identity verified:", userId);
+}
+
+/**
+ * Handle identity verification requiring additional input.
+ * Updates the user's verification status to "pending".
+ */
+async function handleIdentityRequiresInput(session: Stripe.Identity.VerificationSession) {
+  console.log("[webhook] Identity requires input:", session.id);
+
+  const userId = session.metadata?.user_id;
+  if (!userId) {
+    console.log("[webhook] No user_id in identity session metadata:", session.id);
+    return;
+  }
+
+  let supabase;
+  try {
+    supabase = getWebhookSupabaseClient();
+  } catch (error) {
+    console.error("[webhook] Supabase not configured:", error);
+    return;
+  }
+
+  // Update user verification status to pending (requires action)
+  const { error: updateError } = await supabase
+    .from("users")
+    .update({
+      verification_status: "pending",
+    })
+    .eq("id", userId)
+    .eq("identity_verification_session_id", session.id);
+
+  if (updateError) {
+    console.error("[webhook] Error updating user identity status:", updateError);
+    return;
+  }
+
+  console.log("[webhook] User identity status updated to pending:", userId);
+}
+
+/**
+ * Handle identity verification canceled.
+ * Updates the user's verification status to "unverified".
+ */
+async function handleIdentityCanceled(session: Stripe.Identity.VerificationSession) {
+  console.log("[webhook] Identity verification canceled:", session.id);
+
+  const userId = session.metadata?.user_id;
+  if (!userId) {
+    console.log("[webhook] No user_id in identity session metadata:", session.id);
+    return;
+  }
+
+  let supabase;
+  try {
+    supabase = getWebhookSupabaseClient();
+  } catch (error) {
+    console.error("[webhook] Supabase not configured:", error);
+    return;
+  }
+
+  // Reset verification status
+  const { error: updateError } = await supabase
+    .from("users")
+    .update({
+      verification_status: "unverified",
+      identity_verification_session_id: null,
+    })
+    .eq("id", userId)
+    .eq("identity_verification_session_id", session.id);
+
+  if (updateError) {
+    console.error("[webhook] Error updating user identity status:", updateError);
+    return;
+  }
+
+  console.log("[webhook] User identity verification canceled:", userId);
 }
