@@ -25,16 +25,28 @@ export async function GET(request: NextRequest) {
 
   console.log("[identity/return] ===== STRIPE IDENTITY RETURN START =====");
   console.log("[identity/return] Timestamp:", timestamp);
+  console.log("[identity/return] Request URL:", request.url);
   console.log("[identity/return] URL Config:", getUrlConfigDiagnostics());
   console.log("[identity/return] Base URL:", baseUrl);
+
+  // Log cookie information (names only for security)
+  const cookieNames = request.cookies.getAll().map(c => c.name);
+  console.log("[identity/return] Cookies present:", cookieNames);
+  console.log("[identity/return] Has sb-access-token:", cookieNames.some(n => n.includes("sb-") && n.includes("auth-token")));
 
   // Get authenticated user
   const authUser = await getAuthUser();
   if (!authUser) {
     console.error("[identity/return] FAILED: User not authenticated");
-    console.error("[identity/return] This likely means auth cookies were lost during Stripe redirect");
+    console.error("[identity/return] Cookie count:", cookieNames.length);
+    console.error("[identity/return] Supabase cookies:", cookieNames.filter(n => n.startsWith("sb-")));
+    console.error("[identity/return] This likely means:");
+    console.error("[identity/return]   1. Session expired, OR");
+    console.error("[identity/return]   2. Cookie domain mismatch (original login was on different domain), OR");
+    console.error("[identity/return]   3. Cookies not sent by browser");
     const loginUrl = new URL("/login", baseUrl);
     loginUrl.searchParams.set("redirect", "/onboarding/landlord?step=identity");
+    console.log("[identity/return] Redirecting to:", loginUrl.toString());
     return NextResponse.redirect(loginUrl);
   }
 

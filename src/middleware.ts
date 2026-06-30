@@ -92,13 +92,25 @@ export async function middleware(request: NextRequest) {
 
   // Log auth state for debugging (only on protected/auth routes)
   if (isProtectedRoute || isAuthRoute) {
+    console.log("[middleware] ===== AUTH CHECK =====");
+    console.log("[middleware] Full URL:", request.url);
     console.log("[middleware] Path:", pathname);
+    console.log("[middleware] Query params:", searchParams.toString());
+    console.log("[middleware] isProtectedRoute:", isProtectedRoute);
+    console.log("[middleware] isAuthRoute:", isAuthRoute);
     console.log("[middleware] Authenticated:", isAuthenticated);
+
+    // Log cookie info
+    const cookieNames = request.cookies.getAll().map(c => c.name);
+    console.log("[middleware] Cookie count:", cookieNames.length);
+    console.log("[middleware] Supabase cookies:", cookieNames.filter(n => n.startsWith("sb-")));
+
     if (authError) {
       console.log("[middleware] Auth error:", authError.message);
     }
     if (user) {
       console.log("[middleware] User ID:", user.id);
+      console.log("[middleware] User email:", user.email);
     }
   }
 

@@ -33,14 +33,22 @@ function LoginForm() {
   const redirectParam = searchParams.get("redirect");
   const [error, setError] = React.useState<string | null>(null);
 
+  // Log redirect param on mount (client-side)
+  React.useEffect(() => {
+    console.log("[LoginForm] Redirect param from URL:", redirectParam);
+  }, [redirectParam]);
+
   async function handleSubmit(formData: FormData) {
     setError(null);
+    console.log("[LoginForm] Form submitted");
+    console.log("[LoginForm] Adding redirect param to formData:", redirectParam);
     // Pass the redirect URL to the signIn action
     if (redirectParam) {
       formData.set("redirect", redirectParam);
     }
     const result = await signIn(formData);
     if (result?.error) {
+      console.log("[LoginForm] Sign in returned error:", result.error);
       setError(result.error);
     }
   }

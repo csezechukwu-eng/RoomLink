@@ -107,6 +107,10 @@ export async function signIn(formData: FormData): Promise<AuthActionResult> {
   const password = formData.get("password") as string;
   const redirectParam = formData.get("redirect") as string | null;
 
+  console.log("[signIn] ===== SIGN IN START =====");
+  console.log("[signIn] Email:", email);
+  console.log("[signIn] Redirect param received:", redirectParam);
+
   if (!email || !password) {
     return { error: "Email and password are required" };
   }
@@ -116,12 +120,14 @@ export async function signIn(formData: FormData): Promise<AuthActionResult> {
   try {
     const supabase = await createAuthenticatedClient();
 
+    console.log("[signIn] Attempting authentication...");
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
+      console.error("[signIn] Auth error:", error.message);
       // Handle specific Supabase auth errors
       if (error.message.includes("Invalid login credentials")) {
         return { error: "Invalid email or password" };
@@ -133,20 +139,23 @@ export async function signIn(formData: FormData): Promise<AuthActionResult> {
     }
 
     userId = data.user?.id || null;
+    console.log("[signIn] Authentication successful, user ID:", userId);
   } catch (err) {
-    console.error("Signin error:", err);
+    console.error("[signIn] Unexpected error:", err);
     return { error: "An unexpected error occurred. Please try again." };
   }
 
   // If a redirect was specified and it's a valid internal path, use it
   if (redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")) {
-    console.log("[signIn] Using redirect param:", redirectParam);
+    console.log("[signIn] ===== REDIRECTING TO PARAM =====");
+    console.log("[signIn] Redirect destination:", redirectParam);
     redirect(redirectParam);
   }
 
   // Otherwise, determine redirect based on onboarding status
   const redirectUrl = userId ? await getPostAuthRedirect(userId) : "/onboarding/landlord";
-  console.log("[signIn] Using default redirect:", redirectUrl);
+  console.log("[signIn] ===== REDIRECTING TO DEFAULT =====");
+  console.log("[signIn] Default redirect:", redirectUrl);
   redirect(redirectUrl);
 }
 
