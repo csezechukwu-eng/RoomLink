@@ -347,13 +347,20 @@ export function PayoutsStep({ state, onContinue }: PayoutsStepProps) {
         )}
       </Card>
 
-      {/* Skip for now note */}
+      {/* Skip for now section */}
       {!isPayoutsReady && (
-        <div className="flex items-start gap-3 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
-          <AlertCircle className="h-5 w-5 shrink-0 text-slate-400 mt-0.5" />
-          <div>
-            <p className="font-medium text-slate-700">You can skip this step for now</p>
-            <p>Stripe Connect is required to receive rent payments, but you can publish your listing first and set up payouts later.</p>
+        <div className="rounded-lg bg-slate-50 p-4">
+          <div className="flex items-start gap-3 text-sm text-slate-600">
+            <AlertCircle className="h-5 w-5 shrink-0 text-slate-400 mt-0.5" />
+            <div>
+              <p className="font-medium text-slate-700">You can skip this step for now</p>
+              <p>Stripe Connect is required to receive rent payments, but you can publish your listing first and set up payouts later.</p>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button variant="outline" onClick={onContinue}>
+              Skip for now
+            </Button>
           </div>
         </div>
       )}
