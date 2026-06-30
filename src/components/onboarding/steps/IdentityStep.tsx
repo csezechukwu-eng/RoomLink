@@ -233,7 +233,11 @@ export function IdentityStep({ state, onContinue }: IdentityStepProps) {
             {isAttested && (
               <p className="text-sm text-emerald-600 mt-2 flex items-center gap-1">
                 <Check className="h-4 w-4" />
-                Attested on {new Date(data.authorityAttestedAt || "").toLocaleDateString()}
+                {data.authorityAttestedAt ? (
+                  <>Attested on {new Date(data.authorityAttestedAt).toLocaleDateString()}</>
+                ) : (
+                  <>Attestation confirmed</>
+                )}
               </p>
             )}
           </div>
