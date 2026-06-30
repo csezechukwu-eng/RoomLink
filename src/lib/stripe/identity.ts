@@ -31,20 +31,38 @@ export interface VerificationSessionStatus {
 
 /**
  * Map Stripe verification session status to our VerificationStatus enum.
+ *
+ * Stripe Identity statuses:
+ * - requires_input: Session created but user hasn't started OR needs to resubmit
+ * - processing: Stripe is reviewing the submitted documents
+ * - verified: Verification completed successfully
+ * - canceled: Verification was canceled
+ *
+ * Our status mapping:
+ * - not_started: No session exists or user hasn't started
+ * - pending: User started verification but not complete
+ * - processing: Stripe is reviewing documents
+ * - verified: Successfully verified
+ * - needs_attention: User needs to resubmit or fix something
+ * - canceled: Verification was canceled
  */
 export function mapStripeStatusToVerificationStatus(
-  stripeStatus: string
+  stripeStatus: string,
+  hasSubmittedBefore?: boolean
 ): VerificationStatus {
   switch (stripeStatus) {
     case "verified":
       return "verified";
     case "processing":
+      return "processing";
     case "requires_input":
-      return "pending";
+      // If user has submitted before and needs to resubmit, it's needs_attention
+      // Otherwise, they just haven't started the verification yet
+      return hasSubmittedBefore ? "needs_attention" : "pending";
     case "canceled":
-    case "requires_action":
+      return "canceled";
     default:
-      return "unverified";
+      return "not_started";
   }
 }
 
@@ -93,7 +111,7 @@ export async function createIdentityVerificationSession(
     return {
       sessionId: session.id,
       url: session.url || "",
-      status: mapStripeStatusToVerificationStatus(session.status),
+      status: mapStripeStatusToVerificationStatus(session.status, false),
     };
   } catch (error) {
     // Check if Identity is not enabled on the Stripe account
@@ -126,9 +144,13 @@ export async function getIdentityVerificationStatus(
 
   const session = await stripe.identity.verificationSessions.retrieve(sessionId);
 
+  // Check if user has submitted before (has a verification report)
+  // This helps distinguish between "hasn't started" vs "needs to resubmit"
+  const hasSubmittedBefore = !!session.last_verification_report;
+
   return {
     sessionId: session.id,
-    status: mapStripeStatusToVerificationStatus(session.status),
+    status: mapStripeStatusToVerificationStatus(session.status, hasSubmittedBefore),
     lastError: session.last_error?.reason || null,
   };
 }

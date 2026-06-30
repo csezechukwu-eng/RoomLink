@@ -75,7 +75,7 @@ export async function getIdentityStatusAction(): Promise<ActionState> {
     }
 
     return successState("Status loaded.", {
-      status: (userData?.verification_status as VerificationStatus) || "unverified",
+      status: (userData?.verification_status as VerificationStatus) || "not_started",
       sessionId: userData?.identity_verification_session_id || null,
       verifiedAt: userData?.identity_verified_at || null,
     });
@@ -273,7 +273,7 @@ export async function refreshIdentityStatusAction(): Promise<ActionState> {
     if (!sessionId) {
       console.log("[refreshIdentityStatusAction] No session found");
       return successState("No verification session found.", {
-        status: "unverified" as VerificationStatus,
+        status: "not_started" as VerificationStatus,
         verifiedAt: null,
       });
     }

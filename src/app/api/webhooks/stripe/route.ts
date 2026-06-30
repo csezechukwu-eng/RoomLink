@@ -119,6 +119,11 @@ export async function POST(request: NextRequest) {
         await handleIdentityVerified(event.data.object as Stripe.Identity.VerificationSession);
         break;
 
+      case "identity.verification_session.processing":
+        // Stripe is reviewing the verification (documents submitted)
+        await handleIdentityProcessing(event.data.object as Stripe.Identity.VerificationSession);
+        break;
+
       case "identity.verification_session.requires_input":
         // Verification needs user action (e.g., clearer photo needed)
         await handleIdentityRequiresInput(event.data.object as Stripe.Identity.VerificationSession);
@@ -494,10 +499,13 @@ async function handleAccountUpdated(account: Stripe.Account) {
  */
 async function handleIdentityVerified(session: Stripe.Identity.VerificationSession) {
   console.log("[webhook] Identity verified:", session.id);
+  console.log("[webhook] Session metadata:", session.metadata);
 
   const userId = session.metadata?.user_id;
   if (!userId) {
     console.log("[webhook] No user_id in identity session metadata:", session.id);
+    // Try to find user by session ID as fallback
+    await updateIdentityStatusBySessionId(session.id, "verified", true);
     return;
   }
 
@@ -510,14 +518,14 @@ async function handleIdentityVerified(session: Stripe.Identity.VerificationSessi
   }
 
   // Update user verification status
-  const { error: updateError } = await supabase
+  const { error: updateError, data: updateResult } = await supabase
     .from("users")
     .update({
       verification_status: "verified",
       identity_verified_at: new Date().toISOString(),
     })
     .eq("id", userId)
-    .eq("identity_verification_session_id", session.id);
+    .select("id, verification_status");
 
   if (updateError) {
     console.error("[webhook] Error updating user identity status:", updateError);
@@ -525,18 +533,21 @@ async function handleIdentityVerified(session: Stripe.Identity.VerificationSessi
   }
 
   console.log("[webhook] User identity verified:", userId);
+  console.log("[webhook] Update result:", updateResult);
 }
 
 /**
- * Handle identity verification requiring additional input.
- * Updates the user's verification status to "pending".
+ * Handle identity verification processing.
+ * Updates the user's verification status to "processing".
  */
-async function handleIdentityRequiresInput(session: Stripe.Identity.VerificationSession) {
-  console.log("[webhook] Identity requires input:", session.id);
+async function handleIdentityProcessing(session: Stripe.Identity.VerificationSession) {
+  console.log("[webhook] Identity processing:", session.id);
+  console.log("[webhook] Session metadata:", session.metadata);
 
   const userId = session.metadata?.user_id;
   if (!userId) {
     console.log("[webhook] No user_id in identity session metadata:", session.id);
+    await updateIdentityStatusBySessionId(session.id, "processing", false);
     return;
   }
 
@@ -548,33 +559,40 @@ async function handleIdentityRequiresInput(session: Stripe.Identity.Verification
     return;
   }
 
-  // Update user verification status to pending (requires action)
-  const { error: updateError } = await supabase
+  // Update user verification status to processing
+  const { error: updateError, data: updateResult } = await supabase
     .from("users")
     .update({
-      verification_status: "pending",
+      verification_status: "processing",
     })
     .eq("id", userId)
-    .eq("identity_verification_session_id", session.id);
+    .select("id, verification_status");
 
   if (updateError) {
     console.error("[webhook] Error updating user identity status:", updateError);
     return;
   }
 
-  console.log("[webhook] User identity status updated to pending:", userId);
+  console.log("[webhook] User identity status updated to processing:", userId);
+  console.log("[webhook] Update result:", updateResult);
 }
 
 /**
- * Handle identity verification canceled.
- * Updates the user's verification status to "unverified".
+ * Handle identity verification requiring additional input.
+ * Updates the user's verification status to "needs_attention".
  */
-async function handleIdentityCanceled(session: Stripe.Identity.VerificationSession) {
-  console.log("[webhook] Identity verification canceled:", session.id);
+async function handleIdentityRequiresInput(session: Stripe.Identity.VerificationSession) {
+  console.log("[webhook] Identity requires input:", session.id);
+  console.log("[webhook] Session metadata:", session.metadata);
+  console.log("[webhook] Last error:", session.last_error);
 
   const userId = session.metadata?.user_id;
   if (!userId) {
     console.log("[webhook] No user_id in identity session metadata:", session.id);
+    // Check if user has submitted before to determine status
+    const hasSubmittedBefore = !!session.last_verification_report;
+    const status = hasSubmittedBefore ? "needs_attention" : "pending";
+    await updateIdentityStatusBySessionId(session.id, status, false);
     return;
   }
 
@@ -586,15 +604,60 @@ async function handleIdentityCanceled(session: Stripe.Identity.VerificationSessi
     return;
   }
 
-  // Reset verification status
-  const { error: updateError } = await supabase
+  // Check if user has submitted before to determine status
+  const hasSubmittedBefore = !!session.last_verification_report;
+  const status = hasSubmittedBefore ? "needs_attention" : "pending";
+
+  // Update user verification status
+  const { error: updateError, data: updateResult } = await supabase
     .from("users")
     .update({
-      verification_status: "unverified",
-      identity_verification_session_id: null,
+      verification_status: status,
     })
     .eq("id", userId)
-    .eq("identity_verification_session_id", session.id);
+    .select("id, verification_status");
+
+  if (updateError) {
+    console.error("[webhook] Error updating user identity status:", updateError);
+    return;
+  }
+
+  console.log("[webhook] User identity status updated to", status, ":", userId);
+  console.log("[webhook] Update result:", updateResult);
+}
+
+/**
+ * Handle identity verification canceled.
+ * Updates the user's verification status to "canceled".
+ */
+async function handleIdentityCanceled(session: Stripe.Identity.VerificationSession) {
+  console.log("[webhook] Identity verification canceled:", session.id);
+  console.log("[webhook] Session metadata:", session.metadata);
+
+  const userId = session.metadata?.user_id;
+  if (!userId) {
+    console.log("[webhook] No user_id in identity session metadata:", session.id);
+    await updateIdentityStatusBySessionId(session.id, "canceled", false);
+    return;
+  }
+
+  let supabase;
+  try {
+    supabase = getWebhookSupabaseClient();
+  } catch (error) {
+    console.error("[webhook] Supabase not configured:", error);
+    return;
+  }
+
+  // Update verification status to canceled
+  const { error: updateError, data: updateResult } = await supabase
+    .from("users")
+    .update({
+      verification_status: "canceled",
+      // Keep the session ID for reference, don't clear it
+    })
+    .eq("id", userId)
+    .select("id, verification_status");
 
   if (updateError) {
     console.error("[webhook] Error updating user identity status:", updateError);
@@ -602,4 +665,50 @@ async function handleIdentityCanceled(session: Stripe.Identity.VerificationSessi
   }
 
   console.log("[webhook] User identity verification canceled:", userId);
+  console.log("[webhook] Update result:", updateResult);
+}
+
+/**
+ * Fallback: Update identity status by session ID when user_id is not in metadata.
+ */
+async function updateIdentityStatusBySessionId(
+  sessionId: string,
+  status: string,
+  setVerifiedAt: boolean
+) {
+  console.log("[webhook] Fallback: updating by session ID:", sessionId);
+
+  let supabase;
+  try {
+    supabase = getWebhookSupabaseClient();
+  } catch (error) {
+    console.error("[webhook] Supabase not configured:", error);
+    return;
+  }
+
+  const updateData: Record<string, unknown> = {
+    verification_status: status,
+  };
+
+  if (setVerifiedAt) {
+    updateData.identity_verified_at = new Date().toISOString();
+  }
+
+  const { error: updateError, data: updateResult } = await supabase
+    .from("users")
+    .update(updateData)
+    .eq("identity_verification_session_id", sessionId)
+    .select("id, verification_status");
+
+  if (updateError) {
+    console.error("[webhook] Error updating by session ID:", updateError);
+    return;
+  }
+
+  if (!updateResult || updateResult.length === 0) {
+    console.log("[webhook] No user found with session ID:", sessionId);
+    return;
+  }
+
+  console.log("[webhook] Updated user by session ID:", updateResult);
 }

@@ -43,13 +43,17 @@ export function IdentityStep({ state, onContinue }: IdentityStepProps) {
   // Refresh status on mount in case we're returning from Stripe verification
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    // Always refresh if URL says to, or if status is anything except verified/not_started
     const shouldRefresh =
       params.get("demo_verified") === "true" ||
       params.get("refresh_status") === "true" ||
-      verificationStatus === "pending";
+      verificationStatus === "pending" ||
+      verificationStatus === "processing" ||
+      verificationStatus === "needs_attention";
 
     if (shouldRefresh) {
       console.log("[IdentityStep] Refreshing verification status...");
+      console.log("[IdentityStep] Current status:", verificationStatus);
       startTransition(async () => {
         const result = await refreshIdentityStatusAction();
         console.log("[IdentityStep] Refresh result:", result);
@@ -151,16 +155,28 @@ export function IdentityStep({ state, onContinue }: IdentityStepProps) {
               "flex h-12 w-12 shrink-0 items-center justify-center rounded-full",
               verificationStatus === "verified"
                 ? "bg-emerald-100"
+                : verificationStatus === "processing"
+                ? "bg-blue-100"
                 : verificationStatus === "pending"
                 ? "bg-amber-100"
+                : verificationStatus === "needs_attention"
+                ? "bg-orange-100"
+                : verificationStatus === "canceled"
+                ? "bg-red-100"
                 : "bg-slate-100"
             )}>
               <Shield className={cn(
                 "h-6 w-6",
                 verificationStatus === "verified"
                   ? "text-emerald-600"
+                  : verificationStatus === "processing"
+                  ? "text-blue-600"
                   : verificationStatus === "pending"
                   ? "text-amber-600"
+                  : verificationStatus === "needs_attention"
+                  ? "text-orange-600"
+                  : verificationStatus === "canceled"
+                  ? "text-red-600"
                   : "text-slate-400"
               )} />
             </div>
@@ -183,6 +199,21 @@ export function IdentityStep({ state, onContinue }: IdentityStepProps) {
               <Check className="h-4 w-4" />
               <span>Identity verified</span>
             </div>
+          ) : verificationStatus === "processing" ? (
+            <>
+              <div className="flex items-center gap-2 text-sm text-blue-600">
+                <Clock className="h-4 w-4" />
+                <span>Stripe is reviewing your documents...</span>
+              </div>
+              <Button
+                variant="outline"
+                onClick={handleRefreshStatus}
+                disabled={isPending}
+              >
+                <RefreshCw className={cn("h-4 w-4 mr-2", isPending && "animate-spin")} />
+                Check status
+              </Button>
+            </>
           ) : verificationStatus === "pending" ? (
             <>
               <Button
@@ -196,6 +227,28 @@ export function IdentityStep({ state, onContinue }: IdentityStepProps) {
               <Button onClick={handleStartVerification} disabled={isPending}>
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Continue verification
+              </Button>
+            </>
+          ) : verificationStatus === "needs_attention" ? (
+            <>
+              <div className="flex items-center gap-2 text-sm text-orange-600">
+                <AlertCircle className="h-4 w-4" />
+                <span>Additional information needed</span>
+              </div>
+              <Button onClick={handleStartVerification} disabled={isPending}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Complete verification
+              </Button>
+            </>
+          ) : verificationStatus === "canceled" ? (
+            <>
+              <div className="flex items-center gap-2 text-sm text-red-600">
+                <AlertCircle className="h-4 w-4" />
+                <span>Verification was canceled</span>
+              </div>
+              <Button onClick={handleStartVerification} disabled={isPending}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Start new verification
               </Button>
             </>
           ) : (
@@ -284,17 +337,39 @@ function VerificationBadge({ status }: { status: VerificationStatus }) {
           Verified
         </Badge>
       );
+    case "processing":
+      return (
+        <Badge className="bg-blue-50 text-blue-700">
+          <Clock className="h-3 w-3 mr-1" />
+          Processing
+        </Badge>
+      );
     case "pending":
       return (
         <Badge className="bg-amber-50 text-amber-700">
           <Clock className="h-3 w-3 mr-1" />
-          Pending
+          In Progress
         </Badge>
       );
+    case "needs_attention":
+      return (
+        <Badge className="bg-orange-50 text-orange-700">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Needs Attention
+        </Badge>
+      );
+    case "canceled":
+      return (
+        <Badge className="bg-red-50 text-red-700">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Canceled
+        </Badge>
+      );
+    case "not_started":
     default:
       return (
         <Badge className="bg-slate-100 text-slate-600">
-          Not started
+          Not Started
         </Badge>
       );
   }

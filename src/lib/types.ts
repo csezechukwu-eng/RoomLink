@@ -133,7 +133,13 @@ export interface DashboardMetrics {
 // ---------------------------------------------------------------------------
 
 export type UserRole = "owner" | "manager" | "tenant";
-export type VerificationStatus = "unverified" | "pending" | "verified";
+export type VerificationStatus =
+  | "not_started"
+  | "pending"
+  | "processing"
+  | "verified"
+  | "needs_attention"
+  | "canceled";
 
 // ---------------------------------------------------------------------------
 // DEPRECATED: Subscription Billing Types
