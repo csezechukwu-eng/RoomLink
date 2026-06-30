@@ -60,15 +60,19 @@ export function getStripeConfigDiagnostics(): {
 
 /**
  * Get the base URL for redirects.
+ *
+ * IMPORTANT: NEXT_PUBLIC_APP_URL (custom domain) takes priority over VERCEL_URL.
+ * VERCEL_URL is auto-set to the deployment URL (e.g., roomlink-xxx.vercel.app),
+ * which causes cookie domain mismatches when using a custom domain.
  */
 export function getBaseUrl(): string {
-  // Vercel deployment
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  // Production URL
+  // Production URL (custom domain) - MUST be checked first
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL;
+  }
+  // Vercel deployment URL (fallback for preview deployments)
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
   }
   // Local development
   return "http://localhost:3000";

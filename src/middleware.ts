@@ -25,10 +25,11 @@ const AUTH_ROUTES = ["/login", "/signup"];
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for static files and Next.js internals
+  // Skip middleware for static files, Next.js internals, and auth routes
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
+    pathname.startsWith("/auth") || // Auth callback handles its own flow
     pathname.includes(".") // Static files like images, fonts, etc.
   ) {
     return NextResponse.next();
