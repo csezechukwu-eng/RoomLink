@@ -105,6 +105,7 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
 export async function signIn(formData: FormData): Promise<AuthActionResult> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const redirectParam = formData.get("redirect") as string | null;
 
   if (!email || !password) {
     return { error: "Email and password are required" };
@@ -137,8 +138,15 @@ export async function signIn(formData: FormData): Promise<AuthActionResult> {
     return { error: "An unexpected error occurred. Please try again." };
   }
 
-  // Determine redirect based on onboarding status
+  // If a redirect was specified and it's a valid internal path, use it
+  if (redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")) {
+    console.log("[signIn] Using redirect param:", redirectParam);
+    redirect(redirectParam);
+  }
+
+  // Otherwise, determine redirect based on onboarding status
   const redirectUrl = userId ? await getPostAuthRedirect(userId) : "/onboarding/landlord";
+  console.log("[signIn] Using default redirect:", redirectUrl);
   redirect(redirectUrl);
 }
 

@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import { signIn } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -26,11 +28,17 @@ function SubmitButton() {
   );
 }
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
   const [error, setError] = React.useState<string | null>(null);
 
   async function handleSubmit(formData: FormData) {
     setError(null);
+    // Pass the redirect URL to the signIn action
+    if (redirectParam) {
+      formData.set("redirect", redirectParam);
+    }
     const result = await signIn(formData);
     if (result?.error) {
       setError(result.error);
@@ -119,5 +127,17 @@ export default function LoginPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="w-full max-w-md flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

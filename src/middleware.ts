@@ -23,7 +23,7 @@ const PROTECTED_ROUTES = ["/dashboard", "/onboarding"];
 const AUTH_ROUTES = ["/login", "/signup"];
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
 
   // Skip middleware for static files, Next.js internals, and auth routes
   if (
@@ -72,13 +72,6 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session if needed (important for keeping sessions alive)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const isAuthenticated = !!user;
-
   // Check if route requires authentication
   const isProtectedRoute = PROTECTED_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
@@ -89,16 +82,52 @@ export async function middleware(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 
+  // Refresh session if needed (important for keeping sessions alive)
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  const isAuthenticated = !!user;
+
+  // Log auth state for debugging (only on protected/auth routes)
+  if (isProtectedRoute || isAuthRoute) {
+    console.log("[middleware] Path:", pathname);
+    console.log("[middleware] Authenticated:", isAuthenticated);
+    if (authError) {
+      console.log("[middleware] Auth error:", authError.message);
+    }
+    if (user) {
+      console.log("[middleware] User ID:", user.id);
+    }
+  }
+
   // Redirect unauthenticated users away from protected routes
+  // Preserve full path including query params for redirect
   if (isProtectedRoute && !isAuthenticated) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
+    // Include query string in redirect
+    const fullPath = searchParams.toString()
+      ? `${pathname}?${searchParams.toString()}`
+      : pathname;
+    loginUrl.searchParams.set("redirect", fullPath);
+    console.log("[middleware] Unauthenticated user on protected route, redirecting to login with redirect:", fullPath);
     return NextResponse.redirect(loginUrl);
   }
 
   // Redirect authenticated users away from auth routes
-  // Send to onboarding first - it will redirect to dashboard if already complete
+  // Check for redirect param first - honor it if it's a valid internal path
   if (isAuthRoute && isAuthenticated) {
+    const redirectParam = searchParams.get("redirect");
+
+    // Validate redirect is an internal path (starts with /) and not an external URL
+    if (redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")) {
+      console.log("[middleware] Authenticated user on auth route, redirecting to:", redirectParam);
+      return NextResponse.redirect(new URL(redirectParam, request.url));
+    }
+
+    // Default: send to onboarding (it will redirect to dashboard if already complete)
+    console.log("[middleware] Authenticated user on auth route, redirecting to onboarding");
     return NextResponse.redirect(new URL("/onboarding/landlord", request.url));
   }
 
