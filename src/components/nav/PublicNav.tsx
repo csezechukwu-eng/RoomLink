@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, LogOut, Home, Settings, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RentaBedLogo } from "@/components/nav/Sidebar";
-import { cn } from "@/lib/utils";
+import { signOut } from "@/lib/actions/auth";
 
 const navItems = [
   { href: "/availability", label: "Find a Bed" },
@@ -14,9 +15,43 @@ const navItems = [
   { href: "/#about", label: "About" },
 ];
 
-export function PublicNav() {
+interface PublicNavUser {
+  id: string;
+  email: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+  role: string | null;
+}
+
+interface PublicNavProps {
+  user?: PublicNavUser | null;
+}
+
+export function PublicNav({ user }: PublicNavProps) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+  const userMenuRef = React.useRef<HTMLDivElement>(null);
+
+  // Close user menu when clicking outside
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    setUserMenuOpen(false);
+    await signOut();
+  };
+
+  const displayName = user?.fullName || user?.email?.split("@")[0] || "User";
+  const initials = displayName.charAt(0).toUpperCase();
+  const portalHref = user?.role === "landlord" ? "/dashboard" : "/tenant";
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
@@ -43,9 +78,71 @@ export function PublicNav() {
             ))}
           </nav>
 
-          {/* Desktop CTA */}
+          {/* Desktop CTA / User Menu */}
           <div className="hidden items-center gap-3 md:flex">
-            {pathname === "/hosting" ? (
+            {user ? (
+              /* Logged in - Show user menu */
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 rounded-full border border-slate-200 p-1 pr-3 transition-colors hover:bg-slate-50"
+                >
+                  {user.avatarUrl ? (
+                    <Image
+                      src={user.avatarUrl}
+                      alt={displayName}
+                      width={32}
+                      height={32}
+                      className="h-8 w-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-medium text-indigo-600">
+                      {initials}
+                    </div>
+                  )}
+                  <span className="text-sm font-medium text-slate-700 max-w-[120px] truncate">
+                    {displayName}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                    <div className="border-b border-slate-100 px-4 py-3">
+                      <p className="text-sm font-medium text-slate-900 truncate">{displayName}</p>
+                      <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                    </div>
+                    <Link
+                      href={portalHref}
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <Home className="h-4 w-4" />
+                      {user.role === "landlord" ? "Host Dashboard" : "My Portal"}
+                    </Link>
+                    <Link
+                      href={user.role === "landlord" ? "/dashboard/settings" : "/tenant/settings"}
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Settings
+                    </Link>
+                    <div className="border-t border-slate-100 mt-1 pt-1">
+                      <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Log Out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : pathname === "/hosting" ? (
+              /* Hosting page - show host login */
               <>
                 <Link
                   href="/login"
@@ -63,6 +160,7 @@ export function PublicNav() {
                 </Link>
               </>
             ) : (
+              /* Default - show tenant login */
               <>
                 <Link
                   href="/signin"
@@ -113,7 +211,56 @@ export function PublicNav() {
               </Link>
             ))}
             <div className="mt-4 flex flex-col gap-2 pt-4 border-t border-slate-100">
-              {pathname === "/hosting" ? (
+              {user ? (
+                /* Logged in mobile menu */
+                <>
+                  <div className="flex items-center gap-3 px-3 py-2">
+                    {user.avatarUrl ? (
+                      <Image
+                        src={user.avatarUrl}
+                        alt={displayName}
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-medium text-indigo-600">
+                        {initials}
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium text-slate-900">{displayName}</p>
+                      <p className="text-sm text-slate-500">{user.email}</p>
+                    </div>
+                  </div>
+                  <Link
+                    href={portalHref}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-base font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    <Home className="h-5 w-5" />
+                    {user.role === "landlord" ? "Host Dashboard" : "My Portal"}
+                  </Link>
+                  <Link
+                    href={user.role === "landlord" ? "/dashboard/settings" : "/tenant/settings"}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-base font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    <Settings className="h-5 w-5" />
+                    Settings
+                  </Link>
+                  <button
+                    onClick={async () => {
+                      setMobileMenuOpen(false);
+                      await signOut();
+                    }}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-base font-medium text-red-600 hover:bg-red-50"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    Log Out
+                  </button>
+                </>
+              ) : pathname === "/hosting" ? (
                 <>
                   <Link
                     href="/login"
