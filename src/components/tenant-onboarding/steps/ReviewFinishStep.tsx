@@ -73,8 +73,8 @@ export function ReviewFinishStep({ state }: ReviewFinishStepProps) {
       if (result.error) {
         setError(result.error);
       } else {
-        // Redirect to availability page to start browsing
-        router.push("/availability");
+        // Redirect to tenant portal
+        router.push("/tenant");
       }
     } catch {
       setError("An unexpected error occurred. Please try again.");

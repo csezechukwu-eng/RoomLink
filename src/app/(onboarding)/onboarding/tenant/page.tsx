@@ -38,9 +38,9 @@ export default async function TenantOnboardingPage({ searchParams }: PageProps) 
     redirect("/signin");
   }
 
-  // If onboarding is complete, redirect to availability
+  // If onboarding is complete, redirect to tenant portal
   if (state.isComplete) {
-    redirect("/availability");
+    redirect("/tenant");
   }
 
   // Determine active step from search params or default to first incomplete
