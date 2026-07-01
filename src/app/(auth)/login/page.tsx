@@ -127,7 +127,7 @@ function LoginForm() {
         <div className="mt-6 text-center text-sm text-slate-600">
           Want to become a host?{" "}
           <Link
-            href="/become-a-host"
+            href="/hosting"
             className="font-medium text-indigo-600 hover:text-indigo-700"
           >
             Get started

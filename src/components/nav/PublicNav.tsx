@@ -45,20 +45,33 @@ export function PublicNav() {
 
           {/* Desktop CTA */}
           <div className="hidden items-center gap-3 md:flex">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
-            >
-              Host Log In
-            </Link>
-            <Link href="/become-a-host">
-              <Button
-                size="sm"
-                className="bg-indigo-600 hover:bg-indigo-700"
-              >
-                Become a Host
-              </Button>
-            </Link>
+            {pathname === "/hosting" ? (
+              <>
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+                >
+                  Host Log In
+                </Link>
+                <Link href="/signup">
+                  <Button
+                    size="sm"
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    Start Hosting
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <Link href="/availability">
+                <Button
+                  size="sm"
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  Find a Bed
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -92,18 +105,28 @@ export function PublicNav() {
               </Link>
             ))}
             <div className="mt-4 flex flex-col gap-2 pt-4 border-t border-slate-100">
-              <Link
-                href="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 text-center text-base font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Host Log In
-              </Link>
-              <Link href="/become-a-host" onClick={() => setMobileMenuOpen(false)}>
-                <Button className="w-full bg-indigo-600 hover:bg-indigo-700">
-                  Become a Host
-                </Button>
-              </Link>
+              {pathname === "/hosting" ? (
+                <>
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="rounded-lg px-3 py-2 text-center text-base font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    Host Log In
+                  </Link>
+                  <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
+                    <Button className="w-full bg-indigo-600 hover:bg-indigo-700">
+                      Start Hosting
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <Link href="/availability" onClick={() => setMobileMenuOpen(false)}>
+                  <Button className="w-full bg-indigo-600 hover:bg-indigo-700">
+                    Find a Bed
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>

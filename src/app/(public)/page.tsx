@@ -46,7 +46,7 @@ export default async function LandingPage() {
                   Find a Bed
                 </Button>
               </Link>
-              <Link href="/become-a-host">
+              <Link href="/hosting">
                 <Button variant="outline" size="md" className="h-12 px-6 text-base gap-2">
                   Become a Host
                   <ArrowRight className="h-4 w-4" />
@@ -254,7 +254,7 @@ export default async function LandingPage() {
                 Find a Bed Near You
               </Button>
             </Link>
-            <Link href="/become-a-host">
+            <Link href="/hosting">
               <Button variant="outline" size="md" className="h-12 px-8 text-base border-slate-600 text-white hover:bg-slate-800">
                 List Your Property
               </Button>
