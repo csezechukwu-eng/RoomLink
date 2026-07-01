@@ -51,7 +51,7 @@ export function LandlordNav() {
 
   return (
     <Sidebar
-      brand={{ label: "Room Link", href: "/dashboard" }}
+      brand={{ label: "renta bed", href: "/dashboard" }}
       items={items}
       bottomItems={bottomItems}
       onLogout={handleLogout}

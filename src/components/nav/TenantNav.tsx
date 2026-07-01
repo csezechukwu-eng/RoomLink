@@ -26,7 +26,7 @@ const items: SidebarItem[] = [
 export function TenantNav() {
   return (
     <Sidebar
-      brand={{ label: "Room Link", href: "/tenant", sublabel: "Tenant Portal" }}
+      brand={{ label: "renta bed", href: "/tenant", sublabel: "Tenant Portal" }}
       items={items}
       onLogout={() => {
         // TODO: Implement logout
