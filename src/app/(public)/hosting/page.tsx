@@ -80,8 +80,8 @@ export default async function BecomeAHostPage() {
             {/* Background Image - Off-centered for aesthetic */}
             <div className="relative h-[420px] lg:h-[480px] overflow-hidden rounded-2xl">
               <Image
-                src="/images/hero-crashpad.png"
-                alt="Modern crash pad living room"
+                src="/images/hero-hosting-bunkbeds.png"
+                alt="Modern crash pad with bunk beds"
                 fill
                 className="object-cover object-center"
                 priority
