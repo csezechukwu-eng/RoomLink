@@ -26,15 +26,21 @@ export default async function BecomeAHostPage() {
     <div className="space-y-24 pb-16">
       {/* Hero Section */}
       <section className="relative pt-8 lg:pt-16">
+        {/* Decorative background elements */}
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-indigo-100/50 blur-3xl" />
+          <div className="absolute -bottom-40 -left-40 h-[400px] w-[400px] rounded-full bg-indigo-50/60 blur-3xl" />
+        </div>
+
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-8">
           {/* Left: Copy */}
           <div className="flex flex-col justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 mb-6 w-fit">
-              <Home className="h-4 w-4" />
+            <div className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-4 py-2 text-sm font-medium text-indigo-700 mb-6 w-fit ring-1 ring-indigo-200/50">
+              <BedDouble className="h-4 w-4" />
               Become a Host
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-              Manage Your Rooms.
+              Manage Your <span className="text-indigo-600">Beds.</span>
               <br />
               <span className="text-slate-900">Not a Spreadsheet.</span>
             </h1>
@@ -44,32 +50,32 @@ export default async function BecomeAHostPage() {
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link href="/signup">
-                <Button size="md" className="h-12 px-6 text-base bg-indigo-600 hover:bg-indigo-700">
+                <Button size="md" className="h-12 px-6 text-base bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/25">
                   Start Hosting Today
                 </Button>
               </Link>
               <Link href="/dashboard">
-                <Button variant="outline" size="md" className="h-12 px-6 text-base gap-2">
+                <Button variant="outline" size="md" className="h-12 px-6 text-base gap-2 border-indigo-200 hover:bg-indigo-50">
                   <Play className="h-4 w-4" />
                   Host Dashboard
                 </Button>
               </Link>
             </div>
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
-              <span className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
+            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-600">
+              <span className="flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5 ring-1 ring-slate-200/50">
+                <CheckCircle className="h-4 w-4 text-indigo-500" />
                 Live Bed Availability
               </span>
-              <span className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
+              <span className="flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5 ring-1 ring-slate-200/50">
+                <CheckCircle className="h-4 w-4 text-indigo-500" />
                 Online Applications
               </span>
-              <span className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
+              <span className="flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5 ring-1 ring-slate-200/50">
+                <CheckCircle className="h-4 w-4 text-indigo-500" />
                 Rent & Deposit Tracking
               </span>
-              <span className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
+              <span className="flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5 ring-1 ring-slate-200/50">
+                <CheckCircle className="h-4 w-4 text-indigo-500" />
                 House Communication
               </span>
             </div>
@@ -77,17 +83,20 @@ export default async function BecomeAHostPage() {
 
           {/* Right: Hero Image with Dashboard Preview Overlay */}
           <div className="relative">
+            {/* Decorative ring around image */}
+            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-indigo-200/40 via-transparent to-indigo-100/30 -z-10" />
+
             {/* Background Image - Off-centered for aesthetic */}
-            <div className="relative h-[420px] lg:h-[480px] overflow-hidden rounded-2xl">
+            <div className="relative h-[420px] lg:h-[480px] overflow-hidden rounded-2xl ring-1 ring-slate-200/50 shadow-2xl shadow-indigo-500/10">
               <Image
                 src="/images/hero-hosting-bunkbeds.png"
-                alt="Modern crash pad with bunk beds"
+                alt="Modern shared housing with bunk beds"
                 fill
                 className="object-cover object-center"
                 priority
               />
               {/* Subtle gradient overlay for better contrast */}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/30 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-indigo-900/10" />
             </div>
 
             {/* Dashboard Preview Card - Overlapping the image */}
@@ -99,6 +108,9 @@ export default async function BecomeAHostPage() {
 
         {/* Extra spacing to account for overlapping card */}
         <div className="h-16 lg:h-8" />
+
+        {/* Divider with gradient */}
+        <div className="mt-8 h-px bg-gradient-to-r from-transparent via-indigo-200 to-transparent" />
       </section>
 
       {/* Features Section */}
@@ -208,11 +220,16 @@ export default async function BecomeAHostPage() {
 
 function DashboardPreview() {
   return (
-    <Card className="overflow-hidden shadow-2xl shadow-slate-900/20 ring-1 ring-slate-200/50 backdrop-blur-sm">
-      <div className="bg-white/95 p-6">
+    <Card className="overflow-hidden shadow-2xl shadow-indigo-900/20 ring-1 ring-indigo-100 backdrop-blur-sm">
+      {/* Top accent bar */}
+      <div className="h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-indigo-500" />
+      <div className="bg-white/98 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-slate-500">Golden Oak Rentals</p>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
+              <p className="text-sm font-medium text-slate-700">Golden Oak Rentals</p>
+            </div>
             <div className="mt-4 flex gap-8">
               <div>
                 <p className="text-3xl font-bold text-slate-900">16</p>
@@ -233,10 +250,10 @@ function DashboardPreview() {
             </div>
           </div>
         </div>
-        <div className="mt-6 border-t border-slate-100 pt-6">
+        <div className="mt-6 border-t border-indigo-100 pt-6">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-slate-700">Monthly Revenue</p>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200/50">
               <TrendingUp className="h-3 w-3" />
               +12.5%
             </span>
@@ -245,16 +262,16 @@ function DashboardPreview() {
             <span className="text-3xl font-bold text-slate-900">$9,450</span>
             <span className="text-sm text-slate-500">This Month</span>
           </div>
-          <div className="mt-3 flex gap-4 text-xs">
-            <span className="flex items-center gap-1.5">
+          <div className="mt-4 flex gap-4 text-xs">
+            <span className="flex items-center gap-1.5 bg-slate-50 rounded-full px-2.5 py-1">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               Paid $8,150
             </span>
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 bg-slate-50 rounded-full px-2.5 py-1">
               <span className="h-2 w-2 rounded-full bg-amber-500" />
               Pending $1,300
             </span>
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 bg-slate-50 rounded-full px-2.5 py-1">
               <span className="h-2 w-2 rounded-full bg-red-500" />
               Late $650
             </span>
