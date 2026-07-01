@@ -86,8 +86,13 @@ export async function POST(request: NextRequest) {
       // =======================================================================
 
       case "checkout.session.completed":
-        // Future: Handle tenant booking payment completion
+        // Handle both payment and setup mode checkouts
         await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
+
+      case "setup_intent.succeeded":
+        // Handle successful payment method setup (backup for checkout.session.completed)
+        await handleSetupIntentSucceeded(event.data.object as Stripe.SetupIntent);
         break;
 
       case "payment_intent.succeeded":
@@ -162,6 +167,13 @@ export async function POST(request: NextRequest) {
  */
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   console.log("[webhook] Checkout completed:", session.id);
+  console.log("[webhook] Checkout mode:", session.mode);
+
+  // Handle setup mode (tenant payment method setup)
+  if (session.mode === "setup") {
+    await handleSetupSessionCompleted(session);
+    return;
+  }
 
   // ---------------------------------------------------------------------------
   // 1. Extract metadata
@@ -628,4 +640,140 @@ async function handleIdentityRequiresInput(session: Stripe.Identity.Verification
 async function handleIdentityCanceled(session: Stripe.Identity.VerificationSession) {
   console.log("[webhook] ===== IDENTITY CANCELED =====");
   await updateIdentityVerificationStatus(session, "canceled", false);
+}
+
+// =============================================================================
+// Tenant Payment Method Setup Handlers
+// =============================================================================
+
+/**
+ * Handle checkout session completed in setup mode.
+ * This is called when a tenant completes the payment method setup flow.
+ */
+async function handleSetupSessionCompleted(session: Stripe.Checkout.Session) {
+  console.log("[webhook] ===== SETUP SESSION COMPLETED =====");
+  console.log("[webhook] Session ID:", session.id);
+  console.log("[webhook] Customer:", session.customer);
+  console.log("[webhook] Metadata:", session.metadata);
+
+  const metadata = session.metadata ?? {};
+  const setupType = metadata.setup_type;
+  const userId = metadata.user_id;
+
+  // Only handle tenant payment method setup
+  if (setupType !== "tenant_payment_method") {
+    console.log("[webhook] Ignoring non-tenant setup:", setupType);
+    return;
+  }
+
+  if (!userId) {
+    console.error("[webhook] Missing user_id in setup session metadata");
+    return;
+  }
+
+  // Get Supabase client
+  let supabase;
+  try {
+    supabase = getWebhookSupabaseClient();
+  } catch (error) {
+    console.error("[webhook] Supabase not configured:", error);
+    return;
+  }
+
+  // Update user's payment method status
+  const { error: updateError } = await supabase
+    .from("users")
+    .update({
+      payment_method_added: true,
+      payment_method_added_at: new Date().toISOString(),
+      stripe_customer_id: typeof session.customer === "string"
+        ? session.customer
+        : session.customer?.id ?? null,
+    })
+    .eq("id", userId);
+
+  if (updateError) {
+    console.error("[webhook] Error updating user payment status:", updateError);
+    return;
+  }
+
+  console.log("[webhook] Tenant payment method setup recorded for user:", userId);
+}
+
+/**
+ * Handle setup_intent.succeeded event.
+ * This is a backup handler in case the checkout session webhook doesn't fire.
+ */
+async function handleSetupIntentSucceeded(setupIntent: Stripe.SetupIntent) {
+  console.log("[webhook] ===== SETUP INTENT SUCCEEDED =====");
+  console.log("[webhook] Setup Intent ID:", setupIntent.id);
+  console.log("[webhook] Customer:", setupIntent.customer);
+  console.log("[webhook] Metadata:", setupIntent.metadata);
+
+  const metadata = setupIntent.metadata ?? {};
+  const userId = metadata.user_id;
+
+  // If we have a user_id in metadata, update their payment status
+  if (!userId) {
+    // Try to find user by customer ID
+    const customerId = typeof setupIntent.customer === "string"
+      ? setupIntent.customer
+      : setupIntent.customer?.id;
+
+    if (!customerId) {
+      console.log("[webhook] No user_id or customer_id in setup intent");
+      return;
+    }
+
+    // Get Supabase client
+    let supabase;
+    try {
+      supabase = getWebhookSupabaseClient();
+    } catch (error) {
+      console.error("[webhook] Supabase not configured:", error);
+      return;
+    }
+
+    // Find user by customer ID and update
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({
+        payment_method_added: true,
+        payment_method_added_at: new Date().toISOString(),
+      })
+      .eq("stripe_customer_id", customerId);
+
+    if (updateError) {
+      console.error("[webhook] Error updating user by customer ID:", updateError);
+      return;
+    }
+
+    console.log("[webhook] Payment method added for customer:", customerId);
+    return;
+  }
+
+  // Get Supabase client
+  let supabase;
+  try {
+    supabase = getWebhookSupabaseClient();
+  } catch (error) {
+    console.error("[webhook] Supabase not configured:", error);
+    return;
+  }
+
+  // Update user's payment method status
+  const { error: updateError } = await supabase
+    .from("users")
+    .update({
+      payment_method_added: true,
+      payment_method_added_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+
+  if (updateError) {
+    console.error("[webhook] Error updating user payment status:", updateError);
+    return;
+  }
+
+  console.log("[webhook] Payment method setup recorded for user:", userId);
 }

@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { CreditCard, CheckCircle, ArrowRight, Loader2, Lock } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { CreditCard, CheckCircle, ArrowRight, Loader2, Lock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createTenantPaymentSetup, markPaymentMethodAdded } from "@/lib/actions/tenant-onboarding";
 import type { TenantOnboardingState } from "@/lib/onboarding/tenant-state";
 
 interface PaymentMethodStepProps {
@@ -13,21 +15,55 @@ interface PaymentMethodStepProps {
 /**
  * PaymentMethodStep
  *
- * Payment method setup for tenants.
+ * Payment method setup for tenants using Stripe Checkout in setup mode.
  */
 export function PaymentMethodStep({ state, onContinue }: PaymentMethodStepProps) {
+  const searchParams = useSearchParams();
   const [isAdding, setIsAdding] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [justCompleted, setJustCompleted] = React.useState(false);
   const hasPaymentMethod = state.data.paymentMethodAdded;
+
+  // Handle return from Stripe
+  React.useEffect(() => {
+    const setup = searchParams.get("setup");
+
+    if (setup === "success" && !hasPaymentMethod) {
+      // Mark payment method as added
+      markPaymentMethodAdded().then((result) => {
+        if (result.success) {
+          setJustCompleted(true);
+        } else if (result.error) {
+          setError(result.error);
+        }
+      });
+    } else if (setup === "canceled") {
+      setError("Payment setup was canceled. You can try again.");
+    }
+  }, [searchParams, hasPaymentMethod]);
 
   const handleAddPaymentMethod = async () => {
     setIsAdding(true);
-    // In a real implementation, this would open Stripe Elements or Checkout
-    // For now, we'll simulate it
-    setTimeout(() => {
+    setError(null);
+
+    const result = await createTenantPaymentSetup();
+
+    if (result.error) {
+      setError(result.error);
       setIsAdding(false);
-      // Would redirect to Stripe
-    }, 1000);
+      return;
+    }
+
+    if (result.sessionUrl) {
+      // Redirect to Stripe Checkout
+      window.location.href = result.sessionUrl;
+    } else {
+      setError("Failed to start payment setup");
+      setIsAdding(false);
+    }
   };
+
+  const showSuccess = hasPaymentMethod || justCompleted;
 
   return (
     <div className="space-y-8">
@@ -44,7 +80,7 @@ export function PaymentMethodStep({ state, onContinue }: PaymentMethodStepProps)
 
       {/* Payment Method Status */}
       <div className="rounded-xl border border-slate-200 p-6">
-        {hasPaymentMethod ? (
+        {showSuccess ? (
           <div className="text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 mb-4">
               <CheckCircle className="h-8 w-8 text-emerald-600" />
@@ -70,6 +106,14 @@ export function PaymentMethodStep({ state, onContinue }: PaymentMethodStepProps)
               </p>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <div className="flex items-center gap-2 rounded-lg bg-red-50 p-4 text-sm text-red-700">
+                <AlertCircle className="h-5 w-5 shrink-0" />
+                <p>{error}</p>
+              </div>
+            )}
+
             {/* Benefits */}
             <div className="bg-slate-50 rounded-lg p-4">
               <h3 className="font-medium text-slate-900 mb-3">Why add a payment method now?</h3>
@@ -87,6 +131,15 @@ export function PaymentMethodStep({ state, onContinue }: PaymentMethodStepProps)
                   Set up automatic rent payments later
                 </li>
               </ul>
+            </div>
+
+            {/* Fee Information */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h3 className="font-medium text-amber-900 mb-2">Service Fee</h3>
+              <p className="text-sm text-amber-800">
+                A 10% service fee is applied to each rent payment to cover platform costs,
+                tenant support, and payment processing.
+              </p>
             </div>
 
             {/* Accepted Payment Methods */}

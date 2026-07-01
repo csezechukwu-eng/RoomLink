@@ -133,14 +133,26 @@ export function getUrlConfigDiagnostics(): {
 /**
  * Platform fee configuration for marketplace payments.
  * These will be used when Stripe Connect is implemented.
+ *
+ * FEE MODEL (Updated June 2025):
+ * - Host Fee: 5% deducted from landlord payout
+ * - Tenant Service Fee: 10% added to rent amount
+ *
+ * Example: $500 rent
+ * - Tenant pays: $500 + $50 (10% fee) = $550
+ * - Landlord receives: $500 - $25 (5% fee) = $475
+ * - Platform revenue: $50 + $25 = $75
  */
 export const PLATFORM_FEES = {
   /** Host fee percentage (deducted from landlord payout) */
   hostFeePercent: 5, // 5%
 
-  /** Tenant service fee for bank payments (ACH) */
+  /** Tenant service fee percentage (added to tenant payment) */
+  tenantServiceFeePercent: 10, // 10%
+
+  /** Legacy: Tenant service fee for bank payments (ACH) - not currently used */
   tenantBankFeePercent: 3, // 3%
 
-  /** Tenant service fee for card payments */
+  /** Legacy: Tenant service fee for card payments - not currently used */
   tenantCardFeePercent: 5.5, // 5.5%
 } as const;

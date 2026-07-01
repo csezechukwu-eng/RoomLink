@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser, isDemoMode } from "@/lib/auth";
 import { getServiceClient, isServiceRoleConfigured, createAuthenticatedClient } from "@/lib/supabase/server";
+import { getOrCreateStripeCustomer, createPaymentSetupSession } from "@/lib/stripe/tenant-setup";
 
 type ActionResult = { error?: string; success?: boolean; avatarUrl?: string };
+type PaymentSetupResult = { error?: string; sessionUrl?: string };
 
 const AVATAR_BUCKET = "avatars";
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -145,6 +147,113 @@ export async function acceptHouseRules(): Promise<ActionResult> {
   if (error) {
     console.error("[acceptHouseRules] Error:", error);
     return { error: "Failed to accept house rules" };
+  }
+
+  revalidatePath("/onboarding/tenant");
+  return { success: true };
+}
+
+/**
+ * Create a Stripe payment setup session for the tenant.
+ * This redirects them to Stripe to add a payment method.
+ */
+export async function createTenantPaymentSetup(): Promise<PaymentSetupResult> {
+  if (isDemoMode()) {
+    return { error: "Payment setup not available in demo mode" };
+  }
+
+  const user = await getCurrentUser();
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  if (!isServiceRoleConfigured()) {
+    return { error: "Database not configured" };
+  }
+
+  const supabase = getServiceClient();
+
+  // Get the user's current Stripe customer ID (if any)
+  const { data: userData, error: fetchError } = await supabase
+    .from("users")
+    .select("stripe_customer_id, full_name, email")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error("[createTenantPaymentSetup] Error fetching user:", fetchError);
+    return { error: "Failed to fetch user data" };
+  }
+
+  // Get or create a Stripe customer
+  const customerId = await getOrCreateStripeCustomer({
+    userId: user.id,
+    email: user.email || userData?.email || "",
+    name: userData?.full_name,
+    existingCustomerId: userData?.stripe_customer_id,
+  });
+
+  if (!customerId) {
+    return { error: "Failed to create payment profile" };
+  }
+
+  // Save the customer ID if it's new
+  if (customerId !== userData?.stripe_customer_id) {
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ stripe_customer_id: customerId })
+      .eq("id", user.id);
+
+    if (updateError) {
+      console.error("[createTenantPaymentSetup] Error saving customer ID:", updateError);
+      // Continue anyway - the customer was created in Stripe
+    }
+  }
+
+  // Create the setup session
+  const session = await createPaymentSetupSession({
+    customerId,
+    userId: user.id,
+    email: user.email || userData?.email || "",
+  });
+
+  if (!session) {
+    return { error: "Failed to create payment setup session" };
+  }
+
+  return { sessionUrl: session.sessionUrl };
+}
+
+/**
+ * Mark payment method as added (called after successful Stripe setup)
+ */
+export async function markPaymentMethodAdded(): Promise<ActionResult> {
+  if (isDemoMode()) {
+    return { success: true };
+  }
+
+  const user = await getCurrentUser();
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  if (!isServiceRoleConfigured()) {
+    return { error: "Database not configured" };
+  }
+
+  const supabase = getServiceClient();
+
+  const { error } = await supabase
+    .from("users")
+    .update({
+      payment_method_added: true,
+      payment_method_added_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
+
+  if (error) {
+    console.error("[markPaymentMethodAdded] Error:", error);
+    return { error: "Failed to update payment status" };
   }
 
   revalidatePath("/onboarding/tenant");
