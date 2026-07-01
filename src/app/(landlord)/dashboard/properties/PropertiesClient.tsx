@@ -400,7 +400,7 @@ function PropertyCard({ property }: { property: PropertyData }) {
           onUpload={handleUpload}
           onDelete={handleDeletePhoto}
           onSetCover={handleSetCover}
-          maxPhotos={10}
+          maxPhotos={30}
         />
         <div className="mt-4 flex justify-end">
           <Button onClick={() => setPhotoModalOpen(false)}>Done</Button>

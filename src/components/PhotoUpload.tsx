@@ -67,7 +67,7 @@ export function PhotoUpload({
   onUpload,
   onDelete,
   onSetCover,
-  maxPhotos = 10,
+  maxPhotos = 30,
 }: PhotoUploadProps) {
   const [photos, setPhotos] = React.useState<PropertyMedia[]>(existingPhotos);
   const [uploading, setUploading] = React.useState(false);

@@ -208,7 +208,7 @@ export function ListingStep({ state, existingPhotos = [], onContinue }: ListingS
           onUpload={handleUpload}
           onDelete={handleDelete}
           onSetCover={handleSetCover}
-          maxPhotos={10}
+          maxPhotos={30}
         />
       </Card>
 
