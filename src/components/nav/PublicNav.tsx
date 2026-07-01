@@ -70,7 +70,7 @@ export function PublicNav() {
                 >
                   Log In
                 </Link>
-                <Link href="/signup">
+                <Link href="/join">
                   <Button
                     size="sm"
                     className="bg-indigo-600 hover:bg-indigo-700"
@@ -137,7 +137,7 @@ export function PublicNav() {
                   >
                     Log In
                   </Link>
-                  <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
+                  <Link href="/join" onClick={() => setMobileMenuOpen(false)}>
                     <Button className="w-full bg-indigo-600 hover:bg-indigo-700">
                       Sign Up
                     </Button>
