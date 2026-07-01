@@ -61,7 +61,7 @@ function TenantLoginForm() {
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Welcome Back</h1>
           <p className="mt-2 text-slate-600">
-            Sign in to find and manage your bed rental
+            Sign in to browse beds and apply for rentals
           </p>
         </div>
 
