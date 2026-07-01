@@ -27,9 +27,19 @@ export default async function LandingPage() {
     <div className="space-y-24 pb-16">
       {/* Hero Section */}
       <section className="relative pt-8 lg:pt-16">
+        {/* Decorative background elements */}
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-indigo-100/50 blur-3xl" />
+          <div className="absolute -bottom-40 -left-40 h-[400px] w-[400px] rounded-full bg-indigo-50/60 blur-3xl" />
+        </div>
+
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-8">
           {/* Left: Copy */}
           <div className="flex flex-col justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-4 py-2 text-sm font-medium text-indigo-700 mb-6 w-fit ring-1 ring-indigo-200/50">
+              <BedDouble className="h-4 w-4" />
+              Find Your Next Home
+            </div>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
               Affordable Housing.
               <br />
@@ -41,33 +51,33 @@ export default async function LandingPage() {
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link href="/availability">
-                <Button size="md" className="h-12 px-6 text-base bg-indigo-600 hover:bg-indigo-700 gap-2">
+                <Button size="md" className="h-12 px-6 text-base bg-indigo-600 hover:bg-indigo-700 gap-2 shadow-lg shadow-indigo-500/25">
                   <Search className="h-4 w-4" />
                   Find a Bed
                 </Button>
               </Link>
               <Link href="/hosting">
-                <Button variant="outline" size="md" className="h-12 px-6 text-base gap-2">
+                <Button variant="outline" size="md" className="h-12 px-6 text-base gap-2 border-indigo-200 hover:bg-indigo-50">
                   Become a Host
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             </div>
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
-              <span className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
+            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-600">
+              <span className="flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5 ring-1 ring-slate-200/50">
+                <CheckCircle className="h-4 w-4 text-indigo-500" />
                 Fully Furnished
               </span>
-              <span className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
+              <span className="flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5 ring-1 ring-slate-200/50">
+                <CheckCircle className="h-4 w-4 text-indigo-500" />
                 Utilities Included
               </span>
-              <span className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
+              <span className="flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5 ring-1 ring-slate-200/50">
+                <CheckCircle className="h-4 w-4 text-indigo-500" />
                 WiFi Included
               </span>
-              <span className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
+              <span className="flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5 ring-1 ring-slate-200/50">
+                <CheckCircle className="h-4 w-4 text-indigo-500" />
                 Flexible Terms
               </span>
             </div>
@@ -75,7 +85,10 @@ export default async function LandingPage() {
 
           {/* Right: Hero Image */}
           <div className="relative">
-            <div className="relative h-[420px] lg:h-[480px] overflow-hidden rounded-2xl">
+            {/* Decorative ring around image */}
+            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-indigo-200/40 via-transparent to-indigo-100/30 -z-10" />
+
+            <div className="relative h-[420px] lg:h-[480px] overflow-hidden rounded-2xl ring-1 ring-slate-200/50 shadow-2xl shadow-indigo-500/10">
               <Image
                 src="/images/hero-living-room.png"
                 alt="Comfortable shared housing"
@@ -84,17 +97,24 @@ export default async function LandingPage() {
                 priority
               />
               {/* Gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-indigo-900/10" />
 
               {/* Price Badge */}
-              <div className="absolute bottom-6 left-6 bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-lg">
+              <div className="absolute bottom-6 left-6 bg-white/98 backdrop-blur-sm rounded-xl p-4 shadow-xl ring-1 ring-indigo-100">
+                <div className="h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-indigo-500 rounded-full mb-3 -mt-1" />
                 <p className="text-sm text-slate-500">Starting from</p>
                 <p className="text-3xl font-bold text-slate-900">$450<span className="text-lg font-normal text-slate-500">/month</span></p>
-                <p className="text-sm text-emerald-600 font-medium">All inclusive</p>
+                <p className="text-sm text-emerald-600 font-medium flex items-center gap-1">
+                  <CheckCircle className="h-3.5 w-3.5" />
+                  All inclusive
+                </p>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Divider with gradient */}
+        <div className="mt-16 h-px bg-gradient-to-r from-transparent via-indigo-200 to-transparent" />
       </section>
 
       {/* Why Rent a Bed Section */}
