@@ -396,10 +396,6 @@ export async function createOrUpdatePropertyListingAction(
   const laundry = optionalStr(formData, "laundry");
   const parking = optionalStr(formData, "parking");
 
-  // Community settings
-  const couplesAllowed = formData.get("couples_allowed") === "true";
-  const lgbtqFriendly = formData.get("lgbtq_friendly") === "true";
-
   // Bathroom & Laundry amenities
   const hasDryer = formData.get("has_dryer") === "true";
   const hasPaidLaundry = formData.get("has_paid_laundry") === "true";
@@ -494,9 +490,6 @@ export async function createOrUpdatePropertyListingAction(
       wifi,
       laundry,
       parking,
-      // Community settings
-      couples_allowed: couplesAllowed,
-      lgbtq_friendly: lgbtqFriendly,
       // Bathroom & Laundry
       has_dryer: hasDryer,
       has_paid_laundry: hasPaidLaundry,

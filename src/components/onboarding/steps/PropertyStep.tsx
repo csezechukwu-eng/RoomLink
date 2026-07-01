@@ -124,9 +124,6 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
     wifi: data.wifi,
     laundry: data.laundry || "",
     parking: data.parking || "",
-    // Community settings
-    couples_allowed: false,
-    lgbtq_friendly: false,
     // Bathroom & Laundry
     has_dryer: false,
     has_paid_laundry: false,
@@ -587,34 +584,6 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
                 </div>
               </div>
 
-              {/* Community Settings */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                  <input
-                    type="checkbox"
-                    name="couples_allowed"
-                    value="true"
-                    checked={propertyForm.couples_allowed}
-                    onChange={(e) => handlePropertyChange("couples_allowed", e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
-                  />
-                  <Users className="h-5 w-5 text-slate-400" />
-                  <span className="text-sm">Couples allowed</span>
-                </label>
-
-                <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                  <input
-                    type="checkbox"
-                    name="lgbtq_friendly"
-                    value="true"
-                    checked={propertyForm.lgbtq_friendly}
-                    onChange={(e) => handlePropertyChange("lgbtq_friendly", e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
-                  />
-                  <Heart className="h-5 w-5 text-slate-400" />
-                  <span className="text-sm">LGBTQ+ friendly</span>
-                </label>
-              </div>
             </div>
 
             {/* Basic Amenities */}
