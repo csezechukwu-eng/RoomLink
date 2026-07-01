@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { AvailabilityCard } from "@/components/availability/AvailabilityCard";
 import { AvailabilityFilters } from "@/components/availability/AvailabilityFilters";
+import { SearchBar } from "@/components/availability/SearchBar";
 import { getAvailableProperties, type AvailabilityFilters as FilterParams } from "@/lib/services/availability";
 import type { PropertyOccupancyType } from "@/lib/types";
 
@@ -40,6 +41,13 @@ export default async function AvailabilityPage({
 
   return (
     <div className="space-y-6">
+      {/* Airbnb-style Search Bar */}
+      <div className="flex justify-center py-2">
+        <Suspense fallback={<div className="h-14 w-full max-w-2xl animate-pulse bg-slate-100 rounded-full" />}>
+          <SearchBar className="w-full max-w-2xl" />
+        </Suspense>
+      </div>
+
       {/* Filter Pills */}
       <div className="border-b pb-4">
         <Suspense fallback={<div className="h-12 animate-pulse bg-slate-100 rounded-lg" />}>
