@@ -40,6 +40,8 @@ function TenantLoginForm() {
   async function handleSubmit(formData: FormData) {
     setError(null);
     console.log("[TenantLoginForm] Form submitted");
+    // Mark this as a tenant login
+    formData.set("source", "tenant");
     if (redirectParam) {
       formData.set("redirect", redirectParam);
     }

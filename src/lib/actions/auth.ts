@@ -126,10 +126,12 @@ export async function signIn(formData: FormData): Promise<AuthActionResult> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const redirectParam = formData.get("redirect") as string | null;
+  const source = formData.get("source") as string | null; // "tenant" if from tenant login page
 
   console.log("[signIn] ===== SIGN IN START =====");
   console.log("[signIn] Email:", email);
   console.log("[signIn] Redirect param received:", redirectParam);
+  console.log("[signIn] Source:", source);
 
   if (!email || !password) {
     return { error: "Email and password are required" };
@@ -160,6 +162,16 @@ export async function signIn(formData: FormData): Promise<AuthActionResult> {
 
     userId = data.user?.id || null;
     console.log("[signIn] Authentication successful, user ID:", userId);
+
+    // If logging in from tenant login page, update user role to tenant
+    if (source === "tenant" && userId && isServiceRoleConfigured()) {
+      const serviceClient = getServiceClient();
+      await serviceClient
+        .from("users")
+        .update({ role: "tenant" })
+        .eq("id", userId);
+      console.log("[signIn] Updated user role to tenant");
+    }
   } catch (err) {
     console.error("[signIn] Unexpected error:", err);
     return { error: "An unexpected error occurred. Please try again." };
@@ -170,6 +182,14 @@ export async function signIn(formData: FormData): Promise<AuthActionResult> {
     console.log("[signIn] ===== REDIRECTING TO PARAM =====");
     console.log("[signIn] Redirect destination:", redirectParam);
     redirect(redirectParam);
+  }
+
+  // If logging in from tenant page, go to tenant flow
+  if (source === "tenant") {
+    const redirectUrl = userId ? await getPostAuthRedirect(userId) : "/onboarding/tenant";
+    console.log("[signIn] ===== REDIRECTING TENANT =====");
+    console.log("[signIn] Tenant redirect:", redirectUrl);
+    redirect(redirectUrl);
   }
 
   // Otherwise, determine redirect based on onboarding status
