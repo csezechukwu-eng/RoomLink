@@ -1,4 +1,4 @@
--- RoomLink — Phase 1C Property Media
+-- renta bed — Phase 1C Property Media
 -- Add support for property, room, and bed photos using Supabase Storage
 
 -- ===========================================================================

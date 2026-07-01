@@ -34,7 +34,7 @@ export async function updateLandlordProfileAction(
 
   if (isDemoMode()) {
     ownerId = DEMO_OWNER_ID;
-    userEmail = "demo@roomlink.local";
+    userEmail = "demo@rentabed.local";
   } else {
     const authUser = await getAuthUser();
     if (!authUser) {
@@ -197,7 +197,7 @@ export async function uploadLandlordAvatarAction(
 
   if (isDemoMode()) {
     ownerId = DEMO_OWNER_ID;
-    userEmail = "demo@roomlink.local";
+    userEmail = "demo@rentabed.local";
   } else {
     const authUser = await getAuthUser();
     if (!authUser) {
@@ -500,7 +500,7 @@ export async function createOrUpdatePropertyListingAction(
       // Property details (required)
       num_bedrooms: parseInt(numBedrooms, 10),
       num_bathrooms: parseInt(numBathrooms, 10),
-      // Standard inclusions - always true for Room Link properties
+      // Standard inclusions - always true for renta bed properties
       furnished: true,
       utilities_included: true,
       wifi: true,

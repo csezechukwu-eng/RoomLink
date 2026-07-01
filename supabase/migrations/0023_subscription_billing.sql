@@ -1,18 +1,18 @@
--- Migration: Room Link Subscription Billing Foundation
--- Adds fields for landlords to pay Room Link (Stripe Customer).
+-- Migration: renta bed Subscription Billing Foundation
+-- Adds fields for landlords to pay renta bed (Stripe Customer).
 -- This is SEPARATE from Stripe Connect (stripe_account_id) for rent collection.
 --
 -- Two distinct Stripe relationships:
 -- Flow A: stripe_account_id - Landlord's Stripe Connect account to receive tenant rent (future)
--- Flow B: stripe_customer_id - Landlord as Stripe Customer paying Room Link (this migration)
+-- Flow B: stripe_customer_id - Landlord as Stripe Customer paying renta bed (this migration)
 
 -- ---------------------------------------------------------------------------
 -- Add subscription billing fields to users table
--- These track the landlord's subscription to Room Link platform
+-- These track the landlord's subscription to renta bed platform
 -- ---------------------------------------------------------------------------
 
 alter table public.users
-  -- Stripe Customer ID (for paying Room Link)
+  -- Stripe Customer ID (for paying renta bed)
   add column if not exists stripe_customer_id text unique,
 
   -- Stripe Subscription fields
@@ -44,8 +44,8 @@ alter table public.users
   add column if not exists stripe_connect_enabled boolean not null default false;
 
 -- Comments for documentation
-comment on column public.users.stripe_customer_id is 'Stripe Customer ID - landlord paying Room Link for platform subscription';
-comment on column public.users.stripe_subscription_id is 'Stripe Subscription ID for Room Link platform access';
+comment on column public.users.stripe_customer_id is 'Stripe Customer ID - landlord paying renta bed for platform subscription';
+comment on column public.users.stripe_subscription_id is 'Stripe Subscription ID for renta bed platform access';
 comment on column public.users.stripe_subscription_status is 'Current subscription status from Stripe webhooks';
 comment on column public.users.stripe_price_id is 'Stripe Price ID for current subscription tier';
 comment on column public.users.stripe_current_period_start is 'Start of current billing period';

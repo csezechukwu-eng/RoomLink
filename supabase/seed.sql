@@ -1,4 +1,4 @@
--- RoomLink — demo seed data (Phase 1)
+-- renta bed — demo seed data (Phase 1)
 -- Charlotte Flight Crew Crash Pad with a full end-to-end demo:
 --   • 4 rooms x 4 beds (16 beds), mixed statuses
 --   • a demo landlord + two demo people (an approved tenant + a pending applicant)
@@ -19,9 +19,9 @@ delete from public.properties where id = '11111111-1111-1111-1111-111111111111';
 
 -- People -------------------------------------------------------------------
 insert into public.users (id, email, full_name, phone, role, verification_status) values
-  ('d0d7c1e3-5b4a-4b9f-8c3d-1e2f3a4b5c6d', 'silvia@roomlink.demo', 'Silvia Owner',  '704-555-0101', 'owner',  'verified'),
-  ('00000000-0000-0000-0000-000000000002', 'jordan@roomlink.demo', 'Jordan Pilot',  '704-555-0102', 'tenant', 'verified'),
-  ('00000000-0000-0000-0000-000000000003', 'alex@roomlink.demo',   'Alex Crew',     '704-555-0103', 'tenant', 'pending');
+  ('d0d7c1e3-5b4a-4b9f-8c3d-1e2f3a4b5c6d', 'silvia@rentabed.demo', 'Silvia Owner',  '704-555-0101', 'owner',  'verified'),
+  ('00000000-0000-0000-0000-000000000002', 'jordan@rentabed.demo', 'Jordan Pilot',  '704-555-0102', 'tenant', 'verified'),
+  ('00000000-0000-0000-0000-000000000003', 'alex@rentabed.demo',   'Alex Crew',     '704-555-0103', 'tenant', 'pending');
 
 -- Property -----------------------------------------------------------------
 insert into public.properties (id, owner_id, name, address, city, state, zip, property_type, description, house_rules)
@@ -74,12 +74,12 @@ insert into public.applications (id, property_id, bed_id, applicant_id, full_nam
   ('a0000000-0000-0000-0000-000000000001',
    '11111111-1111-1111-1111-111111111111',
    (select id from public.beds where property_id = '11111111-1111-1111-1111-111111111111' and room_id = '22222222-0000-0000-0000-00000000000a' and label = 'Bed 2 Top Bunk'),
-   '00000000-0000-0000-0000-000000000002', 'Jordan Pilot', 'jordan@roomlink.demo', '704-555-0102',
+   '00000000-0000-0000-0000-000000000002', 'Jordan Pilot', 'jordan@rentabed.demo', '704-555-0102',
    'Regional FO based at CLT, need a reliable cold bed.', current_date - 20, 'approved', now() - interval '18 days'),
   ('a0000000-0000-0000-0000-000000000002',
    '11111111-1111-1111-1111-111111111111',
    (select id from public.beds where property_id = '11111111-1111-1111-1111-111111111111' and room_id = '22222222-0000-0000-0000-00000000000a' and label = 'Bed 1 Top Bunk'),
-   '00000000-0000-0000-0000-000000000003', 'Alex Crew', 'alex@roomlink.demo', '704-555-0103',
+   '00000000-0000-0000-0000-000000000003', 'Alex Crew', 'alex@rentabed.demo', '704-555-0103',
    'Flight attendant commuting from ORD a few nights a week.', current_date + 7, 'submitted', null);
 
 -- Reservation (from Jordan's approved application) -------------------------

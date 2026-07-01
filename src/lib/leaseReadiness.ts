@@ -119,7 +119,7 @@ export function computeLeaseReadiness(ctx: LeaseContext): LeaseReadiness {
   return { items, ready };
 }
 
-// PRODUCT NOTE: Room Link is a MONTHLY-stay marketplace.
+// PRODUCT NOTE: renta bed is a MONTHLY-stay marketplace.
 // All options here represent minimum one-month stays.
 // See: src/lib/productConfig.ts for full product direction.
 export const LEASE_TERM_OPTIONS: { value: string; label: string }[] = [

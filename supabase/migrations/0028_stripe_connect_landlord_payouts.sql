@@ -1,11 +1,11 @@
 -- Migration: Stripe Connect Landlord Payouts
 -- ============================================================================
 -- Adds fields needed for Stripe Connect Express accounts and marketplace payments.
--- Room Link uses destination charges with application_fee_amount for 5% host fee.
+-- renta bed uses destination charges with application_fee_amount for 5% host fee.
 --
 -- BUSINESS MODEL:
--- - Tenant pays rent through Room Link (Stripe Checkout)
--- - Room Link keeps 5% host fee via application_fee_amount
+-- - Tenant pays rent through renta bed (Stripe Checkout)
+-- - renta bed keeps 5% host fee via application_fee_amount
 -- - Landlord receives 95% via transfer_data.destination
 -- - No monthly subscription fees for landlords
 -- ============================================================================
@@ -91,13 +91,13 @@ COMMENT ON COLUMN public.users.stripe_connect_account_type IS 'Stripe Connect ac
 COMMENT ON COLUMN public.users.stripe_connect_charges_enabled IS 'Whether the landlord can receive charges (from Stripe account.charges_enabled)';
 COMMENT ON COLUMN public.users.stripe_connect_payouts_enabled IS 'Whether the landlord can receive payouts (from Stripe account.payouts_enabled)';
 COMMENT ON COLUMN public.users.stripe_connect_details_submitted IS 'Whether the landlord has submitted onboarding details (from Stripe account.details_submitted)';
-COMMENT ON COLUMN public.users.stripe_connect_onboarding_complete IS 'Room Link flag: true when landlord is fully ready for payments';
+COMMENT ON COLUMN public.users.stripe_connect_onboarding_complete IS 'renta bed flag: true when landlord is fully ready for payments';
 COMMENT ON COLUMN public.users.stripe_connect_requirements_due IS 'Array of pending Stripe requirements (eventually_due + currently_due)';
 COMMENT ON COLUMN public.users.stripe_connect_last_synced_at IS 'Last time we synced status from Stripe account.updated webhook';
 
 COMMENT ON COLUMN public.payments.stripe_checkout_session_id IS 'Stripe Checkout Session ID for tracking';
 COMMENT ON COLUMN public.payments.stripe_payment_intent_id IS 'Stripe PaymentIntent ID for reconciliation';
-COMMENT ON COLUMN public.payments.host_fee_cents IS 'Room Link 5% host fee in cents';
+COMMENT ON COLUMN public.payments.host_fee_cents IS 'renta bed 5% host fee in cents';
 COMMENT ON COLUMN public.payments.landlord_payout_cents IS 'Amount landlord receives (rent - host fee) in cents';
 COMMENT ON COLUMN public.payments.connected_account_id IS 'Stripe Connect account ID that received payout';
 

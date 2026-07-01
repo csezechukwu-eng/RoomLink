@@ -1,4 +1,4 @@
--- Migration: Room Link Subscription Trial Support
+-- Migration: renta bed Subscription Trial Support
 -- Adds trial tracking and extended billing fields for SaaS subscription.
 --
 -- Plans:

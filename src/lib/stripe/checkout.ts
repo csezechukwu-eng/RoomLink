@@ -2,7 +2,7 @@ import "server-only";
 import { stripe, getBaseUrl } from "./server";
 
 /**
- * Stripe Checkout helper for Room Link tenant rent payments.
+ * Stripe Checkout helper for renta bed tenant rent payments.
  *
  * IMPORTANT:
  * - This helper accepts already-validated server-side data only.
@@ -13,7 +13,7 @@ import { stripe, getBaseUrl } from "./server";
  *
  * Stripe Connect:
  * - Uses destination charges with application_fee_amount
- * - Room Link keeps 5% host fee
+ * - renta bed keeps 5% host fee
  * - Landlord receives 95% via their connected account
  */
 
@@ -56,7 +56,7 @@ export interface CreateRentCheckoutInput {
   /** Landlord's Stripe Connect account ID (acct_xxx) */
   connectedAccountId?: string | null;
 
-  /** Room Link's 5% host fee in cents */
+  /** renta bed's 5% host fee in cents */
   hostFeeCents?: number | null;
 
   /** Landlord's payout amount in cents (amountCents - hostFeeCents) */

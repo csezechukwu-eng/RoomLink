@@ -25,7 +25,7 @@ const VALID_OCCUPANCY_TYPES = new Set<string>([
  * Handles: visibility, occupancy type, checkout photo requirement.
  *
  * Note: Monthly rent and deposit are per-bed, not property-level.
- * Minimum stay is fixed at 30 days for Room Link marketplace.
+ * Minimum stay is fixed at 30 days for renta bed marketplace.
  */
 export async function updateListingSettings(
   _prev: ActionState,
@@ -51,7 +51,7 @@ export async function updateListingSettings(
     occupancyType = occupancyTypeRaw as PropertyOccupancyType;
   }
 
-  // Parse minimum stay days (should always be 30 for Room Link)
+  // Parse minimum stay days (should always be 30 for renta bed)
   let defaultMinStayDays = 30;
   if (defaultMinStayDaysStr) {
     const parsed = parseInt(defaultMinStayDaysStr, 10);

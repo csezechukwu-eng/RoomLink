@@ -74,7 +74,7 @@ export default function SignupPage() {
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-bold text-slate-900">Create your account</h1>
         <p className="mt-2 text-slate-600">
-          Start managing your crash pad with RoomLink
+          Start managing your crash pad with renta bed
         </p>
       </div>
 

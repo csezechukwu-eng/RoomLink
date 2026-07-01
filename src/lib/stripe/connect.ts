@@ -3,11 +3,11 @@ import { stripe, getBaseUrl } from "./server";
 import type { StripeConnectOnboardingStatus } from "@/lib/types";
 
 /**
- * Stripe Connect helpers for Room Link marketplace payments.
+ * Stripe Connect helpers for renta bed marketplace payments.
  *
  * BUSINESS MODEL:
  * - Landlords connect their Stripe accounts via Express onboarding
- * - Room Link keeps 5% host fee via application_fee_amount
+ * - renta bed keeps 5% host fee via application_fee_amount
  * - Landlords receive 95% via destination charges
  * - No monthly subscription fees
  */
@@ -99,7 +99,7 @@ export async function createConnectAccount(
     type: "express",
     email,
     metadata: {
-      platform: "roomlink",
+      platform: "rentabed",
       landlord_id: metadata?.landlordId ?? "",
     },
     capabilities: {

@@ -1,4 +1,4 @@
--- RoomLink — Phase 1 (web) schema expansion
+-- renta bed — Phase 1 (web) schema expansion
 -- Adds the shared, platform-agnostic tables that BOTH the web app and the
 -- future mobile app read from. One source of truth — no web_/mobile_ split.
 --

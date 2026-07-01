@@ -1,24 +1,24 @@
 /**
- * Room Link Product Configuration
+ * renta bed Product Configuration
  * ================================
  *
  * PRODUCT DIRECTION (June 2025):
- * Room Link is a MARKETPLACE for monthly crash-pad / shared-housing / room-and-bed rentals.
+ * renta bed is a MARKETPLACE for monthly crash-pad / shared-housing / room-and-bed rentals.
  *
- * Room Link is NOT:
+ * renta bed is NOT:
  * - Airbnb (nightly short-term rentals)
  * - Traditional property-management SaaS (landlord monthly subscription)
  * - A background check provider
  *
- * Room Link IS:
+ * renta bed IS:
  * - A marketplace for minimum one-month stays
  * - Transaction-fee based (fees on monthly booking payments)
  *
  * BUSINESS MODEL:
  * - Tenant books minimum one-month stay
- * - Tenant pays monthly rent through Room Link
- * - Tenant pays Room Link service fee on top of rent
- * - Host/Landlord pays Room Link host fee (deducted from payout)
+ * - Tenant pays monthly rent through renta bed
+ * - Tenant pays renta bed service fee on top of rent
+ * - Host/Landlord pays renta bed host fee (deducted from payout)
  * - Host/Landlord receives rent payout through Stripe Connect
  * - Deposit collected at move-in when required
  * - Monthly stay agreement stored
@@ -37,8 +37,8 @@
  * - "Available beds"
  * - "House capacity"
  * - "Co-ed" / "Women-only house" / "Women-only rooms available"
- * - "Room Link service fee" (tenant-side)
- * - "Room Link host fee" (landlord-side)
+ * - "renta bed service fee" (tenant-side)
+ * - "renta bed host fee" (landlord-side)
  * - "Estimated host payout"
  * - "Stripe Connect payout"
  *
@@ -97,14 +97,14 @@
 export const PRODUCT_FEATURES = {
   /**
    * DEPRECATED: Landlord SaaS subscription billing.
-   * This was the original billing model where landlords pay Room Link monthly.
+   * This was the original billing model where landlords pay renta bed monthly.
    * Now hidden from UI. The new model is transaction-fee based.
    */
   LANDLORD_SUBSCRIPTION_BILLING: false,
 
   /**
    * TODO: Stripe Connect marketplace payments.
-   * When enabled, tenants pay through Room Link and hosts receive payouts.
+   * When enabled, tenants pay through renta bed and hosts receive payouts.
    * Platform fees are collected on each transaction.
    */
   STRIPE_CONNECT_PAYMENTS: false,
@@ -165,7 +165,7 @@ export const DEFAULT_FEES = {
 
 /**
  * Minimum stay requirements.
- * Room Link is for monthly stays only.
+ * renta bed is for monthly stays only.
  */
 export const MINIMUM_STAY = {
   /** Minimum stay in days */

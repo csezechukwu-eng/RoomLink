@@ -1,6 +1,6 @@
 // Lease template options - shared between client and server
 //
-// PRODUCT NOTE: Room Link is a MONTHLY-stay marketplace.
+// PRODUCT NOTE: renta bed is a MONTHLY-stay marketplace.
 // All stay types here represent minimum one-month stays.
 // "Short-term" in this context means monthly bed rentals (not nightly Airbnb-style).
 // See: src/lib/productConfig.ts for full product direction.

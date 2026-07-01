@@ -1,6 +1,6 @@
 -- Migration: Listing Settings for Monthly-Stay Marketplace
 --
--- Room Link is a marketplace for minimum 30-day monthly stays.
+-- renta bed is a marketplace for minimum 30-day monthly stays.
 -- This migration adds listing-specific fields for public property listings.
 --
 -- EXISTING FIELDS REUSED (not created here):
@@ -53,7 +53,7 @@ alter table public.properties
     check (default_min_stay_days >= 1);
 
 comment on column public.properties.default_min_stay_days is
-  'Default minimum stay in days for new beds. Room Link requires minimum 30-day stays.';
+  'Default minimum stay in days for new beds. renta bed requires minimum 30-day stays.';
 
 -- ===========================================================================
 -- ROOM-LEVEL OCCUPANCY OVERRIDE

@@ -3,10 +3,10 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * Stripe webhook handler for Room Link.
+ * Stripe webhook handler for renta bed.
  *
  * BUSINESS MODEL (June 2025):
- * Room Link uses a transaction-fee model. Landlords do not pay subscriptions.
+ * renta bed uses a transaction-fee model. Landlords do not pay subscriptions.
  * This webhook handles Stripe Checkout completion for tenant rent payments.
  *
  * Events handled:
@@ -172,7 +172,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const rentChargeId = metadata.rent_charge_id;
 
   // Skip legacy subscription checkouts
-  if (metadata.billing_type === "roomlink_platform_subscription") {
+  if (metadata.billing_type === "rentabed_platform_subscription") {
     console.log("[webhook] Ignoring legacy subscription checkout");
     return;
   }

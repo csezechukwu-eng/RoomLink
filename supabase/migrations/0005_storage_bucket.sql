@@ -1,4 +1,4 @@
--- RoomLink — Phase 1C Storage Bucket Setup
+-- renta bed — Phase 1C Storage Bucket Setup
 -- Creates the property-media storage bucket with appropriate policies
 
 -- ===========================================================================

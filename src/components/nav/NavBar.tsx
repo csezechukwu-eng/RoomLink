@@ -38,7 +38,7 @@ export function NavBar({ brand, items, right }: NavBarProps) {
             </span>
             <span className="flex flex-col leading-none">
               <span className="text-base font-semibold tracking-tight text-slate-900">
-                RoomLink
+                renta bed
               </span>
               {brand.sublabel ? (
                 <span className="text-[11px] font-medium text-slate-400">

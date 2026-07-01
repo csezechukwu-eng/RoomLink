@@ -21,7 +21,7 @@ export function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
           <Rocket className="h-8 w-8 text-indigo-600" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-3">
-          Welcome to RoomLink
+          Welcome to renta bed
         </h1>
         <p className="text-lg text-slate-600">
           Let&apos;s get your listing ready for tenants. This takes about 10-12 minutes.
@@ -68,7 +68,7 @@ export function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
           <StepPreview
             icon={<Rocket className="h-5 w-5" />}
             title="Publish"
-            description="Go live on RoomLink"
+            description="Go live on renta bed"
           />
         </div>
       </div>

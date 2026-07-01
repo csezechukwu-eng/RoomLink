@@ -2,13 +2,13 @@ import "server-only";
 import Stripe from "stripe";
 
 /**
- * Stripe server-side client for Room Link.
+ * Stripe server-side client for renta bed.
  *
  * BUSINESS MODEL (June 2025):
- * Room Link uses a transaction-fee model, NOT landlord subscriptions.
+ * renta bed uses a transaction-fee model, NOT landlord subscriptions.
  * - Landlords do not pay a monthly subscription
  * - Landlords pay a 5% host fee on each monthly rent payment
- * - Tenants pay monthly rent through Room Link (Stripe Connect)
+ * - Tenants pay monthly rent through renta bed (Stripe Connect)
  *
  * This file provides the core Stripe client for future marketplace payments.
  * The landlord subscription billing code has been removed.
@@ -74,7 +74,7 @@ export function getStripeConfigDiagnostics(): {
  *
  * IMPORTANT:
  * - In production, NEXT_PUBLIC_APP_URL MUST be set to the custom domain
- * - VERCEL_URL is auto-set by Vercel to the deployment URL (e.g., roomlink-xxx.vercel.app)
+ * - VERCEL_URL is auto-set by Vercel to the deployment URL (e.g., rentabed-xxx.vercel.app)
  * - Using VERCEL_URL in production causes cookie domain mismatches with custom domains
  */
 export function getBaseUrl(): string {

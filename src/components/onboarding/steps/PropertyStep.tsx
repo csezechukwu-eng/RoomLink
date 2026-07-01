@@ -61,8 +61,8 @@ interface PropertyStepProps {
 }
 
 // localStorage keys for form persistence
-const PROPERTY_FORM_STORAGE_KEY = "roomlink_property_form_draft";
-const ROOM_FORM_STORAGE_KEY = "roomlink_room_form_draft";
+const PROPERTY_FORM_STORAGE_KEY = "rentabed_property_form_draft";
+const ROOM_FORM_STORAGE_KEY = "rentabed_room_form_draft";
 
 /**
  * PropertyStep

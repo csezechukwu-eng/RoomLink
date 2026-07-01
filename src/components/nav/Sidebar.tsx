@@ -69,7 +69,7 @@ export function Sidebar({ brand, items, bottomItems, onLogout }: SidebarProps) {
           <Menu className="h-5 w-5" />
         </button>
         <Link href={brand.href} className="flex items-center gap-2">
-          <RoomLinkLogo />
+          <RentaBedLogo />
           <span className="text-base font-semibold tracking-tight text-slate-900">
             {brand.label}
           </span>
@@ -118,7 +118,7 @@ function SidebarContent({
       {/* Brand */}
       <div className="flex h-16 items-center gap-3 border-b border-slate-100 px-6">
         <Link href={brand.href} className="flex items-center gap-2.5">
-          <RoomLinkLogo />
+          <RentaBedLogo />
           <span className="flex flex-col leading-none">
             <span className="text-lg font-semibold tracking-tight text-slate-900">
               {brand.label}
@@ -194,7 +194,7 @@ function NavLink({ item, active }: { item: SidebarItem; active: boolean }) {
   );
 }
 
-function RoomLinkLogo() {
+function RentaBedLogo() {
   return (
     <svg
       width="32"
@@ -219,4 +219,4 @@ function RoomLinkLogo() {
   );
 }
 
-export { RoomLinkLogo };
+export { RentaBedLogo };

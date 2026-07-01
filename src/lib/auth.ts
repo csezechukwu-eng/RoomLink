@@ -5,7 +5,7 @@ import { getAuthUser } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 
 /**
- * Auth helpers for RoomLink.
+ * Auth helpers for renta bed.
  *
  * Supports two modes:
  * 1. Production mode: Uses real Supabase Auth
@@ -48,7 +48,7 @@ export async function getCurrentUser(): Promise<User | null> {
   if (isDemoMode()) {
     return {
       id: DEMO_OWNER_ID,
-      email: "demo@roomlink.local",
+      email: "demo@rentabed.local",
       app_metadata: {},
       user_metadata: { full_name: "Demo Landlord" },
       aud: "authenticated",
@@ -160,7 +160,7 @@ export async function getLandlordPayoutStatus(): Promise<LandlordPayoutStatus | 
   if (isDemoMode()) {
     return {
       id: DEMO_OWNER_ID,
-      email: "demo@roomlink.local",
+      email: "demo@rentabed.local",
       full_name: "Demo Landlord",
       stripe_connect_enabled: false,
     };

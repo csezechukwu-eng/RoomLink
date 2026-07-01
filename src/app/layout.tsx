@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "RoomLink — Crash Pad & Room Management",
+  title: "renta bed — Crash Pad & Room Management",
   description:
     "Manage crash pads, co-living, and rent-by-room housing: properties, rooms, beds, and availability.",
 };

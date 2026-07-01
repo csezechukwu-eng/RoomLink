@@ -3,7 +3,7 @@ import Link from "next/link";
 /**
  * Onboarding Layout
  *
- * Minimal full-screen chrome with just the RoomLink wordmark and a Save & exit link.
+ * Minimal full-screen chrome with just the renta bed wordmark and a Save & exit link.
  * No dashboard sidebar — focused, calm experience.
  */
 export default function OnboardingLayout({
@@ -16,12 +16,12 @@ export default function OnboardingLayout({
       {/* Top Bar */}
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
-          {/* RoomLink wordmark */}
+          {/* renta bed wordmark */}
           <Link href="/dashboard" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
               <span className="text-lg font-bold text-white">R</span>
             </div>
-            <span className="text-xl font-semibold text-slate-900">RoomLink</span>
+            <span className="text-xl font-semibold text-slate-900">renta bed</span>
           </Link>
 
           {/* Save & exit link */}

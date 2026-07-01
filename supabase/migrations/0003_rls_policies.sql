@@ -1,4 +1,4 @@
--- RoomLink — Phase 1B RLS Policies
+-- renta bed — Phase 1B RLS Policies
 -- Secure landlord data so Landlord A cannot access Landlord B's data.
 --
 -- Ownership model:

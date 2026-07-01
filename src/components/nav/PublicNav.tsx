@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { RoomLinkLogo } from "@/components/nav/Sidebar";
+import { RentaBedLogo } from "@/components/nav/Sidebar";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -27,7 +27,7 @@ export function PublicNav() {
             <span className="text-xl font-semibold tracking-tight text-slate-900">
               renta bed
             </span>
-            <RoomLinkLogo />
+            <RentaBedLogo />
           </Link>
 
           {/* Desktop Navigation */}

@@ -1,4 +1,4 @@
-# Room Link — Bed/Room Rental Agreement (template skeleton)
+# renta bed — Bed/Room Rental Agreement (template skeleton)
 
 > ⚠️ **Not legal advice.** This is a starting skeleton. Have a licensed
 > real-estate attorney in your state review and finalize it before use.
@@ -12,12 +12,12 @@
 3. Add **two roles**: `Landlord` and `Tenant` (set signing order).
 4. Add a **Signature** + **Date Signed** tab for each role where indicated.
 5. For every `«FieldLabel»` below, add a **Text tab** and set its
-   **Data Label** to the exact name shown (case-sensitive). Room Link fills
+   **Data Label** to the exact name shown (case-sensitive). renta bed fills
    these automatically when it sends the lease.
 6. Save the template and copy its **Template ID** into `DOCUSIGN_TEMPLATE_ID`.
 
 ### Auto-filled field labels (must match exactly)
-| Data Label | Filled from Room Link |
+| Data Label | Filled from renta bed |
 |---|---|
 | `PropertyName` | Property name |
 | `PropertyAddress` | Full property address |

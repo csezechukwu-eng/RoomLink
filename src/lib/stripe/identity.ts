@@ -151,7 +151,7 @@ export async function createIdentityVerificationSessionWithAttempt(
     const session = await stripe.identity.verificationSessions.create({
       type: "document",
       metadata: {
-        platform: "roomlink",
+        platform: "rentabed",
         user_id: userId,
         attempt_id: attemptId,
         purpose: "landlord_identity_verification",

@@ -34,7 +34,7 @@ export const STEPS: OnboardingStep[] = [
   {
     key: "welcome",
     title: "Welcome",
-    subtitle: "Get started with RoomLink",
+    subtitle: "Get started with renta bed",
     timeEstimate: "1 min",
     requirement: "publish",
     hint: "", // Part 2
@@ -82,7 +82,7 @@ export const STEPS: OnboardingStep[] = [
   {
     key: "publish",
     title: "Review & Publish",
-    subtitle: "Go live on RoomLink",
+    subtitle: "Go live on renta bed",
     timeEstimate: "2 min",
     requirement: "publish",
     hint: "", // Part 2

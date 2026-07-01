@@ -118,7 +118,7 @@ export interface OnboardingData {
 function getDemoOnboardingState(): LandlordOnboardingState {
   const demoData: OnboardingData = {
     userId: DEMO_OWNER_ID,
-    email: "demo@roomlink.local",
+    email: "demo@rentabed.local",
     fullName: "Demo Landlord",
     displayName: "Demo",
     phone: "(555) 123-4567",

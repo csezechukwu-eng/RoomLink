@@ -1,4 +1,4 @@
-# RoomLink
+# renta bed
 
 Property management for **crash pads, co-living, travel-nurse / airline-crew
 housing, and rent-by-bed shared living** — not generic apartment software.

@@ -41,7 +41,7 @@ export async function saveSignatureAction(
     // Create user record
     const { error: insertError } = await supabase.from("users").insert({
       id: ownerId,
-      email: authUser?.email ?? `user-${ownerId}@roomlink.app`,
+      email: authUser?.email ?? `user-${ownerId}@rentabed.app`,
       full_name: authUser?.user_metadata?.full_name ?? null,
       role: "owner",
       signature_data: signatureData,

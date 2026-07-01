@@ -1,4 +1,4 @@
-// RoomLink domain types — Phase 1A
+// renta bed domain types — Phase 1A
 
 export type PropertyType = "house" | "apartment" | "condo";
 export type BunkType = "top_bunk" | "bottom_bunk" | "single" | "other";
@@ -145,7 +145,7 @@ export type VerificationStatus =
 // DEPRECATED: Subscription Billing Types
 // ---------------------------------------------------------------------------
 // These types are from the deprecated landlord subscription billing model.
-// Room Link now uses a transaction-fee model where landlords pay a 5% host fee
+// renta bed now uses a transaction-fee model where landlords pay a 5% host fee
 // only when tenants pay rent through the platform.
 // These types are kept for database compatibility but should not be used in new code.
 // See: supabase/migrations/0025_deprecate_subscription_billing.sql
@@ -226,7 +226,7 @@ export interface User {
   // DEPRECATED: Subscription Billing Fields
   // ---------------------------------------------------------------------------
   // These fields are from the deprecated landlord subscription billing model.
-  // Room Link now uses transaction-based fees (5% host fee on rent payments).
+  // renta bed now uses transaction-based fees (5% host fee on rent payments).
   // These fields are kept for database compatibility but not actively used.
   // See: supabase/migrations/0025_deprecate_subscription_billing.sql
 
@@ -291,7 +291,7 @@ export interface User {
   /** Whether the landlord has submitted onboarding details */
   stripe_connect_details_submitted: boolean;
 
-  /** Room Link flag: true when landlord is fully ready for payments */
+  /** renta bed flag: true when landlord is fully ready for payments */
   stripe_connect_onboarding_complete: boolean;
 
   /** Array of pending Stripe requirements */
@@ -478,7 +478,7 @@ export interface Payment {
   stripe_checkout_session_id: string | null;
   /** Stripe PaymentIntent ID for reconciliation */
   stripe_payment_intent_id: string | null;
-  /** Room Link 5% host fee in cents */
+  /** renta bed 5% host fee in cents */
   host_fee_cents: number | null;
   /** Amount landlord receives (rent - host fee) in cents */
   landlord_payout_cents: number | null;

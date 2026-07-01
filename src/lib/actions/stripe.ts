@@ -19,7 +19,7 @@ import type { RentCharge, Payment } from "@/lib/types";
  *
  * Stripe Connect:
  * - Checks if landlord has charges_enabled
- * - Calculates 5% host fee (Room Link keeps this)
+ * - Calculates 5% host fee (renta bed keeps this)
  * - Routes 95% to landlord via destination charge
  *
  * Does NOT:

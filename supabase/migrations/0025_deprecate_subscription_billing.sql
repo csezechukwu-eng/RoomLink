@@ -1,12 +1,12 @@
 -- Migration: Deprecate Landlord Subscription Billing
 -- ===========================================================================
 -- This migration documents the deprecation of landlord subscription billing.
--- Room Link has pivoted from a SaaS subscription model to a marketplace
+-- renta bed has pivoted from a SaaS subscription model to a marketplace
 -- transaction-fee model where landlords pay a 5% host fee only when tenants
 -- pay rent through the platform.
 --
 -- BUSINESS MODEL CHANGE:
--- OLD MODEL: Landlord pays Room Link $30/month or $280/year subscription
+-- OLD MODEL: Landlord pays renta bed $30/month or $280/year subscription
 -- NEW MODEL: Landlord pays 5% host fee on each monthly rent payment
 --
 -- This migration does NOT drop columns to preserve any existing data.
@@ -18,61 +18,61 @@
 -- ---------------------------------------------------------------------------
 
 comment on column public.users.stripe_customer_id is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.stripe_subscription_id is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.stripe_subscription_status is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.stripe_price_id is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.stripe_current_period_start is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.stripe_current_period_end is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.stripe_cancel_at_period_end is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.billing_email is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.subscription_plan is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.subscription_interval is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.subscription_amount is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.subscription_started_at is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.subscription_canceled_at is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.subscription_ended_at is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.trial_started_at is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.trial_ends_at is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.trial_used is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.billing_payment_method_summary is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 comment on column public.users.billing_updated_at is
-  'DEPRECATED: Was used for landlord subscription billing. Room Link now uses transaction fees.';
+  'DEPRECATED: Was used for landlord subscription billing. renta bed now uses transaction fees.';
 
 -- ---------------------------------------------------------------------------
 -- Update stripe_connect_enabled comment (still in use)

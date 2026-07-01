@@ -1,4 +1,4 @@
--- RoomLink — Phase 1A schema
+-- renta bed — Phase 1A schema
 -- Properties, Rooms, Beds, and a future-proof membership table.
 -- Crash-pad / rent-by-room inventory model.
 
