@@ -13,6 +13,8 @@ export interface ThreadSummary {
   last_at: string;
   last_sender_role: MessageSenderRole;
   count: number;
+  /** True if the tenant has an active reservation (is a current tenant) */
+  is_current_tenant: boolean;
 }
 
 export interface TenantThread {
@@ -84,6 +86,19 @@ export async function listThreadsForOwner(
       ])
     );
 
+    // Fetch active reservations to identify current tenants
+    const { data: reservations } = await supabase
+      .from("reservations")
+      .select("tenant_id, property_id")
+      .in("property_id", propertyIds)
+      .in("tenant_id", tenantIds)
+      .eq("status", "active");
+
+    // Create a set of "property:tenant" keys for active tenants
+    const activeTenantKeys = new Set(
+      (reservations ?? []).map((r) => `${r.property_id}:${r.tenant_id}`)
+    );
+
     const threads = new Map<string, ThreadSummary>();
     for (const m of messages) {
       const key = `${m.property_id}:${m.tenant_id}`;
@@ -100,6 +115,7 @@ export async function listThreadsForOwner(
           last_at: m.created_at,
           last_sender_role: m.sender_role,
           count: 1,
+          is_current_tenant: activeTenantKeys.has(key),
         });
       } else {
         existing.count += 1;

@@ -13,7 +13,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ErrorState";
+import { ContactHostButton } from "@/components/messages/ContactHostButton";
 import { getAvailabilityDetail } from "@/lib/services/availability";
+import { getCurrentUser } from "@/lib/auth";
 import { labelForBunkType, labelForOccupancyType } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import { computeBedAvailability } from "@/lib/bedAvailability";
@@ -45,18 +47,29 @@ export default async function AvailabilityDetailPage({
     .filter(Boolean)
     .join(", ");
 
+  // Check if user is logged in for contact button
+  const user = await getCurrentUser();
+  const isLoggedIn = !!user;
+
   return (
     <div className="space-y-6">
       <BackLink />
 
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-          {property.name}
-        </h1>
-        {location && (
-          <p className="mt-1 text-slate-500">{location}</p>
-        )}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+            {property.name}
+          </h1>
+          {location && (
+            <p className="mt-1 text-slate-500">{location}</p>
+          )}
+        </div>
+        <ContactHostButton
+          propertyId={propertyId}
+          propertyName={property.name}
+          isLoggedIn={isLoggedIn}
+        />
       </div>
 
       {/* Photo Gallery */}

@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentOwnerId, getCurrentTenantId } from "@/lib/auth";
+import { getCurrentOwnerId, getCurrentTenantId, getCurrentUser } from "@/lib/auth";
 import { sendMessage } from "@/lib/services/messages";
 import {
   type ActionState,
@@ -55,4 +55,32 @@ export async function sendTenantMessageAction(
   if (result.error !== null) return errorState(result.error);
   revalidateApp();
   return successState("Sent.");
+}
+
+/** Send an inquiry message from the listings page (requires login). */
+export async function sendInquiryMessageAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const propertyId = str(formData, "property_id");
+  const body = str(formData, "body");
+  if (!propertyId) return errorState("Property not found.");
+  if (!body) return errorState("Message can't be empty.");
+
+  // Require user to be logged in
+  const user = await getCurrentUser();
+  if (!user) {
+    return errorState("Please sign in to send a message.");
+  }
+
+  const result = await sendMessage({
+    propertyId,
+    tenantId: user.id,
+    senderId: user.id,
+    senderRole: "tenant",
+    body,
+  });
+  if (result.error !== null) return errorState(result.error);
+  revalidateApp();
+  return successState("Message sent! The host will respond soon.");
 }
