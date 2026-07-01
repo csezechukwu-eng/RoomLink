@@ -239,13 +239,6 @@ function getTenantStepStatus(key: TenantStepKey, data: TenantOnboardingData): Te
       }
       return "incomplete";
 
-    case "housing-preferences":
-      // Required: budget range, preferred city
-      if (data.budgetMin !== null && data.budgetMax !== null && data.preferredCity) {
-        return "complete";
-      }
-      return "incomplete";
-
     case "verification":
       // Required: identity verified
       if (data.identityVerified) {

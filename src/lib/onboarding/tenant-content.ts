@@ -7,7 +7,6 @@
 export type TenantStepKey =
   | "welcome"
   | "basic-info"
-  | "housing-preferences"
   | "verification"
   | "payment-method"
   | "messaging-rules"
@@ -33,11 +32,6 @@ export const TENANT_STEPS: TenantOnboardingStep[] = [
     key: "basic-info",
     title: "Basic Info",
     subtitle: "Tell us about you",
-  },
-  {
-    key: "housing-preferences",
-    title: "Housing Preferences",
-    subtitle: "What are you looking for?",
   },
   {
     key: "verification",

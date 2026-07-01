@@ -6,7 +6,6 @@ import {
   CheckCircle,
   Loader2,
   User,
-  Home,
   Shield,
   CreditCard,
   MessageSquare,
@@ -38,12 +37,6 @@ export function ReviewFinishStep({ state }: ReviewFinishStepProps) {
       icon: User,
       title: "Basic Info",
       complete: state.steps.find((s) => s.key === "basic-info")?.status === "complete",
-    },
-    {
-      key: "housing-preferences",
-      icon: Home,
-      title: "Housing Preferences",
-      complete: state.steps.find((s) => s.key === "housing-preferences")?.status === "complete",
     },
     {
       key: "verification",

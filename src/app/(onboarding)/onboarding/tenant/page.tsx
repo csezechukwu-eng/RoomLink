@@ -11,7 +11,6 @@ interface PageProps {
 const VALID_STEPS: TenantStepKey[] = [
   "welcome",
   "basic-info",
-  "housing-preferences",
   "verification",
   "payment-method",
   "messaging-rules",

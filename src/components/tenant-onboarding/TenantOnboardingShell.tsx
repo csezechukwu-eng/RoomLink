@@ -6,7 +6,6 @@ import { TenantOnboardingStepper } from "./TenantOnboardingStepper";
 import { WhatYouUnlockPanel } from "./WhatYouUnlockPanel";
 import { TenantWelcomeStep } from "./steps/TenantWelcomeStep";
 import { BasicInfoStep } from "./steps/BasicInfoStep";
-import { HousingPreferencesStep } from "./steps/HousingPreferencesStep";
 import { TenantVerificationStep } from "./steps/TenantVerificationStep";
 import { PaymentMethodStep } from "./steps/PaymentMethodStep";
 import { MessagingRulesStep } from "./steps/MessagingRulesStep";
@@ -73,8 +72,6 @@ export function TenantOnboardingShell({ state, activeStep }: TenantOnboardingShe
         return <TenantWelcomeStep onGetStarted={() => navigateToStep("basic-info")} />;
       case "basic-info":
         return <BasicInfoStep state={state} onContinue={handleContinue} />;
-      case "housing-preferences":
-        return <HousingPreferencesStep state={state} onContinue={handleContinue} />;
       case "verification":
         return <TenantVerificationStep state={state} onContinue={handleContinue} />;
       case "payment-method":
