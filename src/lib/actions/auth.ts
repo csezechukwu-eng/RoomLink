@@ -209,3 +209,45 @@ export async function signOut(): Promise<void> {
 
   redirect("/login");
 }
+
+/**
+ * Initiate Google OAuth sign-in flow
+ */
+export async function signInWithGoogle(role: "landlord" | "tenant" = "landlord"): Promise<{ url?: string; error?: string }> {
+  try {
+    const supabase = await createAuthenticatedClient();
+    const baseUrl = getBaseUrl();
+
+    // Set redirect based on role
+    const onboardingPath = role === "tenant" ? "/onboarding/tenant" : "/onboarding/landlord";
+    const redirectTo = `${baseUrl}/auth/callback?redirect=${encodeURIComponent(onboardingPath)}`;
+
+    console.log("[signInWithGoogle] Role:", role);
+    console.log("[signInWithGoogle] Redirect URL:", redirectTo);
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
+    });
+
+    if (error) {
+      console.error("[signInWithGoogle] Error:", error.message);
+      return { error: error.message };
+    }
+
+    if (data.url) {
+      return { url: data.url };
+    }
+
+    return { error: "Failed to get OAuth URL" };
+  } catch (err) {
+    console.error("[signInWithGoogle] Unexpected error:", err);
+    return { error: "An unexpected error occurred. Please try again." };
+  }
+}
