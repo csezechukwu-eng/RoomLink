@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Camera, Loader2, ArrowRight } from "lucide-react";
+import Image from "next/image";
+import { Camera, Loader2, ArrowRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { updateTenantBasicInfo } from "@/lib/actions/tenant-onboarding";
+import { updateTenantBasicInfo, uploadProfilePhoto } from "@/lib/actions/tenant-onboarding";
 import type { TenantOnboardingState } from "@/lib/onboarding/tenant-state";
 
 interface BasicInfoStepProps {
@@ -43,8 +44,12 @@ const LIFESTYLE_OPTIONS = [
  */
 export function BasicInfoStep({ state, onContinue }: BasicInfoStepProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isUploading, setIsUploading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [photoError, setPhotoError] = React.useState<string | null>(null);
   const [aboutMeLength, setAboutMeLength] = React.useState(state.data.aboutMe?.length || 0);
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(state.data.avatarUrl);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -64,6 +69,38 @@ export function BasicInfoStep({ state, onContinue }: BasicInfoStepProps) {
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setPhotoError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const result = await uploadProfilePhoto(formData);
+      if (result.error) {
+        setPhotoError(result.error);
+      } else if (result.avatarUrl) {
+        setAvatarUrl(result.avatarUrl);
+      }
+    } catch {
+      setPhotoError("Failed to upload photo. Please try again.");
+    } finally {
+      setIsUploading(false);
+      // Reset file input so the same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -249,16 +286,73 @@ export function BasicInfoStep({ state, onContinue }: BasicInfoStepProps) {
           {/* Profile Photo */}
           <div className="space-y-4">
             <div className="rounded-xl border-2 border-dashed border-slate-200 p-6 text-center">
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 mb-4">
-                <Camera className="h-8 w-8 text-slate-400" />
-              </div>
-              <p className="font-medium text-slate-900">Add a profile photo</p>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+
+              {avatarUrl ? (
+                // Show uploaded photo
+                <div className="relative mx-auto w-24 h-24 mb-4">
+                  <Image
+                    src={avatarUrl}
+                    alt="Profile photo"
+                    fill
+                    className="rounded-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAvatarUrl(null)}
+                    className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                // Show placeholder
+                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 mb-4">
+                  {isUploading ? (
+                    <Loader2 className="h-8 w-8 text-slate-400 animate-spin" />
+                  ) : (
+                    <Camera className="h-8 w-8 text-slate-400" />
+                  )}
+                </div>
+              )}
+
+              <p className="font-medium text-slate-900">
+                {avatarUrl ? "Profile photo added" : "Add a profile photo"}
+              </p>
               <p className="text-sm text-slate-500 mt-1">
                 Helps landlords & housemates get to know you.
               </p>
-              <Button type="button" variant="outline" size="sm" className="mt-4">
-                Upload Photo
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={handlePhotoClick}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    Uploading...
+                  </>
+                ) : avatarUrl ? (
+                  "Change Photo"
+                ) : (
+                  "Upload Photo"
+                )}
               </Button>
+
+              {photoError && (
+                <p className="text-sm text-red-600 mt-2">{photoError}</p>
+              )}
             </div>
           </div>
         </div>

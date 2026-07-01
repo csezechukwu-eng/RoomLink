@@ -2,9 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser, isDemoMode } from "@/lib/auth";
-import { getServiceClient, isServiceRoleConfigured } from "@/lib/supabase/server";
+import { getServiceClient, isServiceRoleConfigured, createAuthenticatedClient } from "@/lib/supabase/server";
 
-type ActionResult = { error?: string; success?: boolean };
+type ActionResult = { error?: string; success?: boolean; avatarUrl?: string };
+
+const AVATAR_BUCKET = "avatars";
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 /**
  * Update tenant basic info (name, phone, preferences)
@@ -181,4 +185,81 @@ export async function completeTenantOnboarding(): Promise<ActionResult> {
   revalidatePath("/onboarding/tenant");
   revalidatePath("/availability");
   return { success: true };
+}
+
+/**
+ * Upload profile photo for tenant
+ */
+export async function uploadProfilePhoto(formData: FormData): Promise<ActionResult> {
+  if (isDemoMode()) {
+    return { success: true, avatarUrl: "/images/demo-avatar.png" };
+  }
+
+  const user = await getCurrentUser();
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  const file = formData.get("file") as File | null;
+  if (!file || !(file instanceof File)) {
+    return { error: "No file uploaded" };
+  }
+
+  // Validate file
+  if (file.size > MAX_FILE_SIZE) {
+    return { error: "File is too large. Maximum size is 5MB." };
+  }
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return { error: "Invalid file type. Use JPEG, PNG, or WebP." };
+  }
+
+  try {
+    const supabase = await createAuthenticatedClient();
+
+    // Generate unique filename
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const timestamp = Date.now();
+    const filename = `${user.id}/${timestamp}.${ext}`;
+
+    // Upload to storage
+    const arrayBuffer = await file.arrayBuffer();
+    const { error: uploadError } = await supabase.storage
+      .from(AVATAR_BUCKET)
+      .upload(filename, arrayBuffer, {
+        contentType: file.type,
+        upsert: true, // Allow overwriting existing avatar
+      });
+
+    if (uploadError) {
+      console.error("[uploadProfilePhoto] Storage upload error:", uploadError);
+      return { error: "Failed to upload photo. Please try again." };
+    }
+
+    // Get public URL
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(filename);
+
+    // Update user record with new avatar URL
+    if (!isServiceRoleConfigured()) {
+      return { error: "Database not configured" };
+    }
+
+    const serviceClient = getServiceClient();
+    const { error: updateError } = await serviceClient
+      .from("users")
+      .update({ avatar_url: publicUrl })
+      .eq("id", user.id);
+
+    if (updateError) {
+      console.error("[uploadProfilePhoto] Update error:", updateError);
+      return { error: "Failed to save photo. Please try again." };
+    }
+
+    revalidatePath("/onboarding/tenant");
+    return { success: true, avatarUrl: publicUrl };
+  } catch (error) {
+    console.error("[uploadProfilePhoto] Error:", error);
+    return { error: "An unexpected error occurred. Please try again." };
+  }
 }
