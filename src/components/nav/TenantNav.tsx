@@ -41,7 +41,7 @@ export function TenantNav() {
 
   return (
     <Sidebar
-      brand={{ label: "renta bed", href: "/tenant", sublabel: "Tenant Portal" }}
+      brand={{ label: "renta bed", href: "/availability", sublabel: "Tenant Portal" }}
       items={items}
       bottomItems={bottomItems}
       onLogout={handleLogout}
