@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { BedDouble } from "lucide-react";
-import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { AvailabilityCard } from "@/components/availability/AvailabilityCard";
@@ -17,6 +16,7 @@ interface SearchParams {
   minBeds?: string;
   minRent?: string;
   maxRent?: string;
+  amenities?: string;
 }
 
 export default async function AvailabilityPage({
@@ -36,19 +36,16 @@ export default async function AvailabilityPage({
   if (params.maxRent) filters.maxRent = parseInt(params.maxRent, 10);
 
   const result = await getAvailableProperties(filters);
-  const hasFilters = Object.keys(filters).length > 0;
+  const hasFilters = Object.keys(filters).length > 0 || !!params.amenities;
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Find your monthly stay"
-        description="Browse monthly rentals with flexible 30+ day stays. Filter by location, budget, and availability."
-      />
-
-      {/* Search filters */}
-      <Suspense fallback={<div className="h-24 animate-pulse bg-slate-100 rounded-lg" />}>
-        <AvailabilityFilters />
-      </Suspense>
+      {/* Filter Pills */}
+      <div className="border-b pb-4">
+        <Suspense fallback={<div className="h-12 animate-pulse bg-slate-100 rounded-lg" />}>
+          <AvailabilityFilters />
+        </Suspense>
+      </div>
 
       {result.error !== null ? (
         <ErrorState title="Couldn't load listings" message={result.error} />
@@ -64,10 +61,17 @@ export default async function AvailabilityPage({
         />
       ) : (
         <>
-          <p className="text-sm text-slate-500">
-            {result.data.length} {result.data.length === 1 ? "listing" : "listings"} found
-          </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Results Header */}
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold text-slate-900">
+              {result.data.length === 1
+                ? "1 monthly stay"
+                : `${result.data.length} monthly stays`}
+            </h1>
+          </div>
+
+          {/* Property Grid - Airbnb style 4 columns */}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {result.data.map((p) => (
               <AvailabilityCard key={p.id} property={p} />
             ))}

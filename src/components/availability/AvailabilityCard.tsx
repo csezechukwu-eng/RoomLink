@@ -1,8 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, MapPin, BedDouble, ImageIcon, Calendar, Users } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { labelForPropertyType, labelForOccupancyType } from "@/lib/constants";
+import { Heart, Star, ImageIcon } from "lucide-react";
+import { labelForPropertyType } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import type { AvailabilityProperty } from "@/lib/services/availability";
 
@@ -15,98 +16,91 @@ export function AvailabilityCard({ property }: { property: AvailabilityProperty 
         ? formatCurrency(property.minRent)
         : `${formatCurrency(property.minRent)}–${formatCurrency(property.maxRent)}`
       : null;
-  const deposit = property.minDeposit !== null && property.minDeposit > 0
-    ? formatCurrency(property.minDeposit)
-    : null;
 
   return (
     <Link href={`/availability/${property.id}`} className="group block">
-      <Card className="h-full overflow-hidden transition-shadow group-hover:shadow-md">
-        {/* Cover Photo */}
-        <div className="relative h-40 bg-gradient-to-br from-slate-100 to-slate-200">
-          {property.coverPhoto?.public_url ? (
-            <Image
-              src={property.coverPhoto.public_url}
-              alt={property.coverPhoto.alt_text || property.name}
-              fill
-              className="object-cover transition-transform group-hover:scale-105"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <ImageIcon className="h-10 w-10 text-slate-300" />
-            </div>
-          )}
-        </div>
-        <div className="flex flex-col gap-4 p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
-              <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
-                {labelForPropertyType(property.property_type)}
-              </span>
-              <h3 className="truncate text-base font-semibold text-slate-900">
-                {property.name}
-              </h3>
-              {location ? (
-                <p className="flex items-center gap-1 truncate text-sm text-slate-500">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {location}
-                </p>
-              ) : null}
-            </div>
-            <ArrowRight className="h-5 w-5 shrink-0 text-slate-300 transition-colors group-hover:text-indigo-500" />
+      {/* Image Container */}
+      <div className="relative aspect-square overflow-hidden rounded-xl bg-slate-100">
+        {property.coverPhoto?.public_url ? (
+          <Image
+            src={property.coverPhoto.public_url}
+            alt={property.coverPhoto.alt_text || property.name}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <ImageIcon className="h-12 w-12 text-slate-300" />
           </div>
+        )}
 
-          {/* Price and Details */}
-          <div className="space-y-2 border-t border-slate-100 pt-3">
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                {price ? (
-                  <p className="text-sm">
-                    <span className="font-semibold text-slate-900">{price}</span>
-                    <span className="text-slate-500">/mo</span>
-                  </p>
-                ) : (
-                  <p className="text-sm text-slate-500">Pricing varies</p>
-                )}
-                {deposit && (
-                  <p className="text-xs text-slate-500">
-                    {deposit} deposit
-                  </p>
-                )}
-              </div>
-              <span
-                className={
-                  hasVacancy
-                    ? "inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20"
-                    : "inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500"
-                }
-              >
-                {hasVacancy
-                  ? `${property.vacantBeds} bed${property.vacantBeds === 1 ? "" : "s"} available`
-                  : "Fully booked"}
-              </span>
-            </div>
-            {/* Minimum stay + beds + occupancy */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                Min 30 days
-              </span>
-              <span className="flex items-center gap-1">
-                <BedDouble className="h-3 w-3" />
-                {property.totalBeds} beds
-              </span>
-              {property.occupancy_type && (
-                <span className="flex items-center gap-1">
-                  <Users className="h-3 w-3" />
-                  {labelForOccupancyType(property.occupancy_type)}
-                </span>
-              )}
-            </div>
+        {/* Favorite Button */}
+        <button
+          className="absolute right-3 top-3 rounded-full p-2 transition-transform hover:scale-110"
+          onClick={(e) => {
+            e.preventDefault();
+            // TODO: Implement favorites
+          }}
+        >
+          <Heart className="h-6 w-6 text-white drop-shadow-md" strokeWidth={2} />
+        </button>
+
+        {/* Badge */}
+        {hasVacancy && property.vacantBeds >= 3 && (
+          <div className="absolute left-3 top-3 rounded-full bg-white px-3 py-1.5 text-xs font-semibold shadow-md">
+            {property.vacantBeds} beds open
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="mt-3">
+        {/* Title Row */}
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-semibold text-slate-900 truncate">
+            {property.name}
+          </h3>
+          {/* Rating placeholder - can be implemented later */}
+          <div className="flex items-center gap-1 shrink-0">
+            <Star className="h-4 w-4 fill-current" />
+            <span className="text-sm">New</span>
           </div>
         </div>
-      </Card>
+
+        {/* Location */}
+        {location && (
+          <p className="text-sm text-slate-500 truncate">{location}</p>
+        )}
+
+        {/* Property Type */}
+        <p className="text-sm text-slate-500">
+          {labelForPropertyType(property.property_type)} · {property.totalBeds} beds total
+        </p>
+
+        {/* Availability */}
+        <p className="text-sm text-slate-500">
+          {hasVacancy ? (
+            <span className="text-emerald-600 font-medium">
+              {property.vacantBeds} bed{property.vacantBeds === 1 ? "" : "s"} available
+            </span>
+          ) : (
+            <span className="text-slate-400">Fully booked</span>
+          )}
+        </p>
+
+        {/* Price */}
+        <p className="mt-1.5">
+          {price ? (
+            <>
+              <span className="font-semibold">{price}</span>
+              <span className="text-slate-500"> /month</span>
+            </>
+          ) : (
+            <span className="text-slate-500">Pricing varies</span>
+          )}
+        </p>
+      </div>
     </Link>
   );
 }

@@ -6,7 +6,6 @@ import {
   Shield,
   Wifi,
   Zap,
-  MapPin,
   Search,
   CheckCircle,
   ArrowRight,
@@ -16,6 +15,7 @@ import {
   Briefcase,
   Heart,
   Clock,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,60 +24,69 @@ export const dynamic = "force-dynamic";
 
 export default async function LandingPage() {
   return (
-    <div className="space-y-24 pb-16">
-      {/* Hero Section */}
-      <section className="relative pt-8 lg:pt-16">
-        {/* Decorative background elements */}
-        <div className="absolute inset-0 -z-10 overflow-hidden">
-          <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-indigo-100/50 blur-3xl" />
-          <div className="absolute -bottom-40 -left-40 h-[400px] w-[400px] rounded-full bg-indigo-50/60 blur-3xl" />
-        </div>
-
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-8">
+    <div className="space-y-20 pb-16">
+      {/* Hero Section - Clean and Simple */}
+      <section className="pt-8 lg:pt-12">
+        <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
           {/* Left: Copy */}
           <div className="flex flex-col justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-4 py-2 text-sm font-medium text-indigo-700 mb-6 w-fit ring-1 ring-indigo-200/50">
+            <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-600 mb-6 w-fit">
               <BedDouble className="h-4 w-4" />
               Find Your Next Home
             </div>
-            <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+
+            <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl leading-tight">
               Affordable Housing.
               <br />
               <span className="text-indigo-600">One Bed at a Time.</span>
             </h1>
+
             <p className="mt-6 text-lg text-slate-600 leading-relaxed max-w-xl">
-              renta bed connects you with affordable, fully-furnished beds in shared housing.
-              Pay less than traditional rent while getting everything you need — utilities, WiFi, and furniture included.
+              renta bed connects you with{" "}
+              <span className="font-semibold text-indigo-600">
+                affordable, fully-furnished beds
+              </span>{" "}
+              in shared housing. Pay less than traditional rent while getting
+              everything you need — utilities, WiFi, and furniture included.
             </p>
+
             <div className="mt-8 flex flex-wrap gap-4">
               <Link href="/availability">
-                <Button size="md" className="h-12 px-6 text-base bg-indigo-600 hover:bg-indigo-700 gap-2 shadow-lg shadow-indigo-500/25">
+                <Button
+                  size="md"
+                  className="h-12 px-6 text-base bg-indigo-600 hover:bg-indigo-700 gap-2"
+                >
                   <Search className="h-4 w-4" />
                   Find a Bed
                 </Button>
               </Link>
               <Link href="/hosting">
-                <Button variant="outline" size="md" className="h-12 px-6 text-base gap-2 border-indigo-200 hover:bg-indigo-50">
+                <Button
+                  variant="outline"
+                  size="md"
+                  className="h-12 px-6 text-base gap-2 border-slate-300 hover:bg-slate-50"
+                >
                   Become a Host
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             </div>
+
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-600">
-              <span className="flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5 ring-1 ring-slate-200/50">
-                <CheckCircle className="h-4 w-4 text-indigo-500" />
+              <span className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-indigo-600" />
                 Fully Furnished
               </span>
-              <span className="flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5 ring-1 ring-slate-200/50">
-                <CheckCircle className="h-4 w-4 text-indigo-500" />
+              <span className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-indigo-600" />
                 Utilities Included
               </span>
-              <span className="flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5 ring-1 ring-slate-200/50">
-                <CheckCircle className="h-4 w-4 text-indigo-500" />
+              <span className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-indigo-600" />
                 WiFi Included
               </span>
-              <span className="flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5 ring-1 ring-slate-200/50">
-                <CheckCircle className="h-4 w-4 text-indigo-500" />
+              <span className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-indigo-600" />
                 Flexible Terms
               </span>
             </div>
@@ -85,10 +94,7 @@ export default async function LandingPage() {
 
           {/* Right: Hero Image */}
           <div className="relative">
-            {/* Decorative ring around image */}
-            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-indigo-200/40 via-transparent to-indigo-100/30 -z-10" />
-
-            <div className="relative h-[420px] lg:h-[480px] overflow-hidden rounded-2xl ring-1 ring-slate-200/50 shadow-2xl shadow-indigo-500/10">
+            <div className="relative h-[400px] lg:h-[480px] overflow-hidden rounded-2xl">
               <Image
                 src="/images/hero-living-room.png"
                 alt="Comfortable shared housing"
@@ -96,15 +102,17 @@ export default async function LandingPage() {
                 className="object-cover object-center"
                 priority
               />
-              {/* Gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-indigo-900/10" />
 
               {/* Price Badge */}
-              <div className="absolute bottom-6 left-6 bg-white/98 backdrop-blur-sm rounded-xl p-4 shadow-xl ring-1 ring-indigo-100">
-                <div className="h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-indigo-500 rounded-full mb-3 -mt-1" />
+              <div className="absolute bottom-6 left-6 bg-white rounded-xl p-4 shadow-lg">
                 <p className="text-sm text-slate-500">Starting from</p>
-                <p className="text-3xl font-bold text-slate-900">$450<span className="text-lg font-normal text-slate-500">/month</span></p>
-                <p className="text-sm text-emerald-600 font-medium flex items-center gap-1">
+                <p className="text-3xl font-bold text-slate-900">
+                  $450
+                  <span className="text-base font-normal text-slate-500">
+                    /month
+                  </span>
+                </p>
+                <p className="text-sm text-emerald-600 font-medium flex items-center gap-1 mt-1">
                   <CheckCircle className="h-3.5 w-3.5" />
                   All inclusive
                 </p>
@@ -113,18 +121,19 @@ export default async function LandingPage() {
           </div>
         </div>
 
-        {/* Divider with gradient */}
-        <div className="mt-16 h-px bg-gradient-to-r from-transparent via-indigo-200 to-transparent" />
+        {/* Purple divider */}
+        <div className="mt-16 h-px bg-gradient-to-r from-transparent via-indigo-300 to-transparent" />
       </section>
 
       {/* Why Rent a Bed Section */}
-      <section className="scroll-mt-20">
+      <section className="bg-slate-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-16 rounded-2xl">
         <div className="text-center">
           <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
             Why Rent a Bed Instead of an Apartment?
           </h2>
           <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-            The traditional rental model doesn&apos;t work for everyone. renta bed offers a smarter, more affordable way to live.
+            The traditional rental model doesn&apos;t work for everyone. renta
+            bed offers a smarter, more affordable way to live.
           </p>
         </div>
 
@@ -151,7 +160,7 @@ export default async function LandingPage() {
       </section>
 
       {/* What's Included Section */}
-      <section className="rounded-3xl bg-gradient-to-br from-indigo-600 to-indigo-800 px-6 py-16 sm:px-12 sm:py-20 text-white">
+      <section className="bg-indigo-600 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-16 rounded-2xl text-white">
         <div className="text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Everything Included. One Simple Price.
@@ -161,14 +170,26 @@ export default async function LandingPage() {
           </p>
         </div>
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <IncludedItem icon={<BedDouble className="h-6 w-6" />} label="Furnished Bed & Room" />
-          <IncludedItem icon={<Wifi className="h-6 w-6" />} label="High-Speed WiFi" />
+          <IncludedItem
+            icon={<BedDouble className="h-6 w-6" />}
+            label="Furnished Bed & Room"
+          />
+          <IncludedItem
+            icon={<Wifi className="h-6 w-6" />}
+            label="High-Speed WiFi"
+          />
           <IncludedItem icon={<Zap className="h-6 w-6" />} label="All Utilities" />
-          <IncludedItem icon={<Shield className="h-6 w-6" />} label="Safe & Secure" />
+          <IncludedItem
+            icon={<Shield className="h-6 w-6" />}
+            label="Safe & Secure"
+          />
         </div>
         <div className="mt-12 text-center">
           <Link href="/availability">
-            <Button size="md" className="h-12 px-8 text-base bg-white text-indigo-600 hover:bg-indigo-50">
+            <Button
+              size="md"
+              className="h-12 px-8 text-base bg-white text-indigo-600 hover:bg-indigo-50"
+            >
               Browse Available Beds
             </Button>
           </Link>
@@ -182,27 +203,28 @@ export default async function LandingPage() {
             Perfect For
           </h2>
           <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-            renta bed serves professionals and individuals who need affordable, flexible housing.
+            renta bed serves professionals and individuals who need affordable,
+            flexible housing.
           </p>
         </div>
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <AudienceCard
-            icon={<Plane className="h-8 w-8" />}
+            icon={<Plane className="h-7 w-7" />}
             title="Flight Crews"
             description="Crash pads near airports with flexible schedules that match your routes."
           />
           <AudienceCard
-            icon={<Stethoscope className="h-8 w-8" />}
+            icon={<Stethoscope className="h-7 w-7" />}
             title="Travel Nurses"
             description="Short-term housing near hospitals for your contract assignments."
           />
           <AudienceCard
-            icon={<GraduationCap className="h-8 w-8" />}
+            icon={<GraduationCap className="h-7 w-7" />}
             title="Students"
             description="Affordable housing near campus without the commitment of a full lease."
           />
           <AudienceCard
-            icon={<Briefcase className="h-8 w-8" />}
+            icon={<Briefcase className="h-7 w-7" />}
             title="Remote Workers"
             description="Live anywhere affordably while working from home or exploring new cities."
           />
@@ -210,7 +232,7 @@ export default async function LandingPage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="bg-slate-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-16 sm:py-20 rounded-3xl">
+      <section className="bg-slate-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-16 rounded-2xl">
         <div className="text-center">
           <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
             How It Works
@@ -261,21 +283,29 @@ export default async function LandingPage() {
 
       {/* CTA Section */}
       <section className="text-center">
-        <div className="rounded-3xl bg-slate-900 px-6 py-16 sm:px-12 sm:py-20">
+        <div className="bg-slate-900 rounded-2xl px-6 py-16 sm:px-12 sm:py-20">
           <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
             Ready to Find Your Next Home?
           </h2>
           <p className="mt-4 text-lg text-slate-300 max-w-2xl mx-auto">
-            Browse hundreds of affordable, fully-furnished beds across the country.
+            Browse hundreds of affordable, fully-furnished beds across the
+            country.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link href="/availability">
-              <Button size="md" className="h-12 px-8 text-base bg-indigo-600 hover:bg-indigo-700">
+              <Button
+                size="md"
+                className="h-12 px-8 text-base bg-indigo-600 hover:bg-indigo-700"
+              >
                 Find a Bed Near You
               </Button>
             </Link>
             <Link href="/hosting">
-              <Button variant="outline" size="md" className="h-12 px-8 text-base border-slate-600 text-white hover:bg-slate-800">
+              <Button
+                variant="outline"
+                size="md"
+                className="h-12 px-8 text-base border-slate-600 text-white hover:bg-slate-800"
+              >
                 List Your Property
               </Button>
             </Link>
@@ -298,8 +328,8 @@ function ComparisonCard({
   highlight: string;
 }) {
   return (
-    <Card className="p-6 hover:shadow-lg transition-shadow">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+    <Card className="p-6 bg-white">
+      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
         {icon}
       </div>
       <h3 className="mt-4 text-xl font-semibold text-slate-900">{title}</h3>
@@ -317,8 +347,8 @@ function IncludedItem({
   label: string;
 }) {
   return (
-    <div className="flex items-center gap-4 rounded-xl bg-white/10 p-4">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+    <div className="flex items-center gap-4 rounded-lg bg-indigo-500 p-4">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-400">
         {icon}
       </div>
       <span className="font-medium">{label}</span>
@@ -336,12 +366,14 @@ function AudienceCard({
   description: string;
 }) {
   return (
-    <Card className="p-6 text-center hover:shadow-md transition-shadow">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+    <Card className="p-6 text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
         {icon}
       </div>
       <h3 className="mt-4 font-semibold text-slate-900">{title}</h3>
-      <p className="mt-2 text-sm text-slate-600 leading-relaxed">{description}</p>
+      <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+        {description}
+      </p>
     </Card>
   );
 }
@@ -379,7 +411,7 @@ function TestimonialCard({
     <Card className="p-8">
       <div className="flex gap-1 text-amber-400 mb-4">
         {[1, 2, 3, 4, 5].map((star) => (
-          <Heart key={star} className="h-5 w-5 fill-current" />
+          <Star key={star} className="h-5 w-5 fill-current" />
         ))}
       </div>
       <blockquote className="text-lg text-slate-700 leading-relaxed">
@@ -387,7 +419,10 @@ function TestimonialCard({
       </blockquote>
       <div className="mt-6 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-600">
-          {author.split(" ").map(n => n[0]).join("")}
+          {author
+            .split(" ")
+            .map((n) => n[0])
+            .join("")}
         </div>
         <div>
           <p className="font-semibold text-slate-900">{author}</p>
