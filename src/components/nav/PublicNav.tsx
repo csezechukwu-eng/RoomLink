@@ -65,7 +65,7 @@ export function PublicNav() {
             ) : (
               <>
                 <Link
-                  href="/login"
+                  href="/signin"
                   className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
                 >
                   Log In
@@ -131,7 +131,7 @@ export function PublicNav() {
               ) : (
                 <>
                   <Link
-                    href="/login"
+                    href="/signin"
                     onClick={() => setMobileMenuOpen(false)}
                     className="rounded-lg px-3 py-2 text-center text-base font-medium text-slate-600 hover:bg-slate-50"
                   >

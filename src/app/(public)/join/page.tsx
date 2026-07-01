@@ -61,7 +61,7 @@ export default function TenantJoinPage() {
               verify your account.
             </p>
             <Link
-              href="/login"
+              href="/signin"
               className="mt-6 inline-block text-sm font-medium text-indigo-600 hover:text-indigo-700"
             >
               Return to login
@@ -178,7 +178,7 @@ export default function TenantJoinPage() {
           <div className="mt-6 text-center text-sm text-slate-600">
             Already have an account?{" "}
             <Link
-              href="/login"
+              href="/signin"
               className="font-medium text-indigo-600 hover:text-indigo-700"
             >
               Sign in
