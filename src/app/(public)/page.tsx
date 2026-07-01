@@ -1,20 +1,21 @@
 import Link from "next/link";
 import Image from "next/image";
 import {
-  Play,
   BedDouble,
-  ClipboardCheck,
   DollarSign,
-  MessageSquare,
-  CalendarClock,
+  Shield,
+  Wifi,
+  Zap,
+  MapPin,
+  Search,
+  CheckCircle,
+  ArrowRight,
   Plane,
   Stethoscope,
   GraduationCap,
-  Building,
-  Home,
-  Users,
-  CheckCircle,
-  TrendingUp,
+  Briefcase,
+  Heart,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -30,238 +31,282 @@ export default async function LandingPage() {
           {/* Left: Copy */}
           <div className="flex flex-col justify-center">
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-              Run Your Crash Pad.
+              Affordable Housing.
               <br />
-              <span className="text-slate-900">Not a Spreadsheet.</span>
+              <span className="text-indigo-600">One Bed at a Time.</span>
             </h1>
             <p className="mt-6 text-lg text-slate-600 leading-relaxed max-w-xl">
-              The all-in-one platform for crash pads, room rentals, and shared housing.
-              Manage beds, tenants, payments, and communication in one powerful dashboard.
+              RENTA BED connects you with affordable, fully-furnished beds in shared housing.
+              Pay less than traditional rent while getting everything you need — utilities, WiFi, and furniture included.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link href="/availability">
-                <Button size="md" className="h-12 px-6 text-base">
-                  Browse Listings
+                <Button size="md" className="h-12 px-6 text-base bg-indigo-600 hover:bg-indigo-700 gap-2">
+                  <Search className="h-4 w-4" />
+                  Find a Bed
                 </Button>
               </Link>
-              <Link href="/dashboard">
+              <Link href="/become-a-host">
                 <Button variant="outline" size="md" className="h-12 px-6 text-base gap-2">
-                  <Play className="h-4 w-4" />
-                  Host Dashboard
+                  Become a Host
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             </div>
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600">
               <span className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-emerald-500" />
-                Live Bed Availability
+                Fully Furnished
               </span>
               <span className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-emerald-500" />
-                Online Applications
+                Utilities Included
               </span>
               <span className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-emerald-500" />
-                Rent & Deposit Tracking
+                WiFi Included
               </span>
               <span className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-emerald-500" />
-                House Communication
+                Flexible Terms
               </span>
             </div>
           </div>
 
-          {/* Right: Hero Image with Dashboard Preview Overlay */}
+          {/* Right: Hero Image */}
           <div className="relative">
-            {/* Background Image - Off-centered for aesthetic */}
             <div className="relative h-[420px] lg:h-[480px] overflow-hidden rounded-2xl">
               <Image
                 src="/images/hero-crashpad.png"
-                alt="Modern crash pad living room"
+                alt="Comfortable shared housing"
                 fill
                 className="object-cover object-center"
                 priority
               />
-              {/* Subtle gradient overlay for better contrast */}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/30 via-transparent to-transparent" />
-            </div>
+              {/* Gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent" />
 
-            {/* Dashboard Preview Card - Overlapping the image */}
-            <div className="absolute -bottom-8 -left-4 lg:-left-12 z-10 w-[90%] max-w-md">
-              <DashboardPreview />
+              {/* Price Badge */}
+              <div className="absolute bottom-6 left-6 bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-lg">
+                <p className="text-sm text-slate-500">Starting from</p>
+                <p className="text-3xl font-bold text-slate-900">$450<span className="text-lg font-normal text-slate-500">/month</span></p>
+                <p className="text-sm text-emerald-600 font-medium">All inclusive</p>
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Extra spacing to account for overlapping card */}
-        <div className="h-16 lg:h-8" />
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="scroll-mt-20">
+      {/* Why Rent a Bed Section */}
+      <section className="scroll-mt-20">
         <div className="text-center">
           <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            Everything You Need to Manage Your Property
+            Why Rent a Bed Instead of an Apartment?
           </h2>
           <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-            From bed tracking to tenant communication, we&apos;ve built the tools that crash pad operators need.
+            The traditional rental model doesn&apos;t work for everyone. RENTA BED offers a smarter, more affordable way to live.
           </p>
         </div>
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
-          <FeatureCard
-            icon={<BedDouble className="h-6 w-6" />}
-            title="Live Availability"
-            description="Show real-time bed availability and let tenants apply online."
-          />
-          <FeatureCard
-            icon={<ClipboardCheck className="h-6 w-6" />}
-            title="Applications"
-            description="Review and approve applications all in one place."
-          />
-          <FeatureCard
+
+        <div className="mt-12 grid gap-8 lg:grid-cols-3">
+          <ComparisonCard
             icon={<DollarSign className="h-6 w-6" />}
-            title="Rent Tracking"
-            description="Track rent, deposits, and payments with ease."
+            title="Save 40-60% on Housing"
+            description="Why pay $1,500+ for an apartment when you can get a fully-furnished bed with all utilities included for a fraction of the cost?"
+            highlight="Average savings: $600/month"
           />
-          <FeatureCard
-            icon={<MessageSquare className="h-6 w-6" />}
-            title="Communication"
-            description="Send announcements and message tenants instantly."
+          <ComparisonCard
+            icon={<Zap className="h-6 w-6" />}
+            title="Move In Ready"
+            description="No furniture to buy, no utility setup, no WiFi installation. Just bring your bags and start living. Everything is already set up."
+            highlight="Move in within 24 hours"
           />
-          <FeatureCard
-            icon={<CalendarClock className="h-6 w-6" />}
-            title="Move-Outs"
-            description="Manage move-out notices and keep your turnover organized."
+          <ComparisonCard
+            icon={<Clock className="h-6 w-6" />}
+            title="Flexible Terms"
+            description="Month-to-month options available. Perfect for travel professionals, students, or anyone who needs flexibility without long-term leases."
+            highlight="No 12-month commitments"
           />
         </div>
       </section>
 
-      {/* Built For Section */}
-      <section className="rounded-3xl bg-slate-900 px-6 py-16 sm:px-12 sm:py-20">
+      {/* What's Included Section */}
+      <section className="rounded-3xl bg-gradient-to-br from-indigo-600 to-indigo-800 px-6 py-16 sm:px-12 sm:py-20 text-white">
         <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Built for Crash Pads and Shared Housing
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Everything Included. One Simple Price.
           </h2>
-          <p className="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">
-            Whether you house flight crews, travel nurses, or students, RoomLink is designed for your unique needs.
+          <p className="mt-4 text-lg text-indigo-100 max-w-2xl mx-auto">
+            No hidden fees, no surprise bills. Your rent covers it all.
           </p>
         </div>
-        <div className="mt-12 flex flex-wrap justify-center gap-8 sm:gap-12">
-          <AudienceIcon icon={<Plane className="h-8 w-8" />} label="Flight Crews" />
-          <AudienceIcon icon={<Stethoscope className="h-8 w-8" />} label="Travel Nurses" />
-          <AudienceIcon icon={<GraduationCap className="h-8 w-8" />} label="Students" />
-          <AudienceIcon icon={<Building className="h-8 w-8" />} label="Midterm Rentals" />
-          <AudienceIcon icon={<Home className="h-8 w-8" />} label="Shared Housing" />
-          <AudienceIcon icon={<Users className="h-8 w-8" />} label="And More" />
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <IncludedItem icon={<BedDouble className="h-6 w-6" />} label="Furnished Bed & Room" />
+          <IncludedItem icon={<Wifi className="h-6 w-6" />} label="High-Speed WiFi" />
+          <IncludedItem icon={<Zap className="h-6 w-6" />} label="All Utilities" />
+          <IncludedItem icon={<Shield className="h-6 w-6" />} label="Safe & Secure" />
+        </div>
+        <div className="mt-12 text-center">
+          <Link href="/availability">
+            <Button size="md" className="h-12 px-8 text-base bg-white text-indigo-600 hover:bg-indigo-50">
+              Browse Available Beds
+            </Button>
+          </Link>
+        </div>
+      </section>
+
+      {/* Perfect For Section */}
+      <section>
+        <div className="text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            Perfect For
+          </h2>
+          <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+            RENTA BED serves professionals and individuals who need affordable, flexible housing.
+          </p>
+        </div>
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <AudienceCard
+            icon={<Plane className="h-8 w-8" />}
+            title="Flight Crews"
+            description="Crash pads near airports with flexible schedules that match your routes."
+          />
+          <AudienceCard
+            icon={<Stethoscope className="h-8 w-8" />}
+            title="Travel Nurses"
+            description="Short-term housing near hospitals for your contract assignments."
+          />
+          <AudienceCard
+            icon={<GraduationCap className="h-8 w-8" />}
+            title="Students"
+            description="Affordable housing near campus without the commitment of a full lease."
+          />
+          <AudienceCard
+            icon={<Briefcase className="h-8 w-8" />}
+            title="Remote Workers"
+            description="Live anywhere affordably while working from home or exploring new cities."
+          />
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="bg-slate-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-16 sm:py-20 rounded-3xl">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            How It Works
+          </h2>
+          <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+            Finding your next home is simple with RENTA BED.
+          </p>
+        </div>
+        <div className="mt-12 grid gap-8 lg:grid-cols-3">
+          <StepCard
+            step="1"
+            title="Browse Listings"
+            description="Search available beds by location, price, and amenities. See real photos and detailed descriptions."
+          />
+          <StepCard
+            step="2"
+            title="Apply Online"
+            description="Submit your application in minutes. No paperwork, no hassle. Get approved quickly."
+          />
+          <StepCard
+            step="3"
+            title="Move In"
+            description="Once approved, pay your deposit and move in. Your fully-furnished space is ready and waiting."
+          />
         </div>
       </section>
 
       {/* Testimonials Section */}
-      <section id="about">
+      <section>
         <div className="text-center">
           <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            Loved by Property Operators
+            What Our Renters Say
           </h2>
         </div>
         <div className="mt-12 grid gap-6 lg:grid-cols-2">
           <TestimonialCard
-            quote="Room Link has completely changed how I run my crash pad. No more spreadsheets, no more missed payments, no more chaos."
-            author="Marcus D."
-            role="Crash Pad Owner"
+            quote="As a flight attendant, I needed somewhere affordable near the airport without a long-term commitment. RENTA BED was perfect. I save over $800 a month compared to renting my own place."
+            author="Jessica M."
+            role="Flight Attendant, Atlanta"
           />
           <TestimonialCard
-            quote="I manage 3 properties with over 40 beds. Before RoomLink, it was a nightmare keeping track of everything. Now it's effortless."
-            author="Sarah K."
-            role="Property Manager"
+            quote="Moving to a new city for my travel nursing contract was stressful. RENTA BED made it easy — I found a great place in 2 days and moved in the same week."
+            author="David R."
+            role="Travel Nurse, Houston"
           />
         </div>
       </section>
 
       {/* CTA Section */}
       <section className="text-center">
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-          Ready to simplify your property management?
-        </h2>
-        <p className="mt-4 text-lg text-slate-600">
-          Join hundreds of crash pad operators who&apos;ve made the switch.
-        </p>
-        <div className="mt-8 flex justify-center gap-4">
-          <Link href="/availability">
-            <Button size="md" className="h-12 px-8 text-base">
-              Browse Listings
-            </Button>
-          </Link>
-          <Link href="/dashboard">
-            <Button variant="outline" size="md" className="h-12 px-8 text-base">
-              Host Dashboard
-            </Button>
-          </Link>
+        <div className="rounded-3xl bg-slate-900 px-6 py-16 sm:px-12 sm:py-20">
+          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            Ready to Find Your Next Home?
+          </h2>
+          <p className="mt-4 text-lg text-slate-300 max-w-2xl mx-auto">
+            Browse hundreds of affordable, fully-furnished beds across the country.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-4">
+            <Link href="/availability">
+              <Button size="md" className="h-12 px-8 text-base bg-indigo-600 hover:bg-indigo-700">
+                Find a Bed Near You
+              </Button>
+            </Link>
+            <Link href="/become-a-host">
+              <Button variant="outline" size="md" className="h-12 px-8 text-base border-slate-600 text-white hover:bg-slate-800">
+                List Your Property
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
     </div>
   );
 }
 
-function DashboardPreview() {
+function ComparisonCard({
+  icon,
+  title,
+  description,
+  highlight,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  highlight: string;
+}) {
   return (
-    <Card className="overflow-hidden shadow-2xl shadow-slate-900/20 ring-1 ring-slate-200/50 backdrop-blur-sm">
-      <div className="bg-white/95 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-500">Charlotte Flight Crew Crash Pad</p>
-            <div className="mt-4 flex gap-8">
-              <div>
-                <p className="text-3xl font-bold text-slate-900">16</p>
-                <p className="text-sm text-slate-500">Total Beds</p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-slate-900">12</p>
-                <p className="text-sm text-slate-500">Occupied</p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-indigo-600">3</p>
-                <p className="text-sm text-slate-500">Reserved</p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-emerald-600">1</p>
-                <p className="text-sm text-slate-500">Available</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="mt-6 border-t border-slate-100 pt-6">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-700">Monthly Revenue</p>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-              <TrendingUp className="h-3 w-3" />
-              +12.5%
-            </span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-slate-900">$9,450</span>
-            <span className="text-sm text-slate-500">This Month</span>
-          </div>
-          <div className="mt-3 flex gap-4 text-xs">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Paid $8,150
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
-              Pending $1,300
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              Late $650
-            </span>
-          </div>
-        </div>
+    <Card className="p-6 hover:shadow-lg transition-shadow">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+        {icon}
       </div>
+      <h3 className="mt-4 text-xl font-semibold text-slate-900">{title}</h3>
+      <p className="mt-2 text-slate-600 leading-relaxed">{description}</p>
+      <p className="mt-4 text-sm font-medium text-emerald-600">{highlight}</p>
     </Card>
   );
 }
 
-function FeatureCard({
+function IncludedItem({
+  icon,
+  label,
+}: {
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-4 rounded-xl bg-white/10 p-4">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+        {icon}
+      </div>
+      <span className="font-medium">{label}</span>
+    </div>
+  );
+}
+
+function AudienceCard({
   icon,
   title,
   description,
@@ -272,7 +317,7 @@ function FeatureCard({
 }) {
   return (
     <Card className="p-6 text-center hover:shadow-md transition-shadow">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
         {icon}
       </div>
       <h3 className="mt-4 font-semibold text-slate-900">{title}</h3>
@@ -281,19 +326,22 @@ function FeatureCard({
   );
 }
 
-function AudienceIcon({
-  icon,
-  label,
+function StepCard({
+  step,
+  title,
+  description,
 }: {
-  icon: React.ReactNode;
-  label: string;
+  step: string;
+  title: string;
+  description: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 text-white">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800 text-slate-300">
-        {icon}
+    <div className="text-center">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-lg">
+        {step}
       </div>
-      <span className="text-sm font-medium text-slate-300">{label}</span>
+      <h3 className="mt-4 text-xl font-semibold text-slate-900">{title}</h3>
+      <p className="mt-2 text-slate-600 leading-relaxed">{description}</p>
     </div>
   );
 }
@@ -309,12 +357,16 @@ function TestimonialCard({
 }) {
   return (
     <Card className="p-8">
+      <div className="flex gap-1 text-amber-400 mb-4">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Heart key={star} className="h-5 w-5 fill-current" />
+        ))}
+      </div>
       <blockquote className="text-lg text-slate-700 leading-relaxed">
-        <span className="text-4xl text-slate-300 leading-none">&quot;</span>
-        {quote}
+        &quot;{quote}&quot;
       </blockquote>
       <div className="mt-6 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-600">
           {author.split(" ").map(n => n[0]).join("")}
         </div>
         <div>

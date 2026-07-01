@@ -3,17 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoomLinkLogo } from "@/components/nav/Sidebar";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/#features", label: "Features" },
+  { href: "/availability", label: "Find a Bed" },
   { href: "/#how-it-works", label: "How It Works" },
-  { href: "/#pricing", label: "Pricing" },
-  { href: "/#about", label: "About Us" },
-  { href: "/#contact", label: "Contact" },
+  { href: "/#about", label: "About" },
 ];
 
 export function PublicNav() {
@@ -28,7 +26,7 @@ export function PublicNav() {
           <Link href="/" className="flex items-center gap-2.5">
             <RoomLinkLogo />
             <span className="text-lg font-semibold tracking-tight text-slate-900">
-              Room Link
+              RENTA BED
             </span>
           </Link>
 
@@ -47,14 +45,20 @@ export function PublicNav() {
 
           {/* Desktop CTA */}
           <div className="hidden items-center gap-3 md:flex">
+            <Link href="/become-a-host">
+              <Button
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700 gap-2"
+              >
+                <Home className="h-4 w-4" />
+                Become a Host
+              </Button>
+            </Link>
             <Link
-              href="/dashboard"
+              href="/login"
               className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
             >
               Log In
-            </Link>
-            <Link href="/availability">
-              <Button size="sm">Get Started</Button>
             </Link>
           </div>
 
@@ -89,14 +93,18 @@ export function PublicNav() {
               </Link>
             ))}
             <div className="mt-4 flex flex-col gap-2 pt-4 border-t border-slate-100">
+              <Link href="/become-a-host" onClick={() => setMobileMenuOpen(false)}>
+                <Button className="w-full bg-indigo-600 hover:bg-indigo-700 gap-2">
+                  <Home className="h-4 w-4" />
+                  Become a Host
+                </Button>
+              </Link>
               <Link
-                href="/dashboard"
-                className="rounded-lg px-3 py-2 text-base font-medium text-slate-600 hover:bg-slate-50"
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 text-center text-base font-medium text-slate-600 hover:bg-slate-50"
               >
                 Log In
-              </Link>
-              <Link href="/availability">
-                <Button className="w-full">Get Started</Button>
               </Link>
             </div>
           </div>
