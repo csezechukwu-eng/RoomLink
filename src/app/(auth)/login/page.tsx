@@ -56,9 +56,9 @@ function LoginForm() {
   return (
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Host Login</h1>
         <p className="mt-2 text-slate-600">
-          Sign in to your renta bed account
+          Sign in to manage your rental property
         </p>
       </div>
 
@@ -125,12 +125,12 @@ function LoginForm() {
         </form>
 
         <div className="mt-6 text-center text-sm text-slate-600">
-          Don&apos;t have an account?{" "}
+          Want to become a host?{" "}
           <Link
-            href="/signup"
+            href="/become-a-host"
             className="font-medium text-indigo-600 hover:text-indigo-700"
           >
-            Sign up
+            Get started
           </Link>
         </div>
       </Card>

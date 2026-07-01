@@ -77,7 +77,7 @@ export default async function LandingPage() {
           <div className="relative">
             <div className="relative h-[420px] lg:h-[480px] overflow-hidden rounded-2xl">
               <Image
-                src="/images/hero-crashpad.png"
+                src="/images/hero-living-room.png"
                 alt="Comfortable shared housing"
                 fill
                 className="object-cover object-center"

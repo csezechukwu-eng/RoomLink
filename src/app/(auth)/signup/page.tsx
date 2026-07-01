@@ -72,9 +72,9 @@ export default function SignupPage() {
   return (
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-slate-900">Create your account</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Become a Host</h1>
         <p className="mt-2 text-slate-600">
-          Start managing your rental property with renta bed
+          Create your host account to list and manage your rental property
         </p>
       </div>
 
