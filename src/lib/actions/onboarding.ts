@@ -462,8 +462,30 @@ export async function createOrUpdatePropertyListingAction(
         .single();
 
       if (insertError) {
-        console.error("[createOrUpdatePropertyListingAction] Insert error:", insertError);
-        return errorState("Failed to create property. Please try again.");
+        console.error("[createOrUpdatePropertyListingAction] Insert error:", {
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+        });
+        // Provide more specific error messages
+        if (insertError.code === "23503") {
+          // Foreign key violation
+          return errorState("User account not found. Please complete account setup first.");
+        }
+        if (insertError.code === "23502") {
+          // NOT NULL violation
+          return errorState(`Missing required field: ${insertError.message}`);
+        }
+        if (insertError.code === "23514") {
+          // Check constraint violation
+          return errorState(`Invalid value: ${insertError.message}`);
+        }
+        if (insertError.code === "42703") {
+          // Column doesn't exist
+          return errorState(`Database schema issue: ${insertError.message}. Please contact support.`);
+        }
+        return errorState(`Failed to create property: ${insertError.message || "Please try again."}`);
       }
 
       newPropertyId = newProperty.id;
