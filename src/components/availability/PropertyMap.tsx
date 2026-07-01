@@ -5,7 +5,6 @@ import {
   GoogleMap,
   useJsApiLoader,
   OverlayView,
-  InfoWindow,
 } from "@react-google-maps/api";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
@@ -322,62 +321,97 @@ export function PropertyMap({
           </OverlayView>
         ))}
 
+        {/* Property popup card */}
         {selectedProperty && (
-          <InfoWindow
+          <OverlayView
             position={selectedProperty.coords}
-            onCloseClick={() => {
-              setSelectedProperty(null);
-              onPropertySelect?.(null);
-            }}
-            options={{
-              pixelOffset: new google.maps.Size(0, -20),
-              maxWidth: 300,
-            }}
+            mapPaneName={OverlayView.FLOAT_PANE}
           >
-            <Link
-              href={`/availability/${selectedProperty.property.id}`}
-              className="block w-64 overflow-hidden"
+            <div
+              className="relative -translate-x-1/2 -translate-y-full mb-4"
+              style={{ width: '300px' }}
             >
-              {/* Property Image */}
-              {selectedProperty.property.coverPhoto?.public_url ? (
-                <div className="relative h-36 w-full overflow-hidden rounded-lg -mx-2 -mt-2 mb-2">
-                  <img
-                    src={selectedProperty.property.coverPhoto.public_url}
-                    alt={selectedProperty.property.name}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="h-28 w-full bg-slate-100 rounded-lg -mx-2 -mt-2 mb-2 flex items-center justify-center">
-                  <svg className="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              {/* Card */}
+              <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-100">
+                {/* Close button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedProperty(null);
+                    onPropertySelect?.(null);
+                  }}
+                  className="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur rounded-full p-1.5 shadow-md hover:bg-white transition-colors"
+                >
+                  <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </div>
-              )}
+                </button>
 
-              <h3 className="font-semibold text-slate-900 text-sm leading-tight">
-                {selectedProperty.property.name}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {[selectedProperty.property.city, selectedProperty.property.state]
-                  .filter(Boolean)
-                  .join(", ")}
-              </p>
+                <Link href={`/availability/${selectedProperty.property.id}`}>
+                  {/* Property Image */}
+                  {selectedProperty.property.coverPhoto?.public_url ? (
+                    <div className="relative h-44 w-full overflow-hidden">
+                      <img
+                        src={selectedProperty.property.coverPhoto.public_url}
+                        alt={selectedProperty.property.name}
+                        className="h-full w-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                      {/* Gradient overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    </div>
+                  ) : (
+                    <div className="h-36 w-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                      <svg className="h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
 
-              <div className="mt-2 flex items-center justify-between">
-                <span className="font-semibold text-slate-900 text-sm">
-                  {selectedProperty.property.minRent
-                    ? formatCurrency(selectedProperty.property.minRent)
-                    : "Contact"}
-                  <span className="font-normal text-slate-500"> /mo</span>
-                </span>
-                <span className="text-xs text-emerald-600 font-medium">
-                  {selectedProperty.property.vacantBeds} bed
-                  {selectedProperty.property.vacantBeds !== 1 ? "s" : ""} open
-                </span>
+                  {/* Content */}
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-semibold text-slate-900 text-base leading-tight line-clamp-1">
+                        {selectedProperty.property.name}
+                      </h3>
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 whitespace-nowrap">
+                        {selectedProperty.property.vacantBeds} bed{selectedProperty.property.vacantBeds !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+
+                    <p className="text-sm text-slate-500 mt-1">
+                      {[selectedProperty.property.city, selectedProperty.property.state]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <div>
+                        <span className="text-lg font-bold text-slate-900">
+                          {selectedProperty.property.minRent
+                            ? formatCurrency(selectedProperty.property.minRent)
+                            : "Contact for price"}
+                        </span>
+                        {selectedProperty.property.minRent && (
+                          <span className="text-slate-500 text-sm"> /month</span>
+                        )}
+                      </div>
+                      <span className="text-indigo-600 text-sm font-medium flex items-center gap-1">
+                        View details
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </span>
+                    </div>
+                  </div>
+                </Link>
               </div>
-            </Link>
-          </InfoWindow>
+
+              {/* Arrow pointing down */}
+              <div className="absolute left-1/2 -translate-x-1/2 -bottom-2">
+                <div className="w-4 h-4 bg-white rotate-45 shadow-lg border-r border-b border-slate-100" />
+              </div>
+            </div>
+          </OverlayView>
         )}
       </GoogleMap>
 
