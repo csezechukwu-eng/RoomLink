@@ -63,14 +63,22 @@ export function PublicNav() {
                 </Link>
               </>
             ) : (
-              <Link href="/availability">
-                <Button
-                  size="sm"
-                  className="bg-indigo-600 hover:bg-indigo-700"
+              <>
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
                 >
-                  Find a Bed
-                </Button>
-              </Link>
+                  Log In
+                </Link>
+                <Link href="/signup">
+                  <Button
+                    size="sm"
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    Sign Up
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
 
@@ -121,11 +129,20 @@ export function PublicNav() {
                   </Link>
                 </>
               ) : (
-                <Link href="/availability" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full bg-indigo-600 hover:bg-indigo-700">
-                    Find a Bed
-                  </Button>
-                </Link>
+                <>
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="rounded-lg px-3 py-2 text-center text-base font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    Log In
+                  </Link>
+                  <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
+                    <Button className="w-full bg-indigo-600 hover:bg-indigo-700">
+                      Sign Up
+                    </Button>
+                  </Link>
+                </>
               )}
             </div>
           </div>
