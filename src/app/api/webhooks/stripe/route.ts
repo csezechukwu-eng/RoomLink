@@ -685,7 +685,6 @@ async function handleSetupSessionCompleted(session: Stripe.Checkout.Session) {
     .from("users")
     .update({
       payment_method_added: true,
-      payment_method_added_at: new Date().toISOString(),
       stripe_customer_id: typeof session.customer === "string"
         ? session.customer
         : session.customer?.id ?? null,
@@ -739,7 +738,6 @@ async function handleSetupIntentSucceeded(setupIntent: Stripe.SetupIntent) {
       .from("users")
       .update({
         payment_method_added: true,
-        payment_method_added_at: new Date().toISOString(),
       })
       .eq("stripe_customer_id", customerId);
 
@@ -766,7 +764,6 @@ async function handleSetupIntentSucceeded(setupIntent: Stripe.SetupIntent) {
     .from("users")
     .update({
       payment_method_added: true,
-      payment_method_added_at: new Date().toISOString(),
     })
     .eq("id", userId);
 

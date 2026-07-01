@@ -243,11 +243,11 @@ export async function markPaymentMethodAdded(): Promise<ActionResult> {
 
   const supabase = getServiceClient();
 
+  // Update payment_method_added flag
   const { error } = await supabase
     .from("users")
     .update({
       payment_method_added: true,
-      payment_method_added_at: new Date().toISOString(),
     })
     .eq("id", user.id);
 
@@ -255,6 +255,14 @@ export async function markPaymentMethodAdded(): Promise<ActionResult> {
     console.error("[markPaymentMethodAdded] Error:", error);
     return { error: "Failed to update payment status" };
   }
+
+  // Try to update the timestamp column (may not exist if migration hasn't run)
+  await supabase
+    .from("users")
+    .update({
+      payment_method_added_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
 
   revalidatePath("/onboarding/tenant");
   return { success: true };
