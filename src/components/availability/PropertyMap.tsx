@@ -1,201 +1,157 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import type { AvailabilityProperty } from "@/lib/services/availability";
 import "leaflet/dist/leaflet.css";
 
-// Fix for default marker icons in Next.js
-const defaultIcon = L.divIcon({
-  className: "custom-marker",
-  html: `<div class="flex items-center justify-center w-8 h-8 bg-indigo-600 rounded-full border-2 border-white shadow-lg">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-    </svg>
-  </div>`,
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32],
-});
+// Modern price tag marker style (like Airbnb)
+function createPriceMarker(price: number | null, isSelected: boolean) {
+  const priceText = price ? `$${price.toLocaleString()}` : "View";
+  const bgColor = isSelected ? "#000000" : "#ffffff";
+  const textColor = isSelected ? "#ffffff" : "#000000";
+  const shadow = isSelected
+    ? "0 4px 12px rgba(0,0,0,0.4)"
+    : "0 2px 8px rgba(0,0,0,0.15)";
 
-const selectedIcon = L.divIcon({
-  className: "custom-marker-selected",
-  html: `<div class="flex items-center justify-center w-10 h-10 bg-slate-900 rounded-full border-2 border-white shadow-xl transform scale-110">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-    </svg>
-  </div>`,
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
-  popupAnchor: [0, -40],
-});
+  return L.divIcon({
+    className: "price-marker",
+    html: `
+      <div style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 12px;
+        background: ${bgColor};
+        color: ${textColor};
+        border-radius: 24px;
+        font-weight: 600;
+        font-size: 14px;
+        font-family: inherit;
+        white-space: nowrap;
+        box-shadow: ${shadow};
+        border: 1px solid ${isSelected ? '#000' : 'rgba(0,0,0,0.08)'};
+        transform: ${isSelected ? 'scale(1.1)' : 'scale(1)'};
+        transition: all 0.15s ease;
+        cursor: pointer;
+      ">
+        ${priceText}
+      </div>
+    `,
+    iconSize: [80, 36],
+    iconAnchor: [40, 18],
+    popupAnchor: [0, -20],
+  });
+}
 
-// Major US city coordinates for approximate mapping
-const CITY_COORDINATES: Record<string, [number, number]> = {
-  // Texas
-  "houston,tx": [29.7604, -95.3698],
-  "dallas,tx": [32.7767, -96.7970],
-  "austin,tx": [30.2672, -97.7431],
-  "san antonio,tx": [29.4241, -98.4936],
-  "fort worth,tx": [32.7555, -97.3308],
-  // California
-  "los angeles,ca": [34.0522, -118.2437],
-  "san francisco,ca": [37.7749, -122.4194],
-  "san diego,ca": [32.7157, -117.1611],
-  "san jose,ca": [37.3382, -121.8863],
-  // Florida
-  "miami,fl": [25.7617, -80.1918],
-  "orlando,fl": [28.5383, -81.3792],
-  "tampa,fl": [27.9506, -82.4572],
-  "jacksonville,fl": [30.3322, -81.6557],
-  // New York
-  "new york,ny": [40.7128, -74.0060],
-  "buffalo,ny": [42.8864, -78.8784],
-  // Georgia
-  "atlanta,ga": [33.7490, -84.3880],
-  // Illinois
-  "chicago,il": [41.8781, -87.6298],
-  // Arizona
-  "phoenix,az": [33.4484, -112.0740],
-  // Pennsylvania
-  "philadelphia,pa": [39.9526, -75.1652],
-  "pittsburgh,pa": [40.4406, -79.9959],
-  // Ohio
-  "columbus,oh": [39.9612, -82.9988],
-  "cleveland,oh": [41.4993, -81.6944],
-  // North Carolina
-  "charlotte,nc": [35.2271, -80.8431],
-  "raleigh,nc": [35.7796, -78.6382],
-  // Colorado
-  "denver,co": [39.7392, -104.9903],
-  // Washington
-  "seattle,wa": [47.6062, -122.3321],
-  // Massachusetts
-  "boston,ma": [42.3601, -71.0589],
-  // Nevada
-  "las vegas,nv": [36.1699, -115.1398],
-  // Tennessee
-  "nashville,tn": [36.1627, -86.7816],
-  "memphis,tn": [35.1495, -90.0490],
-  // Oregon
-  "portland,or": [45.5152, -122.6784],
-  // Michigan
-  "detroit,mi": [42.3314, -83.0458],
-  // Maryland
-  "baltimore,md": [39.2904, -76.6122],
-  // Minnesota
-  "minneapolis,mn": [44.9778, -93.2650],
-  // Louisiana
-  "new orleans,la": [29.9511, -90.0715],
-  // Missouri
-  "kansas city,mo": [39.0997, -94.5786],
-  "st. louis,mo": [38.6270, -90.1994],
-  // Indiana
-  "indianapolis,in": [39.7684, -86.1581],
-  // Virginia
-  "virginia beach,va": [36.8529, -75.9780],
-};
+// Geocoding cache to avoid repeated API calls
+const geocodeCache = new Map<string, [number, number] | null>();
 
-// State center coordinates as fallback
-const STATE_COORDINATES: Record<string, [number, number]> = {
-  "AL": [32.806671, -86.791130],
-  "AK": [61.370716, -152.404419],
-  "AZ": [33.729759, -111.431221],
-  "AR": [34.969704, -92.373123],
-  "CA": [36.116203, -119.681564],
-  "CO": [39.059811, -105.311104],
-  "CT": [41.597782, -72.755371],
-  "DE": [39.318523, -75.507141],
-  "FL": [27.766279, -81.686783],
-  "GA": [33.040619, -83.643074],
-  "HI": [21.094318, -157.498337],
-  "ID": [44.240459, -114.478828],
-  "IL": [40.349457, -88.986137],
-  "IN": [39.849426, -86.258278],
-  "IA": [42.011539, -93.210526],
-  "KS": [38.526600, -96.726486],
-  "KY": [37.668140, -84.670067],
-  "LA": [31.169546, -91.867805],
-  "ME": [44.693947, -69.381927],
-  "MD": [39.063946, -76.802101],
-  "MA": [42.230171, -71.530106],
-  "MI": [43.326618, -84.536095],
-  "MN": [45.694454, -93.900192],
-  "MS": [32.741646, -89.678696],
-  "MO": [38.456085, -92.288368],
-  "MT": [46.921925, -110.454353],
-  "NE": [41.125370, -98.268082],
-  "NV": [38.313515, -117.055374],
-  "NH": [43.452492, -71.563896],
-  "NJ": [40.298904, -74.521011],
-  "NM": [34.840515, -106.248482],
-  "NY": [42.165726, -74.948051],
-  "NC": [35.630066, -79.806419],
-  "ND": [47.528912, -99.784012],
-  "OH": [40.388783, -82.764915],
-  "OK": [35.565342, -96.928917],
-  "OR": [44.572021, -122.070938],
-  "PA": [40.590752, -77.209755],
-  "RI": [41.680893, -71.511780],
-  "SC": [33.856892, -80.945007],
-  "SD": [44.299782, -99.438828],
-  "TN": [35.747845, -86.692345],
-  "TX": [31.054487, -97.563461],
-  "UT": [40.150032, -111.862434],
-  "VT": [44.045876, -72.710686],
-  "VA": [37.769337, -78.169968],
-  "WA": [47.400902, -121.490494],
-  "WV": [38.491226, -80.954453],
-  "WI": [44.268543, -89.616508],
-  "WY": [42.755966, -107.302490],
-  "DC": [38.897438, -77.026817],
-};
+// Geocode an address using OpenStreetMap Nominatim (free)
+async function geocodeAddress(
+  address: string | null,
+  city: string | null,
+  state: string | null,
+  zip: string | null
+): Promise<[number, number] | null> {
+  // Build address string
+  const parts = [address, city, state, zip].filter(Boolean);
+  if (parts.length === 0) return null;
 
-// Get coordinates for a property
-function getPropertyCoordinates(property: AvailabilityProperty): [number, number] | null {
-  const city = property.city?.toLowerCase().trim();
-  const state = property.state?.toUpperCase().trim();
+  const fullAddress = parts.join(", ") + ", USA";
 
-  if (city && state) {
-    // Try city + state lookup
-    const key = `${city},${state.toLowerCase()}`;
-    if (CITY_COORDINATES[key]) {
-      // Add small random offset to prevent markers from stacking
-      const offset = () => (Math.random() - 0.5) * 0.02;
-      const coords = CITY_COORDINATES[key];
-      return [coords[0] + offset(), coords[1] + offset()];
+  // Check cache
+  if (geocodeCache.has(fullAddress)) {
+    return geocodeCache.get(fullAddress) ?? null;
+  }
+
+  try {
+    const encoded = encodeURIComponent(fullAddress);
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&limit=1&countrycodes=us`,
+      {
+        headers: {
+          "User-Agent": "RentaBed/1.0",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      geocodeCache.set(fullAddress, null);
+      return null;
     }
-  }
 
-  // Fall back to state center
-  if (state && STATE_COORDINATES[state]) {
-    const offset = () => (Math.random() - 0.5) * 0.5;
-    const coords = STATE_COORDINATES[state];
-    return [coords[0] + offset(), coords[1] + offset()];
+    const data = await response.json();
+
+    if (data && data.length > 0) {
+      const coords: [number, number] = [
+        parseFloat(data[0].lat),
+        parseFloat(data[0].lon),
+      ];
+      geocodeCache.set(fullAddress, coords);
+      return coords;
+    }
+
+    // Try with just city, state if full address fails
+    if (city && state) {
+      const simpleAddress = `${city}, ${state}, USA`;
+      if (geocodeCache.has(simpleAddress)) {
+        return geocodeCache.get(simpleAddress) ?? null;
+      }
+
+      const simpleEncoded = encodeURIComponent(simpleAddress);
+      const simpleResponse = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${simpleEncoded}&limit=1&countrycodes=us`,
+        {
+          headers: {
+            "User-Agent": "RentaBed/1.0",
+          },
+        }
+      );
+
+      if (simpleResponse.ok) {
+        const simpleData = await simpleResponse.json();
+        if (simpleData && simpleData.length > 0) {
+          const coords: [number, number] = [
+            parseFloat(simpleData[0].lat),
+            parseFloat(simpleData[0].lon),
+          ];
+          geocodeCache.set(simpleAddress, coords);
+          geocodeCache.set(fullAddress, coords);
+          return coords;
+        }
+      }
+    }
+
+    geocodeCache.set(fullAddress, null);
+    return null;
+  } catch (error) {
+    console.error("Geocoding error:", error);
+    geocodeCache.set(fullAddress, null);
+    return null;
   }
+}
+
+// Component to fit map bounds to markers
+function MapBounds({ coordinates }: { coordinates: [number, number][] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (coordinates.length > 0) {
+      const bounds = L.latLngBounds(coordinates);
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 14 });
+    }
+  }, [map, coordinates]);
 
   return null;
 }
 
-// Component to fit map bounds to markers
-function MapBounds({ properties }: { properties: AvailabilityProperty[] }) {
-  const map = useMap();
-
-  useEffect(() => {
-    const coords = properties
-      .map(p => getPropertyCoordinates(p))
-      .filter((c): c is [number, number] => c !== null);
-
-    if (coords.length > 0) {
-      const bounds = L.latLngBounds(coords);
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
-    }
-  }, [map, properties]);
-
-  return null;
+interface PropertyWithCoords {
+  property: AvailabilityProperty;
+  coords: [number, number];
 }
 
 interface PropertyMapProps {
@@ -207,24 +163,56 @@ interface PropertyMapProps {
 export function PropertyMap({
   properties,
   selectedPropertyId,
-  onPropertySelect
+  onPropertySelect,
 }: PropertyMapProps) {
   const [mounted, setMounted] = useState(false);
+  const [propertiesWithCoords, setPropertiesWithCoords] = useState<PropertyWithCoords[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const propertiesWithCoords = useMemo(() => {
-    return properties
-      .map(p => ({
-        property: p,
-        coords: getPropertyCoordinates(p),
-      }))
-      .filter((item): item is { property: AvailabilityProperty; coords: [number, number] } =>
-        item.coords !== null
-      );
-  }, [properties]);
+  // Geocode all properties
+  useEffect(() => {
+    if (!mounted) return;
+
+    async function geocodeProperties() {
+      setIsLoading(true);
+      const results: PropertyWithCoords[] = [];
+
+      // Process in batches to avoid rate limiting
+      for (let i = 0; i < properties.length; i++) {
+        const property = properties[i];
+
+        // Add small delay between requests to respect Nominatim rate limits
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        const coords = await geocodeAddress(
+          property.address,
+          property.city,
+          property.state,
+          property.zip
+        );
+
+        if (coords) {
+          results.push({ property, coords });
+        }
+      }
+
+      setPropertiesWithCoords(results);
+      setIsLoading(false);
+    }
+
+    geocodeProperties();
+  }, [mounted, properties]);
+
+  const coordinates = useMemo(
+    () => propertiesWithCoords.map((p) => p.coords),
+    [propertiesWithCoords]
+  );
 
   // Default center (US center)
   const defaultCenter: [number, number] = [39.8283, -98.5795];
@@ -232,7 +220,7 @@ export function PropertyMap({
 
   if (!mounted) {
     return (
-      <div className="h-full w-full bg-slate-100 animate-pulse flex items-center justify-center">
+      <div className="h-full w-full bg-slate-50 flex items-center justify-center">
         <div className="text-slate-400">Loading map...</div>
       </div>
     );
@@ -245,60 +233,102 @@ export function PropertyMap({
         zoom={defaultZoom}
         className="h-full w-full"
         zoomControl={false}
+        style={{ background: "#f8fafc" }}
       >
+        {/* Modern bright map tiles - CartoDB Voyager (similar to Airbnb) */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         />
 
-        <MapBounds properties={properties} />
+        {/* Zoom controls in bottom right */}
+        <ZoomControl position="bottomright" />
+
+        {coordinates.length > 0 && <MapBounds coordinates={coordinates} />}
 
         {propertiesWithCoords.map(({ property, coords }) => (
           <Marker
             key={property.id}
             position={coords}
-            icon={selectedPropertyId === property.id ? selectedIcon : defaultIcon}
+            icon={createPriceMarker(property.minRent, selectedPropertyId === property.id)}
             eventHandlers={{
               click: () => onPropertySelect?.(property.id),
             }}
           >
-            <Popup>
-              <div className="w-56 p-1">
-                <Link href={`/availability/${property.id}`} className="block group">
-                  <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+            <Popup className="modern-popup">
+              <Link
+                href={`/availability/${property.id}`}
+                className="block w-64 overflow-hidden"
+              >
+                {/* Property Image */}
+                {property.coverPhoto?.public_url ? (
+                  <div className="relative h-40 w-full overflow-hidden rounded-t-lg -m-3 mb-0">
+                    <img
+                      src={property.coverPhoto.public_url}
+                      alt={property.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="h-32 w-full bg-slate-100 rounded-t-lg -m-3 mb-0 flex items-center justify-center">
+                    <svg className="h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                )}
+
+                {/* Property Info */}
+                <div className="pt-3">
+                  <h3 className="font-semibold text-slate-900 text-base leading-tight">
                     {property.name}
                   </h3>
                   <p className="text-sm text-slate-500 mt-0.5">
                     {[property.city, property.state].filter(Boolean).join(", ")}
                   </p>
+
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="font-semibold text-slate-900">
-                      {property.minRent
-                        ? property.minRent === property.maxRent
-                          ? formatCurrency(property.minRent)
-                          : `${formatCurrency(property.minRent)}+`
-                        : "Pricing varies"
-                      }
-                      <span className="font-normal text-slate-500">/mo</span>
-                    </span>
-                    <span className="text-sm text-emerald-600 font-medium">
-                      {property.vacantBeds} bed{property.vacantBeds !== 1 ? "s" : ""} open
+                    <div>
+                      <span className="font-semibold text-slate-900">
+                        {property.minRent
+                          ? property.minRent === property.maxRent
+                            ? formatCurrency(property.minRent)
+                            : `${formatCurrency(property.minRent)}–${formatCurrency(property.maxRent!)}`
+                          : "Contact for price"}
+                      </span>
+                      {property.minRent && (
+                        <span className="text-slate-500 text-sm"> /month</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                      {property.vacantBeds} bed{property.vacantBeds !== 1 ? "s" : ""} available
                     </span>
                   </div>
-                </Link>
-              </div>
+                </div>
+              </Link>
             </Popup>
           </Marker>
         ))}
       </MapContainer>
 
-      {/* Map Legend */}
-      <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-md px-3 py-2 text-xs text-slate-600 z-[1000]">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-indigo-600 rounded-full"></div>
-          <span>{propertiesWithCoords.length} properties on map</span>
+      {/* Loading overlay */}
+      {isLoading && properties.length > 0 && (
+        <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-[1000]">
+          <div className="flex items-center gap-3 bg-white rounded-full px-5 py-3 shadow-lg">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" />
+            <span className="text-sm font-medium text-slate-700">Loading locations...</span>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Property count badge */}
+      {!isLoading && propertiesWithCoords.length > 0 && (
+        <div className="absolute top-4 left-4 bg-white rounded-full shadow-md px-4 py-2 text-sm font-medium text-slate-700 z-[1000]">
+          {propertiesWithCoords.length} {propertiesWithCoords.length === 1 ? "home" : "homes"}
+        </div>
+      )}
     </div>
   );
 }
