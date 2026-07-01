@@ -5,6 +5,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { AvailabilityCard } from "@/components/availability/AvailabilityCard";
 import { AvailabilityFilters } from "@/components/availability/AvailabilityFilters";
 import { SearchBar } from "@/components/availability/SearchBar";
+import { AvailabilityLayout } from "@/components/availability/AvailabilityLayout";
 import { getAvailableProperties, type AvailabilityFilters as FilterParams } from "@/lib/services/availability";
 import type { PropertyOccupancyType } from "@/lib/types";
 
@@ -38,54 +39,57 @@ export default async function AvailabilityPage({
 
   const result = await getAvailableProperties(filters);
   const hasFilters = Object.keys(filters).length > 0 || !!params.amenities;
+  const properties = result.error === null ? result.data : [];
 
   return (
-    <div className="space-y-6">
-      {/* Airbnb-style Search Bar */}
-      <div className="flex justify-center py-2">
-        <Suspense fallback={<div className="h-14 w-full max-w-2xl animate-pulse bg-slate-100 rounded-full" />}>
-          <SearchBar className="w-full max-w-2xl" />
-        </Suspense>
+    <AvailabilityLayout properties={properties}>
+      <div className="space-y-6">
+        {/* Airbnb-style Search Bar */}
+        <div className="flex justify-center py-2">
+          <Suspense fallback={<div className="h-14 w-full max-w-2xl animate-pulse bg-slate-100 rounded-full" />}>
+            <SearchBar className="w-full max-w-2xl" />
+          </Suspense>
+        </div>
+
+        {/* Filter Pills */}
+        <div className="border-b pb-4">
+          <Suspense fallback={<div className="h-12 animate-pulse bg-slate-100 rounded-lg" />}>
+            <AvailabilityFilters />
+          </Suspense>
+        </div>
+
+        {result.error !== null ? (
+          <ErrorState title="Couldn't load listings" message={result.error} />
+        ) : result.data.length === 0 ? (
+          <EmptyState
+            icon={<BedDouble className="h-5 w-5" />}
+            title={hasFilters ? "No matches found" : "No listings yet"}
+            description={
+              hasFilters
+                ? "Try adjusting your filters to see more results."
+                : "Check back soon — new monthly rentals are added regularly."
+            }
+          />
+        ) : (
+          <>
+            {/* Results Header */}
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-semibold text-slate-900">
+                {result.data.length === 1
+                  ? "1 monthly stay"
+                  : `${result.data.length} monthly stays`}
+              </h1>
+            </div>
+
+            {/* Property Grid - Responsive columns based on map visibility */}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+              {result.data.map((p) => (
+                <AvailabilityCard key={p.id} property={p} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
-
-      {/* Filter Pills */}
-      <div className="border-b pb-4">
-        <Suspense fallback={<div className="h-12 animate-pulse bg-slate-100 rounded-lg" />}>
-          <AvailabilityFilters />
-        </Suspense>
-      </div>
-
-      {result.error !== null ? (
-        <ErrorState title="Couldn't load listings" message={result.error} />
-      ) : result.data.length === 0 ? (
-        <EmptyState
-          icon={<BedDouble className="h-5 w-5" />}
-          title={hasFilters ? "No matches found" : "No listings yet"}
-          description={
-            hasFilters
-              ? "Try adjusting your filters to see more results."
-              : "Check back soon — new monthly rentals are added regularly."
-          }
-        />
-      ) : (
-        <>
-          {/* Results Header */}
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold text-slate-900">
-              {result.data.length === 1
-                ? "1 monthly stay"
-                : `${result.data.length} monthly stays`}
-            </h1>
-          </div>
-
-          {/* Property Grid - Airbnb style 4 columns */}
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {result.data.map((p) => (
-              <AvailabilityCard key={p.id} property={p} />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+    </AvailabilityLayout>
   );
 }
