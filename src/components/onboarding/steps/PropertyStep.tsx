@@ -61,6 +61,10 @@ interface PropertyStepProps {
   onContinue: () => void;
 }
 
+// localStorage keys for form persistence
+const PROPERTY_FORM_STORAGE_KEY = "roomlink_property_form_draft";
+const ROOM_FORM_STORAGE_KEY = "roomlink_room_form_draft";
+
 /**
  * PropertyStep
  *
@@ -72,6 +76,9 @@ interface PropertyStepProps {
 export function PropertyStep({ state, onContinue }: PropertyStepProps) {
   const step = getStep("property");
   const { data } = state;
+
+  // Track if we've loaded from localStorage
+  const hasLoadedFromStorage = useRef(false);
 
   // Track which section we're on
   const [currentSection, setCurrentSection] = useState<"property" | "room">(
@@ -100,8 +107,8 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
   // Local state for property ID (updated after creation)
   const [propertyId, setPropertyId] = useState<string | null>(data.propertyId);
 
-  // Local form state for property
-  const [propertyForm, setPropertyForm] = useState({
+  // Helper to get default property form state
+  const getDefaultPropertyForm = useCallback(() => ({
     name: data.propertyName || "",
     property_type: data.propertyType || "",
     address: data.address || "",
@@ -154,10 +161,10 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
     has_private_call_room: false,
     has_workspace: false,
     has_desk_workspace: false,
-  });
+  }), [data]);
 
-  // Local form state for room/bed
-  const [roomForm, setRoomForm] = useState({
+  // Helper to get default room form state
+  const getDefaultRoomForm = useCallback(() => ({
     room_name: data.roomName || "Room 1",
     bed_label: data.bedLabel || "Bed 1",
     bunk_type: "single",
@@ -166,19 +173,81 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
     available_from: data.availableFrom || "",
     min_stay_days: data.minStayDays?.toString() || "",
     max_stay_days: data.maxStayDays?.toString() || "",
-  });
+  }), [data]);
+
+  // Local form state for property
+  const [propertyForm, setPropertyForm] = useState(getDefaultPropertyForm);
+
+  // Local form state for room/bed
+  const [roomForm, setRoomForm] = useState(getDefaultRoomForm);
+
+  // Load saved form data from localStorage on mount
+  useEffect(() => {
+    if (hasLoadedFromStorage.current) return;
+    hasLoadedFromStorage.current = true;
+
+    try {
+      // Load property form
+      const savedPropertyForm = localStorage.getItem(PROPERTY_FORM_STORAGE_KEY);
+      if (savedPropertyForm) {
+        const parsed = JSON.parse(savedPropertyForm);
+        setPropertyForm(prev => ({ ...prev, ...parsed }));
+      }
+
+      // Load room form
+      const savedRoomForm = localStorage.getItem(ROOM_FORM_STORAGE_KEY);
+      if (savedRoomForm) {
+        const parsed = JSON.parse(savedRoomForm);
+        setRoomForm(prev => ({ ...prev, ...parsed }));
+      }
+    } catch (error) {
+      console.error("Error loading form data from localStorage:", error);
+    }
+  }, []);
+
+  // Save property form to localStorage whenever it changes
+  useEffect(() => {
+    if (!hasLoadedFromStorage.current) return; // Don't save during initial load
+    try {
+      localStorage.setItem(PROPERTY_FORM_STORAGE_KEY, JSON.stringify(propertyForm));
+    } catch (error) {
+      console.error("Error saving property form to localStorage:", error);
+    }
+  }, [propertyForm]);
+
+  // Save room form to localStorage whenever it changes
+  useEffect(() => {
+    if (!hasLoadedFromStorage.current) return; // Don't save during initial load
+    try {
+      localStorage.setItem(ROOM_FORM_STORAGE_KEY, JSON.stringify(roomForm));
+    } catch (error) {
+      console.error("Error saving room form to localStorage:", error);
+    }
+  }, [roomForm]);
 
   // Handle property form success
   useEffect(() => {
     if (propertyState.status === "success" && propertyState.data?.propertyId) {
       setPropertyId(propertyState.data.propertyId);
       setCurrentSection("room");
+      // Clear property form from localStorage after successful save
+      try {
+        localStorage.removeItem(PROPERTY_FORM_STORAGE_KEY);
+      } catch (error) {
+        console.error("Error clearing property form from localStorage:", error);
+      }
     }
   }, [propertyState]);
 
   // Handle room/bed form success - advance to next step
   useEffect(() => {
     if (roomState.status === "success") {
+      // Clear room form from localStorage after successful save
+      try {
+        localStorage.removeItem(ROOM_FORM_STORAGE_KEY);
+      } catch (error) {
+        console.error("Error clearing room form from localStorage:", error);
+      }
       // Short delay before continuing
       const timer = setTimeout(onContinue, 500);
       return () => clearTimeout(timer);
