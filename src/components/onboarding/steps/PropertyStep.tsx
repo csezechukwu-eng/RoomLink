@@ -577,7 +577,7 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
             <div>
               <Label htmlFor="description" className="flex items-center gap-1">
                 Description
-                <Badge className="bg-slate-100 text-slate-600 text-xs ml-1">Recommended</Badge>
+                <Badge className="bg-red-50 text-red-700 text-xs ml-1">Required</Badge>
               </Label>
               <Textarea
                 id="description"
@@ -586,8 +586,16 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
                 onChange={(e) => handlePropertyChange("description", e.target.value)}
                 placeholder="Describe your property..."
                 rows={3}
-                className="mt-1"
+                className={cn(
+                  "mt-1",
+                  propertyState.fieldErrors?.description && "border-red-500"
+                )}
               />
+              {propertyState.fieldErrors?.description && (
+                <p className="mt-1 text-sm text-red-600">
+                  {propertyState.fieldErrors.description}
+                </p>
+              )}
             </div>
 
             {/* Property Details */}

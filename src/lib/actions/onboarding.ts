@@ -379,7 +379,7 @@ export async function createOrUpdatePropertyListingAction(
   const city = optionalStr(formData, "city");
   const state = optionalStr(formData, "state");
   const zip = optionalStr(formData, "zip");
-  const description = optionalStr(formData, "description");
+  const description = str(formData, "description");
   const isCoed = formData.get("is_coed") === "true";
   const hasWomenOnlyRooms = formData.get("has_women_only_rooms") === "true";
   const defaultMinStayDays = optionalStr(formData, "default_min_stay_days");
@@ -451,6 +451,10 @@ export async function createOrUpdatePropertyListingAction(
 
   if (!address) {
     fieldErrors.address = "Address is required";
+  }
+
+  if (!description) {
+    fieldErrors.description = "Description is required";
   }
 
   if (!numBedrooms) {
