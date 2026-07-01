@@ -417,14 +417,25 @@ body {
 /* ====== MAP STYLES ====== */
 
 /* Price marker styles */
-.price-marker {
+.price-marker-icon {
   background: transparent !important;
   border: none !important;
 }
 
-.price-marker:hover > div {
+.price-marker-icon:hover > div {
   transform: scale(1.05) !important;
   box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important;
+}
+
+/* Property popup styles */
+.property-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  overflow: hidden;
+}
+
+.property-popup .leaflet-popup-content {
+  margin: 0;
+  padding: 16px;
 }
 
 /* Modern Leaflet popup customization */

@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
-import {
-  GoogleMap,
-  useJsApiLoader,
-  OverlayView,
-} from "@react-google-maps/api";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { MapContainer, TileLayer, Marker, useMap, Popup } from "react-leaflet";
+import L from "leaflet";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import type { AvailabilityProperty } from "@/lib/services/availability";
+import "leaflet/dist/leaflet.css";
 
 // Geocoding cache to avoid repeated API calls
 const geocodeCache = new Map<string, { lat: number; lng: number } | null>();
@@ -88,82 +86,59 @@ async function geocodeAddress(
   }
 }
 
+// Create price marker icon
+function createPriceIcon(price: number | null, isSelected: boolean) {
+  const priceText = price ? `$${price.toLocaleString()}` : "View";
+
+  return L.divIcon({
+    className: "price-marker-icon",
+    html: `
+      <div style="
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 12px;
+        background: ${isSelected ? "#1e293b" : "#ffffff"};
+        color: ${isSelected ? "#ffffff" : "#1e293b"};
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 14px;
+        font-family: system-ui, -apple-system, sans-serif;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        border: 1px solid ${isSelected ? "#1e293b" : "rgba(0,0,0,0.08)"};
+        transform: ${isSelected ? "scale(1.1)" : "scale(1)"};
+        transition: all 0.15s ease;
+        cursor: pointer;
+      ">
+        ${priceText}
+      </div>
+    `,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+  });
+}
+
 interface PropertyWithCoords {
   property: AvailabilityProperty;
   coords: { lat: number; lng: number };
 }
 
-// Price marker component
-function PriceMarker({
-  price,
-  isSelected,
-  onClick,
-}: {
-  price: number | null;
-  isSelected: boolean;
-  onClick: () => void;
-}) {
-  const priceText = price ? `$${price.toLocaleString()}` : "View";
+// Component to fit map bounds
+function MapBounds({ propertiesWithCoords }: { propertiesWithCoords: PropertyWithCoords[] }) {
+  const map = useMap();
 
-  return (
-    <button
-      onClick={onClick}
-      className={`
-        px-3 py-2 rounded-full font-semibold text-sm whitespace-nowrap
-        transition-all duration-150 cursor-pointer
-        ${isSelected
-          ? "bg-slate-900 text-white shadow-lg scale-110 z-10"
-          : "bg-white text-slate-900 shadow-md hover:scale-105 hover:shadow-lg"
-        }
-        border border-slate-200
-      `}
-      style={{
-        transform: `translate(-50%, -50%) ${isSelected ? 'scale(1.1)' : 'scale(1)'}`,
-      }}
-    >
-      {priceText}
-    </button>
-  );
+  useEffect(() => {
+    if (propertiesWithCoords.length > 0) {
+      const bounds = L.latLngBounds(
+        propertiesWithCoords.map(({ coords }) => [coords.lat, coords.lng])
+      );
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+    }
+  }, [map, propertiesWithCoords]);
+
+  return null;
 }
-
-// Map container style
-const containerStyle = {
-  width: "100%",
-  height: "100%",
-};
-
-// Default center (US center)
-const defaultCenter = {
-  lat: 39.8283,
-  lng: -98.5795,
-};
-
-// Google Maps options for clean look
-const mapOptions: google.maps.MapOptions = {
-  disableDefaultUI: true,
-  zoomControl: true,
-  zoomControlOptions: {
-    position: typeof window !== 'undefined' ? window.google?.maps?.ControlPosition?.RIGHT_BOTTOM : 9,
-  },
-  mapTypeControl: false,
-  streetViewControl: false,
-  fullscreenControl: true,
-  fullscreenControlOptions: {
-    position: typeof window !== 'undefined' ? window.google?.maps?.ControlPosition?.RIGHT_TOP : 3,
-  },
-  styles: [
-    {
-      featureType: "poi",
-      elementType: "labels",
-      stylers: [{ visibility: "off" }],
-    },
-    {
-      featureType: "transit",
-      elementType: "labels",
-      stylers: [{ visibility: "off" }],
-    },
-  ],
-};
 
 interface PropertyMapProps {
   properties: AvailabilityProperty[];
@@ -176,21 +151,17 @@ export function PropertyMap({
   selectedPropertyId,
   onPropertySelect,
 }: PropertyMapProps) {
+  const [mounted, setMounted] = useState(false);
   const [propertiesWithCoords, setPropertiesWithCoords] = useState<PropertyWithCoords[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedProperty, setSelectedProperty] = useState<PropertyWithCoords | null>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: apiKey,
-  });
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Geocode all properties
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!mounted) return;
 
     async function geocodeProperties() {
       setIsLoading(true);
@@ -220,71 +191,14 @@ export function PropertyMap({
     }
 
     geocodeProperties();
-  }, [isLoaded, properties]);
+  }, [mounted, properties]);
 
-  // Fit bounds when properties change
-  useEffect(() => {
-    if (map && propertiesWithCoords.length > 0) {
-      const bounds = new google.maps.LatLngBounds();
-      propertiesWithCoords.forEach(({ coords }) => {
-        bounds.extend(coords);
-      });
-      map.fitBounds(bounds, 60);
+  // Default center (US center)
+  const defaultCenter: [number, number] = [39.8283, -98.5795];
 
-      // Don't zoom in too much
-      const listener = google.maps.event.addListener(map, "idle", () => {
-        const zoom = map.getZoom();
-        if (zoom && zoom > 14) {
-          map.setZoom(14);
-        }
-        google.maps.event.removeListener(listener);
-      });
-    }
-  }, [map, propertiesWithCoords]);
-
-  const onLoad = useCallback((map: google.maps.Map) => {
-    setMap(map);
-  }, []);
-
-  const onUnmount = useCallback(() => {
-    setMap(null);
-  }, []);
-
-  const handleMarkerClick = (item: PropertyWithCoords) => {
-    setSelectedProperty(item);
-    onPropertySelect?.(item.property.id);
-  };
-
-  // Show fallback if no API key
-  if (!apiKey) {
+  if (!mounted) {
     return (
-      <div className="h-full w-full bg-slate-100 flex flex-col items-center justify-center p-6 text-center">
-        <div className="bg-white rounded-xl p-6 shadow-sm max-w-sm">
-          <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
-          </div>
-          <h3 className="font-semibold text-slate-900 mb-2">Map Coming Soon</h3>
-          <p className="text-sm text-slate-500">
-            Configure Google Maps API key to enable the interactive map view.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <div className="h-full w-full bg-slate-100 flex items-center justify-center">
-        <div className="text-slate-500">Error loading map</div>
-      </div>
-    );
-  }
-
-  if (!isLoaded) {
-    return (
-      <div className="h-full w-full bg-slate-100 flex items-center justify-center">
+      <div className="h-full w-full bg-slate-50 flex items-center justify-center">
         <div className="flex items-center gap-3">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" />
           <span className="text-sm text-slate-500">Loading map...</span>
@@ -295,129 +209,46 @@ export function PropertyMap({
 
   return (
     <div className="h-full w-full relative">
-      <GoogleMap
-        mapContainerStyle={containerStyle}
+      <MapContainer
         center={defaultCenter}
         zoom={4}
-        onLoad={onLoad}
-        onUnmount={onUnmount}
-        options={mapOptions}
-        onClick={() => {
-          setSelectedProperty(null);
-          onPropertySelect?.(null);
-        }}
+        className="h-full w-full"
+        zoomControl={false}
       >
-        {propertiesWithCoords.map((item) => (
-          <OverlayView
-            key={item.property.id}
-            position={item.coords}
-            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+        {/* CartoDB Voyager - Modern bright tiles (FREE) */}
+        <TileLayer
+          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        />
+
+        {/* Zoom control */}
+        <div className="leaflet-top leaflet-right">
+          <div className="leaflet-control leaflet-bar" style={{ marginTop: 60, marginRight: 10 }}>
+            <ZoomControls />
+          </div>
+        </div>
+
+        <MapBounds propertiesWithCoords={propertiesWithCoords} />
+
+        {propertiesWithCoords.map(({ property, coords }) => (
+          <Marker
+            key={property.id}
+            position={[coords.lat, coords.lng]}
+            icon={createPriceIcon(property.minRent, selectedPropertyId === property.id)}
+            eventHandlers={{
+              click: () => onPropertySelect?.(property.id),
+            }}
           >
-            <PriceMarker
-              price={item.property.minRent}
-              isSelected={selectedPropertyId === item.property.id}
-              onClick={() => handleMarkerClick(item)}
-            />
-          </OverlayView>
+            <Popup className="property-popup" maxWidth={320} minWidth={280}>
+              <PropertyPopupCard property={property} />
+            </Popup>
+          </Marker>
         ))}
-
-        {/* Property popup card */}
-        {selectedProperty && (
-          <OverlayView
-            position={selectedProperty.coords}
-            mapPaneName={OverlayView.FLOAT_PANE}
-          >
-            <div
-              className="relative -translate-x-1/2 -translate-y-full mb-4"
-              style={{ width: '300px' }}
-            >
-              {/* Card */}
-              <div className="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-100">
-                {/* Close button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedProperty(null);
-                    onPropertySelect?.(null);
-                  }}
-                  className="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur rounded-full p-1.5 shadow-md hover:bg-white transition-colors"
-                >
-                  <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-
-                <Link href={`/availability/${selectedProperty.property.id}`}>
-                  {/* Property Image */}
-                  {selectedProperty.property.coverPhoto?.public_url ? (
-                    <div className="relative h-44 w-full overflow-hidden">
-                      <img
-                        src={selectedProperty.property.coverPhoto.public_url}
-                        alt={selectedProperty.property.name}
-                        className="h-full w-full object-cover hover:scale-105 transition-transform duration-300"
-                      />
-                      {/* Gradient overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                    </div>
-                  ) : (
-                    <div className="h-36 w-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                      <svg className="h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                  )}
-
-                  {/* Content */}
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-semibold text-slate-900 text-base leading-tight line-clamp-1">
-                        {selectedProperty.property.name}
-                      </h3>
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 whitespace-nowrap">
-                        {selectedProperty.property.vacantBeds} bed{selectedProperty.property.vacantBeds !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-
-                    <p className="text-sm text-slate-500 mt-1">
-                      {[selectedProperty.property.city, selectedProperty.property.state]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
-
-                    <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <div>
-                        <span className="text-lg font-bold text-slate-900">
-                          {selectedProperty.property.minRent
-                            ? formatCurrency(selectedProperty.property.minRent)
-                            : "Contact for price"}
-                        </span>
-                        {selectedProperty.property.minRent && (
-                          <span className="text-slate-500 text-sm"> /month</span>
-                        )}
-                      </div>
-                      <span className="text-indigo-600 text-sm font-medium flex items-center gap-1">
-                        View details
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              </div>
-
-              {/* Arrow pointing down */}
-              <div className="absolute left-1/2 -translate-x-1/2 -bottom-2">
-                <div className="w-4 h-4 bg-white rotate-45 shadow-lg border-r border-b border-slate-100" />
-              </div>
-            </div>
-          </OverlayView>
-        )}
-      </GoogleMap>
+      </MapContainer>
 
       {/* Loading overlay */}
       {isLoading && properties.length > 0 && (
-        <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-10">
+        <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-[1000]">
           <div className="flex items-center gap-3 bg-white rounded-full px-5 py-3 shadow-lg">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" />
             <span className="text-sm font-medium text-slate-700">Loading locations...</span>
@@ -427,10 +258,93 @@ export function PropertyMap({
 
       {/* Property count */}
       {!isLoading && propertiesWithCoords.length > 0 && (
-        <div className="absolute top-4 left-4 bg-white rounded-full shadow-md px-4 py-2 text-sm font-medium text-slate-700 z-10">
+        <div className="absolute top-4 left-4 bg-white rounded-full shadow-md px-4 py-2 text-sm font-medium text-slate-700 z-[1000]">
           {propertiesWithCoords.length} {propertiesWithCoords.length === 1 ? "home" : "homes"}
         </div>
       )}
     </div>
+  );
+}
+
+// Custom zoom controls
+function ZoomControls() {
+  const map = useMap();
+
+  return (
+    <div className="flex flex-col bg-white rounded-lg shadow-md overflow-hidden">
+      <button
+        onClick={() => map.zoomIn()}
+        className="p-2 hover:bg-slate-100 border-b border-slate-200 transition-colors"
+        aria-label="Zoom in"
+      >
+        <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v12M6 12h12" />
+        </svg>
+      </button>
+      <button
+        onClick={() => map.zoomOut()}
+        className="p-2 hover:bg-slate-100 transition-colors"
+        aria-label="Zoom out"
+      >
+        <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12h12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+// Property popup card component
+function PropertyPopupCard({ property }: { property: AvailabilityProperty }) {
+  return (
+    <Link href={`/availability/${property.id}`} className="block">
+      {/* Property Image */}
+      {property.coverPhoto?.public_url ? (
+        <div className="relative h-40 w-full overflow-hidden rounded-lg -mx-5 -mt-4 mb-3" style={{ width: 'calc(100% + 40px)' }}>
+          <img
+            src={property.coverPhoto.public_url}
+            alt={property.name}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      ) : (
+        <div className="h-32 w-full bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg -mx-5 -mt-4 mb-3 flex items-center justify-center" style={{ width: 'calc(100% + 40px)' }}>
+          <svg className="h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="font-semibold text-slate-900 text-base leading-tight">
+          {property.name}
+        </h3>
+        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 whitespace-nowrap shrink-0">
+          {property.vacantBeds} bed{property.vacantBeds !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      <p className="text-sm text-slate-500 mt-1">
+        {[property.city, property.state].filter(Boolean).join(", ")}
+      </p>
+
+      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+        <div>
+          <span className="text-lg font-bold text-slate-900">
+            {property.minRent ? formatCurrency(property.minRent) : "Contact"}
+          </span>
+          {property.minRent && (
+            <span className="text-slate-500 text-sm"> /month</span>
+          )}
+        </div>
+        <span className="text-indigo-600 text-sm font-medium flex items-center gap-1">
+          View
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </span>
+      </div>
+    </Link>
   );
 }
