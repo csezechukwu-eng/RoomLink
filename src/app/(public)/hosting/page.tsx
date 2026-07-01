@@ -212,7 +212,7 @@ function DashboardPreview() {
       <div className="bg-white/95 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-slate-500">Sunrise Shared Housing</p>
+            <p className="text-sm text-slate-500">Central City Rentals</p>
             <div className="mt-4 flex gap-8">
               <div>
                 <p className="text-3xl font-bold text-slate-900">16</p>
