@@ -1,54 +1,18 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl } from "react-leaflet";
-import L from "leaflet";
+import {
+  GoogleMap,
+  useJsApiLoader,
+  OverlayView,
+  InfoWindow,
+} from "@react-google-maps/api";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import type { AvailabilityProperty } from "@/lib/services/availability";
-import "leaflet/dist/leaflet.css";
-
-// Modern price tag marker style (like Airbnb)
-function createPriceMarker(price: number | null, isSelected: boolean) {
-  const priceText = price ? `$${price.toLocaleString()}` : "View";
-  const bgColor = isSelected ? "#000000" : "#ffffff";
-  const textColor = isSelected ? "#ffffff" : "#000000";
-  const shadow = isSelected
-    ? "0 4px 12px rgba(0,0,0,0.4)"
-    : "0 2px 8px rgba(0,0,0,0.15)";
-
-  return L.divIcon({
-    className: "price-marker",
-    html: `
-      <div style="
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 8px 12px;
-        background: ${bgColor};
-        color: ${textColor};
-        border-radius: 24px;
-        font-weight: 600;
-        font-size: 14px;
-        font-family: inherit;
-        white-space: nowrap;
-        box-shadow: ${shadow};
-        border: 1px solid ${isSelected ? '#000' : 'rgba(0,0,0,0.08)'};
-        transform: ${isSelected ? 'scale(1.1)' : 'scale(1)'};
-        transition: all 0.15s ease;
-        cursor: pointer;
-      ">
-        ${priceText}
-      </div>
-    `,
-    iconSize: [80, 36],
-    iconAnchor: [40, 18],
-    popupAnchor: [0, -20],
-  });
-}
 
 // Geocoding cache to avoid repeated API calls
-const geocodeCache = new Map<string, [number, number] | null>();
+const geocodeCache = new Map<string, { lat: number; lng: number } | null>();
 
 // Geocode an address using OpenStreetMap Nominatim (free)
 async function geocodeAddress(
@@ -56,14 +20,12 @@ async function geocodeAddress(
   city: string | null,
   state: string | null,
   zip: string | null
-): Promise<[number, number] | null> {
-  // Build address string
+): Promise<{ lat: number; lng: number } | null> {
   const parts = [address, city, state, zip].filter(Boolean);
   if (parts.length === 0) return null;
 
   const fullAddress = parts.join(", ") + ", USA";
 
-  // Check cache
   if (geocodeCache.has(fullAddress)) {
     return geocodeCache.get(fullAddress) ?? null;
   }
@@ -72,11 +34,7 @@ async function geocodeAddress(
     const encoded = encodeURIComponent(fullAddress);
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&limit=1&countrycodes=us`,
-      {
-        headers: {
-          "User-Agent": "RentaBed/1.0",
-        },
-      }
+      { headers: { "User-Agent": "RentaBed/1.0" } }
     );
 
     if (!response.ok) {
@@ -87,15 +45,15 @@ async function geocodeAddress(
     const data = await response.json();
 
     if (data && data.length > 0) {
-      const coords: [number, number] = [
-        parseFloat(data[0].lat),
-        parseFloat(data[0].lon),
-      ];
+      const coords = {
+        lat: parseFloat(data[0].lat),
+        lng: parseFloat(data[0].lon),
+      };
       geocodeCache.set(fullAddress, coords);
       return coords;
     }
 
-    // Try with just city, state if full address fails
+    // Fallback to city, state
     if (city && state) {
       const simpleAddress = `${city}, ${state}, USA`;
       if (geocodeCache.has(simpleAddress)) {
@@ -105,20 +63,16 @@ async function geocodeAddress(
       const simpleEncoded = encodeURIComponent(simpleAddress);
       const simpleResponse = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${simpleEncoded}&limit=1&countrycodes=us`,
-        {
-          headers: {
-            "User-Agent": "RentaBed/1.0",
-          },
-        }
+        { headers: { "User-Agent": "RentaBed/1.0" } }
       );
 
       if (simpleResponse.ok) {
         const simpleData = await simpleResponse.json();
         if (simpleData && simpleData.length > 0) {
-          const coords: [number, number] = [
-            parseFloat(simpleData[0].lat),
-            parseFloat(simpleData[0].lon),
-          ];
+          const coords = {
+            lat: parseFloat(simpleData[0].lat),
+            lng: parseFloat(simpleData[0].lon),
+          };
           geocodeCache.set(simpleAddress, coords);
           geocodeCache.set(fullAddress, coords);
           return coords;
@@ -135,24 +89,82 @@ async function geocodeAddress(
   }
 }
 
-// Component to fit map bounds to markers
-function MapBounds({ coordinates }: { coordinates: [number, number][] }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (coordinates.length > 0) {
-      const bounds = L.latLngBounds(coordinates);
-      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 14 });
-    }
-  }, [map, coordinates]);
-
-  return null;
-}
-
 interface PropertyWithCoords {
   property: AvailabilityProperty;
-  coords: [number, number];
+  coords: { lat: number; lng: number };
 }
+
+// Price marker component
+function PriceMarker({
+  price,
+  isSelected,
+  onClick,
+}: {
+  price: number | null;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const priceText = price ? `$${price.toLocaleString()}` : "View";
+
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        px-3 py-2 rounded-full font-semibold text-sm whitespace-nowrap
+        transition-all duration-150 cursor-pointer
+        ${isSelected
+          ? "bg-slate-900 text-white shadow-lg scale-110 z-10"
+          : "bg-white text-slate-900 shadow-md hover:scale-105 hover:shadow-lg"
+        }
+        border border-slate-200
+      `}
+      style={{
+        transform: `translate(-50%, -50%) ${isSelected ? 'scale(1.1)' : 'scale(1)'}`,
+      }}
+    >
+      {priceText}
+    </button>
+  );
+}
+
+// Map container style
+const containerStyle = {
+  width: "100%",
+  height: "100%",
+};
+
+// Default center (US center)
+const defaultCenter = {
+  lat: 39.8283,
+  lng: -98.5795,
+};
+
+// Google Maps options for clean look
+const mapOptions: google.maps.MapOptions = {
+  disableDefaultUI: true,
+  zoomControl: true,
+  zoomControlOptions: {
+    position: typeof window !== 'undefined' ? window.google?.maps?.ControlPosition?.RIGHT_BOTTOM : 9,
+  },
+  mapTypeControl: false,
+  streetViewControl: false,
+  fullscreenControl: true,
+  fullscreenControlOptions: {
+    position: typeof window !== 'undefined' ? window.google?.maps?.ControlPosition?.RIGHT_TOP : 3,
+  },
+  styles: [
+    {
+      featureType: "poi",
+      elementType: "labels",
+      stylers: [{ visibility: "off" }],
+    },
+    {
+      featureType: "transit",
+      elementType: "labels",
+      stylers: [{ visibility: "off" }],
+    },
+  ],
+};
 
 interface PropertyMapProps {
   properties: AvailabilityProperty[];
@@ -165,29 +177,31 @@ export function PropertyMap({
   selectedPropertyId,
   onPropertySelect,
 }: PropertyMapProps) {
-  const [mounted, setMounted] = useState(false);
   const [propertiesWithCoords, setPropertiesWithCoords] = useState<PropertyWithCoords[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedProperty, setSelectedProperty] = useState<PropertyWithCoords | null>(null);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: apiKey,
+  });
 
   // Geocode all properties
   useEffect(() => {
-    if (!mounted) return;
+    if (!isLoaded) return;
 
     async function geocodeProperties() {
       setIsLoading(true);
       const results: PropertyWithCoords[] = [];
 
-      // Process in batches to avoid rate limiting
       for (let i = 0; i < properties.length; i++) {
         const property = properties[i];
 
-        // Add small delay between requests to respect Nominatim rate limits
         if (i > 0) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
         const coords = await geocodeAddress(
@@ -207,115 +221,169 @@ export function PropertyMap({
     }
 
     geocodeProperties();
-  }, [mounted, properties]);
+  }, [isLoaded, properties]);
 
-  const coordinates = useMemo(
-    () => propertiesWithCoords.map((p) => p.coords),
-    [propertiesWithCoords]
-  );
+  // Fit bounds when properties change
+  useEffect(() => {
+    if (map && propertiesWithCoords.length > 0) {
+      const bounds = new google.maps.LatLngBounds();
+      propertiesWithCoords.forEach(({ coords }) => {
+        bounds.extend(coords);
+      });
+      map.fitBounds(bounds, 60);
 
-  // Default center (US center)
-  const defaultCenter: [number, number] = [39.8283, -98.5795];
-  const defaultZoom = 4;
+      // Don't zoom in too much
+      const listener = google.maps.event.addListener(map, "idle", () => {
+        const zoom = map.getZoom();
+        if (zoom && zoom > 14) {
+          map.setZoom(14);
+        }
+        google.maps.event.removeListener(listener);
+      });
+    }
+  }, [map, propertiesWithCoords]);
 
-  if (!mounted) {
+  const onLoad = useCallback((map: google.maps.Map) => {
+    setMap(map);
+  }, []);
+
+  const onUnmount = useCallback(() => {
+    setMap(null);
+  }, []);
+
+  const handleMarkerClick = (item: PropertyWithCoords) => {
+    setSelectedProperty(item);
+    onPropertySelect?.(item.property.id);
+  };
+
+  // Show fallback if no API key
+  if (!apiKey) {
     return (
-      <div className="h-full w-full bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-400">Loading map...</div>
+      <div className="h-full w-full bg-slate-100 flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-white rounded-xl p-6 shadow-sm max-w-sm">
+          <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+          </div>
+          <h3 className="font-semibold text-slate-900 mb-2">Map Coming Soon</h3>
+          <p className="text-sm text-slate-500">
+            Configure Google Maps API key to enable the interactive map view.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="h-full w-full bg-slate-100 flex items-center justify-center">
+        <div className="text-slate-500">Error loading map</div>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="h-full w-full bg-slate-100 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" />
+          <span className="text-sm text-slate-500">Loading map...</span>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="h-full w-full relative">
-      <MapContainer
+      <GoogleMap
+        mapContainerStyle={containerStyle}
         center={defaultCenter}
-        zoom={defaultZoom}
-        className="h-full w-full"
-        zoomControl={false}
-        style={{ background: "#f8fafc" }}
+        zoom={4}
+        onLoad={onLoad}
+        onUnmount={onUnmount}
+        options={mapOptions}
+        onClick={() => {
+          setSelectedProperty(null);
+          onPropertySelect?.(null);
+        }}
       >
-        {/* Modern bright map tiles - CartoDB Voyager (similar to Airbnb) */}
-        <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-        />
+        {propertiesWithCoords.map((item) => (
+          <OverlayView
+            key={item.property.id}
+            position={item.coords}
+            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+          >
+            <PriceMarker
+              price={item.property.minRent}
+              isSelected={selectedPropertyId === item.property.id}
+              onClick={() => handleMarkerClick(item)}
+            />
+          </OverlayView>
+        ))}
 
-        {/* Zoom controls in bottom right */}
-        <ZoomControl position="bottomright" />
-
-        {coordinates.length > 0 && <MapBounds coordinates={coordinates} />}
-
-        {propertiesWithCoords.map(({ property, coords }) => (
-          <Marker
-            key={property.id}
-            position={coords}
-            icon={createPriceMarker(property.minRent, selectedPropertyId === property.id)}
-            eventHandlers={{
-              click: () => onPropertySelect?.(property.id),
+        {selectedProperty && (
+          <InfoWindow
+            position={selectedProperty.coords}
+            onCloseClick={() => {
+              setSelectedProperty(null);
+              onPropertySelect?.(null);
+            }}
+            options={{
+              pixelOffset: new google.maps.Size(0, -20),
+              maxWidth: 300,
             }}
           >
-            <Popup className="modern-popup">
-              <Link
-                href={`/availability/${property.id}`}
-                className="block w-64 overflow-hidden"
-              >
-                {/* Property Image */}
-                {property.coverPhoto?.public_url ? (
-                  <div className="relative h-40 w-full overflow-hidden rounded-t-lg -m-3 mb-0">
-                    <img
-                      src={property.coverPhoto.public_url}
-                      alt={property.name}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="h-32 w-full bg-slate-100 rounded-t-lg -m-3 mb-0 flex items-center justify-center">
-                    <svg className="h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                )}
-
-                {/* Property Info */}
-                <div className="pt-3">
-                  <h3 className="font-semibold text-slate-900 text-base leading-tight">
-                    {property.name}
-                  </h3>
-                  <p className="text-sm text-slate-500 mt-0.5">
-                    {[property.city, property.state].filter(Boolean).join(", ")}
-                  </p>
-
-                  <div className="mt-2 flex items-center justify-between">
-                    <div>
-                      <span className="font-semibold text-slate-900">
-                        {property.minRent
-                          ? property.minRent === property.maxRent
-                            ? formatCurrency(property.minRent)
-                            : `${formatCurrency(property.minRent)}–${formatCurrency(property.maxRent!)}`
-                          : "Contact for price"}
-                      </span>
-                      {property.minRent && (
-                        <span className="text-slate-500 text-sm"> /month</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                      {property.vacantBeds} bed{property.vacantBeds !== 1 ? "s" : ""} available
-                    </span>
-                  </div>
+            <Link
+              href={`/availability/${selectedProperty.property.id}`}
+              className="block w-64 overflow-hidden"
+            >
+              {/* Property Image */}
+              {selectedProperty.property.coverPhoto?.public_url ? (
+                <div className="relative h-36 w-full overflow-hidden rounded-lg -mx-2 -mt-2 mb-2">
+                  <img
+                    src={selectedProperty.property.coverPhoto.public_url}
+                    alt={selectedProperty.property.name}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
-              </Link>
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
+              ) : (
+                <div className="h-28 w-full bg-slate-100 rounded-lg -mx-2 -mt-2 mb-2 flex items-center justify-center">
+                  <svg className="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              )}
+
+              <h3 className="font-semibold text-slate-900 text-sm leading-tight">
+                {selectedProperty.property.name}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {[selectedProperty.property.city, selectedProperty.property.state]
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
+
+              <div className="mt-2 flex items-center justify-between">
+                <span className="font-semibold text-slate-900 text-sm">
+                  {selectedProperty.property.minRent
+                    ? formatCurrency(selectedProperty.property.minRent)
+                    : "Contact"}
+                  <span className="font-normal text-slate-500"> /mo</span>
+                </span>
+                <span className="text-xs text-emerald-600 font-medium">
+                  {selectedProperty.property.vacantBeds} bed
+                  {selectedProperty.property.vacantBeds !== 1 ? "s" : ""} open
+                </span>
+              </div>
+            </Link>
+          </InfoWindow>
+        )}
+      </GoogleMap>
 
       {/* Loading overlay */}
       {isLoading && properties.length > 0 && (
-        <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-[1000]">
+        <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-10">
           <div className="flex items-center gap-3 bg-white rounded-full px-5 py-3 shadow-lg">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" />
             <span className="text-sm font-medium text-slate-700">Loading locations...</span>
@@ -323,9 +391,9 @@ export function PropertyMap({
         </div>
       )}
 
-      {/* Property count badge */}
+      {/* Property count */}
       {!isLoading && propertiesWithCoords.length > 0 && (
-        <div className="absolute top-4 left-4 bg-white rounded-full shadow-md px-4 py-2 text-sm font-medium text-slate-700 z-[1000]">
+        <div className="absolute top-4 left-4 bg-white rounded-full shadow-md px-4 py-2 text-sm font-medium text-slate-700 z-10">
           {propertiesWithCoords.length} {propertiesWithCoords.length === 1 ? "home" : "homes"}
         </div>
       )}

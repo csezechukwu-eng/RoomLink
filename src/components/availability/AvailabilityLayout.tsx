@@ -5,14 +5,17 @@ import { Map, List, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { AvailabilityProperty } from "@/lib/services/availability";
 
-// Dynamic import for map to avoid SSR issues with Leaflet
+// Dynamic import for map to avoid SSR issues
 const PropertyMap = dynamic(
   () => import("./PropertyMap").then(mod => mod.PropertyMap),
   {
     ssr: false,
     loading: () => (
-      <div className="h-full w-full bg-slate-100 animate-pulse flex items-center justify-center">
-        <div className="text-slate-400">Loading map...</div>
+      <div className="h-full w-full bg-slate-50 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" />
+          <span className="text-sm text-slate-500">Loading map...</span>
+        </div>
       </div>
     ),
   }
