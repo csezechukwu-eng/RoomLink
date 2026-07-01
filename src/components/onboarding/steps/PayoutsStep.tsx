@@ -155,9 +155,9 @@ export function PayoutsStep({ state, onContinue }: PayoutsStepProps) {
 
       {/* Host Fee Explainer */}
       <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-6">
-        <h3 className="font-semibold text-slate-900">How Room Link Pricing Works</h3>
+        <h3 className="font-semibold text-slate-900">How renta bed Pricing Works</h3>
         <p className="mt-1 text-sm text-slate-500">
-          Room Link is free to use. You only pay when tenants pay through the platform.
+          renta bed is free to use. You only pay when tenants pay through the platform.
         </p>
 
         <div className="mt-4 space-y-3">

@@ -22,7 +22,7 @@ export default async function DemoPage() {
     <div className="space-y-6">
       <PageHeader
         title="Demo Test Center"
-        description="Create safe test records to test Room Link from application to lease signing."
+        description="Create safe test records to test renta bed from application to lease signing."
       />
 
       <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">

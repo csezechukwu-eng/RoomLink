@@ -365,7 +365,7 @@ export function PublishStep({ state }: PublishStepProps) {
             </label>
             <p className="text-sm text-slate-500 mt-1">
               By checking this box, you confirm that your listing complies with local housing
-              regulations, fair housing laws, and Room Link&apos;s terms of service. You are
+              regulations, fair housing laws, and renta bed&apos;s terms of service. You are
               responsible for obtaining any required permits or licenses.
             </p>
             {hasAcknowledged && (

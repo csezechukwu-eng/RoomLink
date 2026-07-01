@@ -73,10 +73,10 @@ export default async function SignLeasePage({ params, searchParams }: Props) {
         <div className="mx-auto max-w-3xl px-4 py-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white">
-              RL
+              rb
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-slate-900">Room Link</h1>
+              <h1 className="text-lg font-semibold text-slate-900">renta bed</h1>
               <p className="text-sm text-slate-500">Lease Agreement</p>
             </div>
           </div>
@@ -141,7 +141,7 @@ export default async function SignLeasePage({ params, searchParams }: Props) {
       <footer className="border-t border-slate-200 bg-white py-6">
         <div className="mx-auto max-w-3xl px-4 text-center text-sm text-slate-500">
           <p>By signing, you agree to the terms of this lease agreement.</p>
-          <p className="mt-2">Room Link &copy; {new Date().getFullYear()}</p>
+          <p className="mt-2">renta bed &copy; {new Date().getFullYear()}</p>
         </div>
       </footer>
     </div>

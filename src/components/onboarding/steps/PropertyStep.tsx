@@ -662,9 +662,9 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
 
             {/* Standard Inclusions */}
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-              <h3 className="font-medium text-emerald-900 mb-2">Included with All Room Link Properties</h3>
+              <h3 className="font-medium text-emerald-900 mb-2">Included with All renta bed Properties</h3>
               <p className="text-sm text-emerald-700 mb-3">
-                The following amenities are automatically included with all properties listed on Room Link:
+                The following amenities are automatically included with all properties listed on renta bed:
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div className="flex items-center gap-2 text-sm text-emerald-700">
@@ -1165,7 +1165,7 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
                 <div>
                   <p className="font-medium text-indigo-900">5% Host Fee</p>
                   <p className="text-sm text-indigo-700">
-                    Room Link charges a 5% fee on rent payments. You&apos;ll receive 95% of the monthly rent directly to your bank.
+                    renta bed charges a 5% fee on rent payments. You&apos;ll receive 95% of the monthly rent directly to your bank.
                   </p>
                 </div>
               </div>

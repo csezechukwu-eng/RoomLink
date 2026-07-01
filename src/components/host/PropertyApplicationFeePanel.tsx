@@ -117,7 +117,7 @@ export function PropertyApplicationFeePanel({ property }: PropertyApplicationFee
               </FormField>
 
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                <strong>Manual tracking:</strong> Room Link does not collect payments
+                <strong>Manual tracking:</strong> renta bed does not collect payments
                 automatically. You&apos;ll mark fees as paid or waived on each application.
               </div>
             </>

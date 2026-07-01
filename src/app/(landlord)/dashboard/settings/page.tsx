@@ -695,11 +695,11 @@ function PricingSettings() {
 
   return (
     <div className="space-y-6">
-      {/* How Room Link Pricing Works */}
+      {/* How renta bed Pricing Works */}
       <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-6">
-        <h2 className="text-lg font-semibold text-slate-900">How Room Link Pricing Works</h2>
+        <h2 className="text-lg font-semibold text-slate-900">How renta bed Pricing Works</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Room Link is free to use. You only pay when tenants book and pay through the platform.
+          renta bed is free to use. You only pay when tenants book and pay through the platform.
         </p>
 
         <div className="mt-6 space-y-4">
@@ -738,7 +738,7 @@ function PricingSettings() {
                 <span className="font-medium">$1,000</span>
               </div>
               <div className="flex justify-between text-red-600">
-                <span>Room Link Host Fee (5%)</span>
+                <span>renta bed Host Fee (5%)</span>
                 <span>-$50</span>
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold text-emerald-600">
@@ -754,7 +754,7 @@ function PricingSettings() {
       <Card className="p-6">
         <h2 className="text-lg font-semibold text-slate-900">No Monthly Subscription</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Room Link does not charge monthly or annual subscription fees.
+          renta bed does not charge monthly or annual subscription fees.
         </p>
 
         <div className="mt-6 space-y-3">
@@ -791,7 +791,7 @@ function PricingSettings() {
             </div>
             <div>
               <p className="font-medium text-slate-900">Pay only when you earn</p>
-              <p className="text-sm text-slate-500">5% host fee is deducted only when tenants pay rent through Room Link</p>
+              <p className="text-sm text-slate-500">5% host fee is deducted only when tenants pay rent through renta bed</p>
             </div>
           </div>
         </div>

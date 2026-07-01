@@ -65,7 +65,7 @@ export default async function ApplyPage({
         <div>
           <p className="font-medium text-indigo-900">Monthly Stay Booking</p>
           <p className="text-sm text-indigo-700">
-            Room Link is built for monthly stays. The minimum booking period is 30 days.
+            renta bed is built for monthly stays. The minimum booking period is 30 days.
             Rent is collected monthly.
           </p>
         </div>

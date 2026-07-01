@@ -135,7 +135,7 @@ export default async function RentPage() {
               </p>
             </div>
             <div className="rounded-lg bg-indigo-50 p-4">
-              <p className="text-sm text-indigo-600">Room Link Fee (5%)</p>
+              <p className="text-sm text-indigo-600">renta bed Fee (5%)</p>
               <p className="mt-1 text-2xl font-bold text-indigo-700">
                 {formatCurrency(stats.totalHostFeeCents / 100)}
               </p>

@@ -162,7 +162,7 @@ export function ListingSettingsPanel({
               />
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              Room Link is a monthly-stay marketplace. Minimum stay is 30 days.
+              renta bed is a monthly-stay marketplace. Minimum stay is 30 days.
             </p>
           </FormField>
 
@@ -170,7 +170,7 @@ export function ListingSettingsPanel({
           <FormField label="Billing period" htmlFor="billing_period">
             <div className="text-sm text-slate-600">Monthly</div>
             <p className="mt-1 text-xs text-slate-500">
-              Rent is collected monthly through Room Link.
+              Rent is collected monthly through renta bed.
             </p>
           </FormField>
 

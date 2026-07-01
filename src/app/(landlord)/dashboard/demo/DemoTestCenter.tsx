@@ -616,7 +616,7 @@ export function DemoTestCenter({
                 3
               </span>
               <span>
-                Go to <strong>Properties</strong> and verify Room Link Demo House appears
+                Go to <strong>Properties</strong> and verify renta bed Demo House appears
               </span>
             </li>
             <li className="flex items-start gap-2">
