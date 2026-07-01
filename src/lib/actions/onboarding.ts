@@ -449,7 +449,7 @@ export async function createOrUpdatePropertyListingAction(
 
   if (!propertyType) {
     fieldErrors.property_type = "Property type is required";
-  } else if (!["crash_pad", "co_living", "midterm", "room_rental"].includes(propertyType)) {
+  } else if (!["house", "apartment", "condo"].includes(propertyType)) {
     fieldErrors.property_type = "Invalid property type";
   }
 

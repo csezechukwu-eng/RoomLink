@@ -22,10 +22,9 @@ interface Option<T extends string> {
 }
 
 export const PROPERTY_TYPES: Option<PropertyType>[] = [
-  { value: "crash_pad", label: "Crash Pad" },
-  { value: "co_living", label: "Co-Living" },
-  { value: "midterm", label: "Midterm Rental" },
-  { value: "room_rental", label: "Room Rental" },
+  { value: "house", label: "House" },
+  { value: "apartment", label: "Apartment" },
+  { value: "condo", label: "Condo" },
 ];
 
 export const BUNK_TYPES: Option<BunkType>[] = [
@@ -272,8 +271,7 @@ export function labelForSmokingStatus(value: SmokingStatus): string {
 
 export const PROPERTY_OCCUPANCY_TYPES: Option<PropertyOccupancyType>[] = [
   { value: "coed", label: "Co-ed" },
-  { value: "women_only_house", label: "Women-only house" },
-  { value: "women_only_rooms_available", label: "Women-only rooms available" },
+  { value: "women_only_rooms", label: "Women-only rooms" },
 ];
 
 export const ROOM_OCCUPANCY_TYPES: Option<RoomOccupancyType>[] = [

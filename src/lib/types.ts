@@ -1,12 +1,12 @@
 // RoomLink domain types — Phase 1A
 
-export type PropertyType = "crash_pad" | "co_living" | "midterm" | "room_rental";
+export type PropertyType = "house" | "apartment" | "condo";
 export type BunkType = "top_bunk" | "bottom_bunk" | "single" | "other";
 export type BedStatus = "vacant" | "reserved" | "occupied" | "unavailable";
 export type MemberRole = "owner" | "manager" | "tenant";
 
 // Listing occupancy types - hosts must comply with fair housing laws
-export type PropertyOccupancyType = "coed" | "women_only_house" | "women_only_rooms_available";
+export type PropertyOccupancyType = "coed" | "women_only_rooms";
 export type RoomOccupancyType = "coed" | "women_only";
 
 export interface Property {
