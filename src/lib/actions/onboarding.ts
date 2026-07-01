@@ -428,7 +428,6 @@ export async function createOrUpdatePropertyListingAction(
 
   // Wellness amenities
   const hasGym = formData.get("has_gym") === "true";
-  const hasYogaSpace = formData.get("has_yoga_space") === "true";
 
   // Work amenities
   const hasHighSpeedWifi = formData.get("has_high_speed_wifi") === "true";
@@ -534,7 +533,6 @@ export async function createOrUpdatePropertyListingAction(
       has_paid_parking: hasPaidParking,
       // Wellness
       has_gym: hasGym,
-      has_yoga_space: hasYogaSpace,
       // Work
       has_high_speed_wifi: hasHighSpeedWifi,
       has_meeting_rooms: hasMeetingRooms,

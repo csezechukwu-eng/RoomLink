@@ -17,7 +17,6 @@ import {
   Home,
   Bath,
   Users,
-  Heart,
   Snowflake,
   Sun,
   Lock,
@@ -155,7 +154,6 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
     has_paid_parking: false,
     // Wellness & Recreation
     has_gym: false,
-    has_yoga_space: false,
     // Work
     has_high_speed_wifi: false,
     has_meeting_rooms: false,
@@ -870,11 +868,6 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
                     <input type="checkbox" name="has_gym" value="true" checked={propertyForm.has_gym} onChange={(e) => handlePropertyChange("has_gym", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
                     <Dumbbell className="h-4 w-4 text-slate-400" />
                     <span className="text-sm">Gym / fitness center</span>
-                  </label>
-                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                    <input type="checkbox" name="has_yoga_space" value="true" checked={propertyForm.has_yoga_space} onChange={(e) => handlePropertyChange("has_yoga_space", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
-                    <Heart className="h-4 w-4 text-slate-400" />
-                    <span className="text-sm">Yoga space</span>
                   </label>
                 </div>
               </div>
