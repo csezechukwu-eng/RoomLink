@@ -289,3 +289,102 @@ export function labelForOccupancyType(value: PropertyOccupancyType | RoomOccupan
   if (room) return room.label;
   return value;
 }
+
+// ---------------------------------------------------------------------------
+// Property Amenities — Comprehensive amenity options for listings
+// ---------------------------------------------------------------------------
+
+export type AmenityCategory =
+  | "bathroom_laundry"
+  | "comfort"
+  | "community"
+  | "outdoors"
+  | "services"
+  | "transport"
+  | "wellness"
+  | "work";
+
+export interface AmenityOption {
+  key: string;
+  label: string;
+  category: AmenityCategory;
+  icon: string; // Lucide icon name
+}
+
+export const AMENITY_CATEGORIES: Record<AmenityCategory, string> = {
+  bathroom_laundry: "Bathroom & laundry",
+  comfort: "Comfort",
+  community: "Community",
+  outdoors: "Outdoors",
+  services: "Services",
+  transport: "Transport & access",
+  wellness: "Wellness & recreation",
+  work: "Work",
+};
+
+export const PROPERTY_AMENITIES: AmenityOption[] = [
+  // Bathroom & Laundry
+  { key: "has_dryer", label: "Dryer", category: "bathroom_laundry", icon: "Shirt" },
+  { key: "has_paid_laundry", label: "Paid laundry facilities", category: "bathroom_laundry", icon: "Coins" },
+  { key: "toilet_paper_provided", label: "Toilet paper provided", category: "bathroom_laundry", icon: "ScrollText" },
+
+  // Comfort
+  { key: "has_air_conditioning", label: "Air conditioning", category: "comfort", icon: "Snowflake" },
+  { key: "has_balcony", label: "Balcony", category: "comfort", icon: "Building" },
+  { key: "has_heating", label: "Heating", category: "comfort", icon: "Sun" },
+  { key: "linen_provided", label: "Linen", category: "comfort", icon: "Bed" },
+  { key: "has_blackout_blinds", label: "Blackout blinds", category: "comfort", icon: "PanelTop" },
+  { key: "bedroom_essentials", label: "Bedroom essentials", category: "comfort", icon: "Package" },
+  { key: "bedroom_door_lock", label: "Bedroom door lock", category: "comfort", icon: "Lock" },
+
+  // Community
+  { key: "has_chill_out_area", label: "Chill-out area", category: "community", icon: "Sofa" },
+  { key: "has_shared_living_area", label: "Shared living area", category: "community", icon: "Sofa" },
+  { key: "has_bbq_area", label: "BBQ area", category: "community", icon: "Flame" },
+  { key: "has_dining_area", label: "Dining area", category: "community", icon: "UtensilsCrossed" },
+  { key: "has_dishwasher", label: "Dishwasher", category: "community", icon: "Droplets" },
+
+  // Outdoors
+  { key: "has_outdoor_space", label: "Outdoor space", category: "outdoors", icon: "Trees" },
+
+  // Services
+  { key: "common_area_cleaning", label: "Common area cleaning", category: "services", icon: "Sparkles" },
+  { key: "room_cleaning", label: "Room cleaning", category: "services", icon: "Sparkles" },
+
+  // Transport & Access
+  { key: "has_bicycles", label: "Bicycles", category: "transport", icon: "Bike" },
+  { key: "has_free_street_parking", label: "Free street parking", category: "transport", icon: "Car" },
+  { key: "has_on_site_parking", label: "On-site parking", category: "transport", icon: "Car" },
+  { key: "has_paid_parking", label: "Paid parking", category: "transport", icon: "Car" },
+
+  // Wellness & Recreation
+  { key: "has_gym", label: "Gym / fitness center", category: "wellness", icon: "Dumbbell" },
+  { key: "has_yoga_space", label: "Yoga space", category: "wellness", icon: "Heart" },
+
+  // Work
+  { key: "has_high_speed_wifi", label: "High-speed WiFi", category: "work", icon: "Wifi" },
+  { key: "has_meeting_rooms", label: "Meeting rooms", category: "work", icon: "Users" },
+  { key: "has_private_call_room", label: "Private call room", category: "work", icon: "Phone" },
+  { key: "has_workspace", label: "Workspace", category: "work", icon: "Monitor" },
+  { key: "has_desk_workspace", label: "Desk workspace", category: "work", icon: "Laptop" },
+];
+
+// Get amenities grouped by category
+export function getAmenitiesByCategory(): Record<AmenityCategory, AmenityOption[]> {
+  const grouped: Record<AmenityCategory, AmenityOption[]> = {
+    bathroom_laundry: [],
+    comfort: [],
+    community: [],
+    outdoors: [],
+    services: [],
+    transport: [],
+    wellness: [],
+    work: [],
+  };
+
+  for (const amenity of PROPERTY_AMENITIES) {
+    grouped[amenity.category].push(amenity);
+  }
+
+  return grouped;
+}

@@ -383,12 +383,67 @@ export async function createOrUpdatePropertyListingAction(
   const occupancyType = optionalStr(formData, "occupancy_type");
   const defaultMinStayDays = optionalStr(formData, "default_min_stay_days");
 
-  // Amenities (checkboxes)
+  // Property details
+  const numBedrooms = optionalStr(formData, "num_bedrooms");
+  const numBathrooms = optionalStr(formData, "num_bathrooms");
+  const sqft = optionalStr(formData, "sqft");
+  const wifiSpeed = optionalStr(formData, "wifi_speed");
+
+  // Basic amenities (checkboxes)
   const furnished = formData.get("furnished") === "true";
   const utilitiesIncluded = formData.get("utilities_included") === "true";
   const wifi = formData.get("wifi") === "true";
   const laundry = optionalStr(formData, "laundry");
   const parking = optionalStr(formData, "parking");
+
+  // Community settings
+  const couplesAllowed = formData.get("couples_allowed") === "true";
+  const lgbtqFriendly = formData.get("lgbtq_friendly") === "true";
+
+  // Bathroom & Laundry amenities
+  const hasDryer = formData.get("has_dryer") === "true";
+  const hasPaidLaundry = formData.get("has_paid_laundry") === "true";
+  const toiletPaperProvided = formData.get("toilet_paper_provided") === "true";
+
+  // Comfort amenities
+  const hasAirConditioning = formData.get("has_air_conditioning") === "true";
+  const hasBalcony = formData.get("has_balcony") === "true";
+  const hasHeating = formData.get("has_heating") === "true";
+  const linenProvided = formData.get("linen_provided") === "true";
+  const hasBlackoutBlinds = formData.get("has_blackout_blinds") === "true";
+  const bedroomEssentials = formData.get("bedroom_essentials") === "true";
+  const bedroomDoorLock = formData.get("bedroom_door_lock") === "true";
+
+  // Community amenities
+  const hasChillOutArea = formData.get("has_chill_out_area") === "true";
+  const hasSharedLivingArea = formData.get("has_shared_living_area") === "true";
+  const hasBbqArea = formData.get("has_bbq_area") === "true";
+  const hasDiningArea = formData.get("has_dining_area") === "true";
+  const hasDishwasher = formData.get("has_dishwasher") === "true";
+
+  // Outdoors amenities
+  const hasOutdoorSpace = formData.get("has_outdoor_space") === "true";
+
+  // Services amenities
+  const commonAreaCleaning = formData.get("common_area_cleaning") === "true";
+  const roomCleaning = formData.get("room_cleaning") === "true";
+
+  // Transport amenities
+  const hasBicycles = formData.get("has_bicycles") === "true";
+  const hasFreeStreetParking = formData.get("has_free_street_parking") === "true";
+  const hasOnSiteParking = formData.get("has_on_site_parking") === "true";
+  const hasPaidParking = formData.get("has_paid_parking") === "true";
+
+  // Wellness amenities
+  const hasGym = formData.get("has_gym") === "true";
+  const hasYogaSpace = formData.get("has_yoga_space") === "true";
+
+  // Work amenities
+  const hasHighSpeedWifi = formData.get("has_high_speed_wifi") === "true";
+  const hasMeetingRooms = formData.get("has_meeting_rooms") === "true";
+  const hasPrivateCallRoom = formData.get("has_private_call_room") === "true";
+  const hasWorkspace = formData.get("has_workspace") === "true";
+  const hasDeskWorkspace = formData.get("has_desk_workspace") === "true";
 
   // Validate required fields
   const fieldErrors: Record<string, string> = {};
@@ -428,11 +483,57 @@ export async function createOrUpdatePropertyListingAction(
       description,
       occupancy_type: occupancyType || null,
       default_min_stay_days: defaultMinStayDays ? parseInt(defaultMinStayDays, 10) : 30,
+      // Property details
+      num_bedrooms: numBedrooms ? parseInt(numBedrooms, 10) : null,
+      num_bathrooms: numBathrooms ? parseInt(numBathrooms, 10) : null,
+      sqft: sqft ? parseInt(sqft, 10) : null,
+      wifi_speed: wifiSpeed,
+      // Basic amenities
       furnished,
       utilities_included: utilitiesIncluded,
       wifi,
       laundry,
       parking,
+      // Community settings
+      couples_allowed: couplesAllowed,
+      lgbtq_friendly: lgbtqFriendly,
+      // Bathroom & Laundry
+      has_dryer: hasDryer,
+      has_paid_laundry: hasPaidLaundry,
+      toilet_paper_provided: toiletPaperProvided,
+      // Comfort
+      has_air_conditioning: hasAirConditioning,
+      has_balcony: hasBalcony,
+      has_heating: hasHeating,
+      linen_provided: linenProvided,
+      has_blackout_blinds: hasBlackoutBlinds,
+      bedroom_essentials: bedroomEssentials,
+      bedroom_door_lock: bedroomDoorLock,
+      // Community
+      has_chill_out_area: hasChillOutArea,
+      has_shared_living_area: hasSharedLivingArea,
+      has_bbq_area: hasBbqArea,
+      has_dining_area: hasDiningArea,
+      has_dishwasher: hasDishwasher,
+      // Outdoors
+      has_outdoor_space: hasOutdoorSpace,
+      // Services
+      common_area_cleaning: commonAreaCleaning,
+      room_cleaning: roomCleaning,
+      // Transport
+      has_bicycles: hasBicycles,
+      has_free_street_parking: hasFreeStreetParking,
+      has_on_site_parking: hasOnSiteParking,
+      has_paid_parking: hasPaidParking,
+      // Wellness
+      has_gym: hasGym,
+      has_yoga_space: hasYogaSpace,
+      // Work
+      has_high_speed_wifi: hasHighSpeedWifi,
+      has_meeting_rooms: hasMeetingRooms,
+      has_private_call_room: hasPrivateCallRoom,
+      has_workspace: hasWorkspace,
+      has_desk_workspace: hasDeskWorkspace,
       is_hidden: true, // Draft properties start hidden
     };
 

@@ -15,6 +15,29 @@ import {
   Zap,
   Car,
   WashingMachine,
+  Home,
+  Bath,
+  Ruler,
+  Users,
+  Heart,
+  Snowflake,
+  Sun,
+  Lock,
+  Package,
+  Flame,
+  UtensilsCrossed,
+  Droplets,
+  Trees,
+  Sparkles,
+  Bike,
+  Dumbbell,
+  Phone,
+  Monitor,
+  Laptop,
+  PanelTop,
+  Shirt,
+  Coins,
+  ScrollText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -32,7 +55,7 @@ import { initialActionState } from "@/lib/actions/types";
 import { FormAlert } from "@/components/forms/FormAlert";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import type { LandlordOnboardingState } from "@/lib/onboarding/state";
-import { PROPERTY_TYPES, PROPERTY_OCCUPANCY_TYPES, BUNK_TYPES } from "@/lib/constants";
+import { PROPERTY_TYPES, PROPERTY_OCCUPANCY_TYPES, BUNK_TYPES, PROPERTY_AMENITIES, AMENITY_CATEGORIES, getAmenitiesByCategory } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 interface PropertyStepProps {
@@ -90,11 +113,57 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
     description: data.description || "",
     occupancy_type: data.occupancyType || "",
     default_min_stay_days: data.defaultMinStayDays?.toString() || "30",
+    // Property details
+    num_bedrooms: "",
+    num_bathrooms: "",
+    sqft: "",
+    wifi_speed: "",
+    // Basic amenities
     furnished: data.furnished,
     utilities_included: data.utilitiesIncluded,
     wifi: data.wifi,
     laundry: data.laundry || "",
     parking: data.parking || "",
+    // Community settings
+    couples_allowed: false,
+    lgbtq_friendly: false,
+    // Bathroom & Laundry
+    has_dryer: false,
+    has_paid_laundry: false,
+    toilet_paper_provided: false,
+    // Comfort
+    has_air_conditioning: false,
+    has_balcony: false,
+    has_heating: false,
+    linen_provided: false,
+    has_blackout_blinds: false,
+    bedroom_essentials: false,
+    bedroom_door_lock: false,
+    // Community
+    has_chill_out_area: false,
+    has_shared_living_area: false,
+    has_bbq_area: false,
+    has_dining_area: false,
+    has_dishwasher: false,
+    // Outdoors
+    has_outdoor_space: false,
+    // Services
+    common_area_cleaning: false,
+    room_cleaning: false,
+    // Transport & Access
+    has_bicycles: false,
+    has_free_street_parking: false,
+    has_on_site_parking: false,
+    has_paid_parking: false,
+    // Wellness & Recreation
+    has_gym: false,
+    has_yoga_space: false,
+    // Work
+    has_high_speed_wifi: false,
+    has_meeting_rooms: false,
+    has_private_call_room: false,
+    has_workspace: false,
+    has_desk_workspace: false,
   });
 
   // Local form state for room/bed
@@ -446,11 +515,112 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
               />
             </div>
 
-            {/* Amenities */}
+            {/* Property Details */}
             <div>
-              <h3 className="font-medium text-slate-900 mb-4">Amenities</h3>
+              <h3 className="font-medium text-slate-900 flex items-center gap-2 mb-4">
+                <Home className="h-5 w-5 text-indigo-600" />
+                Property Details
+              </h3>
 
-              {/* Boolean Amenities */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <Label htmlFor="num_bedrooms" className="flex items-center gap-1">
+                    <Bed className="h-4 w-4 text-slate-400" />
+                    Bedrooms
+                  </Label>
+                  <Input
+                    id="num_bedrooms"
+                    name="num_bedrooms"
+                    type="number"
+                    min="0"
+                    value={propertyForm.num_bedrooms}
+                    onChange={(e) => handlePropertyChange("num_bedrooms", e.target.value)}
+                    placeholder="0"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="num_bathrooms" className="flex items-center gap-1">
+                    <Bath className="h-4 w-4 text-slate-400" />
+                    Bathrooms
+                  </Label>
+                  <Input
+                    id="num_bathrooms"
+                    name="num_bathrooms"
+                    type="number"
+                    min="0"
+                    value={propertyForm.num_bathrooms}
+                    onChange={(e) => handlePropertyChange("num_bathrooms", e.target.value)}
+                    placeholder="0"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="sqft" className="flex items-center gap-1">
+                    <Ruler className="h-4 w-4 text-slate-400" />
+                    Square Feet
+                  </Label>
+                  <Input
+                    id="sqft"
+                    name="sqft"
+                    type="number"
+                    min="0"
+                    value={propertyForm.sqft}
+                    onChange={(e) => handlePropertyChange("sqft", e.target.value)}
+                    placeholder="0"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="wifi_speed" className="flex items-center gap-1">
+                    <Wifi className="h-4 w-4 text-slate-400" />
+                    WiFi Speed
+                  </Label>
+                  <Input
+                    id="wifi_speed"
+                    name="wifi_speed"
+                    value={propertyForm.wifi_speed}
+                    onChange={(e) => handlePropertyChange("wifi_speed", e.target.value)}
+                    placeholder="e.g., 100 Mbps"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              {/* Community Settings */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    name="couples_allowed"
+                    value="true"
+                    checked={propertyForm.couples_allowed}
+                    onChange={(e) => handlePropertyChange("couples_allowed", e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                  />
+                  <Users className="h-5 w-5 text-slate-400" />
+                  <span className="text-sm">Couples allowed</span>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    name="lgbtq_friendly"
+                    value="true"
+                    checked={propertyForm.lgbtq_friendly}
+                    onChange={(e) => handlePropertyChange("lgbtq_friendly", e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                  />
+                  <Heart className="h-5 w-5 text-slate-400" />
+                  <span className="text-sm">LGBTQ+ friendly</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Basic Amenities */}
+            <div>
+              <h3 className="font-medium text-slate-900 mb-4">Basic Amenities</h3>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                 <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
                   <input
@@ -492,7 +662,6 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
                 </label>
               </div>
 
-              {/* Text Amenities */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="laundry" className="flex items-center gap-1">
@@ -522,6 +691,205 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
                     placeholder="e.g., Street parking available"
                     className="mt-1"
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* All Amenities */}
+            <div>
+              <h3 className="font-medium text-slate-900 mb-4">All Amenities</h3>
+
+              {/* Comfort */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-slate-700 mb-3">Comfort</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_air_conditioning" value="true" checked={propertyForm.has_air_conditioning} onChange={(e) => handlePropertyChange("has_air_conditioning", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Snowflake className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Air conditioning</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_heating" value="true" checked={propertyForm.has_heating} onChange={(e) => handlePropertyChange("has_heating", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Sun className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Heating</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_balcony" value="true" checked={propertyForm.has_balcony} onChange={(e) => handlePropertyChange("has_balcony", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Building2 className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Balcony</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="linen_provided" value="true" checked={propertyForm.linen_provided} onChange={(e) => handlePropertyChange("linen_provided", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Bed className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Linen</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_blackout_blinds" value="true" checked={propertyForm.has_blackout_blinds} onChange={(e) => handlePropertyChange("has_blackout_blinds", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <PanelTop className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Blackout blinds</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="bedroom_door_lock" value="true" checked={propertyForm.bedroom_door_lock} onChange={(e) => handlePropertyChange("bedroom_door_lock", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Lock className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Bedroom door lock</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="bedroom_essentials" value="true" checked={propertyForm.bedroom_essentials} onChange={(e) => handlePropertyChange("bedroom_essentials", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Package className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Bedroom essentials</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Bathroom & Laundry */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-slate-700 mb-3">Bathroom & Laundry</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_dryer" value="true" checked={propertyForm.has_dryer} onChange={(e) => handlePropertyChange("has_dryer", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Shirt className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Dryer</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_paid_laundry" value="true" checked={propertyForm.has_paid_laundry} onChange={(e) => handlePropertyChange("has_paid_laundry", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Coins className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Paid laundry</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="toilet_paper_provided" value="true" checked={propertyForm.toilet_paper_provided} onChange={(e) => handlePropertyChange("toilet_paper_provided", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <ScrollText className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Toilet paper</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Community */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-slate-700 mb-3">Community</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_chill_out_area" value="true" checked={propertyForm.has_chill_out_area} onChange={(e) => handlePropertyChange("has_chill_out_area", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Sofa className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Chill-out area</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_shared_living_area" value="true" checked={propertyForm.has_shared_living_area} onChange={(e) => handlePropertyChange("has_shared_living_area", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Sofa className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Shared living area</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_bbq_area" value="true" checked={propertyForm.has_bbq_area} onChange={(e) => handlePropertyChange("has_bbq_area", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Flame className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">BBQ area</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_dining_area" value="true" checked={propertyForm.has_dining_area} onChange={(e) => handlePropertyChange("has_dining_area", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <UtensilsCrossed className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Dining area</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_dishwasher" value="true" checked={propertyForm.has_dishwasher} onChange={(e) => handlePropertyChange("has_dishwasher", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Droplets className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Dishwasher</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Transport & Access */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-slate-700 mb-3">Transport & Access</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_bicycles" value="true" checked={propertyForm.has_bicycles} onChange={(e) => handlePropertyChange("has_bicycles", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Bike className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Bicycles</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_free_street_parking" value="true" checked={propertyForm.has_free_street_parking} onChange={(e) => handlePropertyChange("has_free_street_parking", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Car className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Free street parking</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_on_site_parking" value="true" checked={propertyForm.has_on_site_parking} onChange={(e) => handlePropertyChange("has_on_site_parking", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Car className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">On-site parking</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_paid_parking" value="true" checked={propertyForm.has_paid_parking} onChange={(e) => handlePropertyChange("has_paid_parking", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Car className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Paid parking</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Outdoors & Services */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-slate-700 mb-3">Outdoors & Services</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_outdoor_space" value="true" checked={propertyForm.has_outdoor_space} onChange={(e) => handlePropertyChange("has_outdoor_space", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Trees className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Outdoor space</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="common_area_cleaning" value="true" checked={propertyForm.common_area_cleaning} onChange={(e) => handlePropertyChange("common_area_cleaning", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Sparkles className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Common area cleaning</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="room_cleaning" value="true" checked={propertyForm.room_cleaning} onChange={(e) => handlePropertyChange("room_cleaning", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Sparkles className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Room cleaning</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Wellness & Recreation */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-slate-700 mb-3">Wellness & Recreation</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_gym" value="true" checked={propertyForm.has_gym} onChange={(e) => handlePropertyChange("has_gym", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Dumbbell className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Gym / fitness center</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_yoga_space" value="true" checked={propertyForm.has_yoga_space} onChange={(e) => handlePropertyChange("has_yoga_space", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Heart className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Yoga space</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Work */}
+              <div>
+                <h4 className="text-sm font-medium text-slate-700 mb-3">Work</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_high_speed_wifi" value="true" checked={propertyForm.has_high_speed_wifi} onChange={(e) => handlePropertyChange("has_high_speed_wifi", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Wifi className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">High-speed WiFi</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_workspace" value="true" checked={propertyForm.has_workspace} onChange={(e) => handlePropertyChange("has_workspace", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Monitor className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Workspace</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_desk_workspace" value="true" checked={propertyForm.has_desk_workspace} onChange={(e) => handlePropertyChange("has_desk_workspace", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Laptop className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Desk workspace</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_meeting_rooms" value="true" checked={propertyForm.has_meeting_rooms} onChange={(e) => handlePropertyChange("has_meeting_rooms", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Users className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Meeting rooms</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input type="checkbox" name="has_private_call_room" value="true" checked={propertyForm.has_private_call_room} onChange={(e) => handlePropertyChange("has_private_call_room", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <Phone className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm">Private call room</span>
+                  </label>
                 </div>
               </div>
             </div>
