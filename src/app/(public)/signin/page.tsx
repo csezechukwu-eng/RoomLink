@@ -9,7 +9,6 @@ import { signIn } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { GoogleSignInButton, AuthDivider } from "@/components/auth/GoogleSignInButton";
 import { AlertCircle, Loader2, Mail, Lock, BedDouble } from "lucide-react";
 
 function SubmitButton() {
@@ -67,11 +66,6 @@ function TenantLoginForm() {
         </div>
 
         <Card className="p-6">
-          {/* Google Sign In */}
-          <GoogleSignInButton role="tenant" label="Sign in with Google" />
-
-          <AuthDivider />
-
           <form action={handleSubmit} className="space-y-4">
             {error && (
               <div className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
