@@ -144,15 +144,6 @@ function TenantLoginForm() {
           </div>
         </Card>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
-          Are you a property host?{" "}
-          <Link
-            href="/login"
-            className="font-medium text-indigo-600 hover:text-indigo-700"
-          >
-            Host login
-          </Link>
-        </p>
       </div>
     </div>
   );

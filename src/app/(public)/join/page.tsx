@@ -192,15 +192,6 @@ export default function TenantJoinPage() {
           </div>
         </Card>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
-          Are you a property owner?{" "}
-          <Link
-            href="/hosting"
-            className="font-medium text-indigo-600 hover:text-indigo-700"
-          >
-            Become a host
-          </Link>
-        </p>
       </div>
     </div>
   );
