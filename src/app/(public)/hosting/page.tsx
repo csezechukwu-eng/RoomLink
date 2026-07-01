@@ -34,7 +34,7 @@ export default async function BecomeAHostPage() {
               Become a Host
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-              Run Your Crash Pad.
+              Manage Your Rooms.
               <br />
               <span className="text-slate-900">Not a Spreadsheet.</span>
             </h1>
