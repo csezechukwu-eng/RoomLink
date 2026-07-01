@@ -822,11 +822,22 @@ export async function updateListingContentAction(
   }
 
   const propertyId = str(formData, "property_id");
-  const description = optionalStr(formData, "description");
+  const description = str(formData, "description");
   const neighborhood = optionalStr(formData, "neighborhood");
 
+  // Validate required fields
+  const fieldErrors: Record<string, string> = {};
+
   if (!propertyId) {
-    return errorState("Property ID is required.");
+    fieldErrors.property_id = "Property ID is required";
+  }
+
+  if (!description) {
+    fieldErrors.description = "Description is required";
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return errorState("Please fix the errors below.", fieldErrors);
   }
 
   if (!isServiceRoleConfigured()) {

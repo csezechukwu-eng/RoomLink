@@ -226,7 +226,7 @@ export function ListingStep({ state, existingPhotos = [], onContinue }: ListingS
             <h3 className="font-medium text-slate-900 flex items-center gap-2 mb-4">
               <FileText className="h-5 w-5 text-indigo-600" />
               Description
-              <Badge className="bg-slate-100 text-slate-600 text-xs ml-1">Recommended</Badge>
+              <Badge className="bg-red-50 text-red-700 text-xs ml-1">Required</Badge>
             </h3>
 
             <Label htmlFor="description">Tell tenants about your property</Label>
@@ -237,8 +237,16 @@ export function ListingStep({ state, existingPhotos = [], onContinue }: ListingS
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe what makes your property special. Include details about the space, atmosphere, and what tenants can expect..."
               rows={4}
-              className="mt-1"
+              className={cn(
+                "mt-1",
+                formState.fieldErrors?.description && "border-red-500"
+              )}
             />
+            {formState.fieldErrors?.description && (
+              <p className="mt-1 text-sm text-red-600">
+                {formState.fieldErrors.description}
+              </p>
+            )}
             <p className="mt-1 text-xs text-slate-500">
               A good description helps tenants understand if your place is right for them.
             </p>
