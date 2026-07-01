@@ -53,7 +53,7 @@ import { initialActionState } from "@/lib/actions/types";
 import { FormAlert } from "@/components/forms/FormAlert";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import type { LandlordOnboardingState } from "@/lib/onboarding/state";
-import { PROPERTY_TYPES, PROPERTY_OCCUPANCY_TYPES, BUNK_TYPES, PROPERTY_AMENITIES, AMENITY_CATEGORIES, getAmenitiesByCategory } from "@/lib/constants";
+import { PROPERTY_TYPES, BUNK_TYPES, PROPERTY_AMENITIES, AMENITY_CATEGORIES, getAmenitiesByCategory } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 interface PropertyStepProps {
@@ -116,7 +116,8 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
     state: data.state || "",
     zip: data.zip || "",
     description: data.description || "",
-    occupancy_type: data.occupancyType || "",
+    is_coed: false,
+    has_women_only_rooms: false,
     default_min_stay_days: data.defaultMinStayDays?.toString() || "30",
     // Property details
     num_bedrooms: "",
@@ -463,23 +464,40 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
                   )}
                 </div>
 
-                {/* Occupancy Type */}
+                {/* Occupancy Type - Multi-select */}
                 <div>
-                  <Label htmlFor="occupancy_type">Occupancy Type</Label>
-                  <select
-                    id="occupancy_type"
-                    name="occupancy_type"
-                    value={propertyForm.occupancy_type}
-                    onChange={(e) => handlePropertyChange("occupancy_type", e.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  >
-                    <option value="">Select occupancy type...</option>
-                    {PROPERTY_OCCUPANCY_TYPES.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Label className="mb-2 block">Occupancy Type</Label>
+                  <p className="text-sm text-slate-500 mb-3">Select all that apply</p>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        name="is_coed"
+                        value="true"
+                        checked={propertyForm.is_coed}
+                        onChange={(e) => handlePropertyChange("is_coed", e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                      />
+                      <div>
+                        <span className="font-medium text-slate-900">Co-Ed</span>
+                        <p className="text-sm text-slate-500">Open to all genders</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        name="has_women_only_rooms"
+                        value="true"
+                        checked={propertyForm.has_women_only_rooms}
+                        onChange={(e) => handlePropertyChange("has_women_only_rooms", e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                      />
+                      <div>
+                        <span className="font-medium text-slate-900">Women-Only Rooms</span>
+                        <p className="text-sm text-slate-500">Has rooms designated for women only</p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>

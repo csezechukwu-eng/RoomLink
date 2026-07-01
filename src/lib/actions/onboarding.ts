@@ -380,7 +380,8 @@ export async function createOrUpdatePropertyListingAction(
   const state = optionalStr(formData, "state");
   const zip = optionalStr(formData, "zip");
   const description = optionalStr(formData, "description");
-  const occupancyType = optionalStr(formData, "occupancy_type");
+  const isCoed = formData.get("is_coed") === "true";
+  const hasWomenOnlyRooms = formData.get("has_women_only_rooms") === "true";
   const defaultMinStayDays = optionalStr(formData, "default_min_stay_days");
 
   // Property details (required)
@@ -490,7 +491,8 @@ export async function createOrUpdatePropertyListingAction(
       state,
       zip,
       description,
-      occupancy_type: occupancyType || null,
+      is_coed: isCoed,
+      has_women_only_rooms: hasWomenOnlyRooms,
       default_min_stay_days: defaultMinStayDays ? parseInt(defaultMinStayDays, 10) : 30,
       // Property details (required)
       num_bedrooms: parseInt(numBedrooms, 10),
