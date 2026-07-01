@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import {
   Home,
   BedDouble,
@@ -7,31 +8,43 @@ import {
   Megaphone,
   MessageSquare,
   Wrench,
-  User,
+  Settings,
   FileText,
+  ClipboardList,
 } from "lucide-react";
 import { Sidebar, type SidebarItem } from "@/components/nav/Sidebar";
+import { signOut } from "@/lib/actions/auth";
 
 const items: SidebarItem[] = [
   { href: "/tenant", label: "Home", icon: Home, exact: true },
+  { href: "/tenant/status", label: "My Bookings", icon: ClipboardList },
   { href: "/tenant/bed", label: "My Bed", icon: BedDouble },
   { href: "/tenant/rent", label: "Rent & Payments", icon: DollarSign },
-  { href: "/tenant/announcements", label: "Announcements", icon: Megaphone },
   { href: "/tenant/messages", label: "Messages", icon: MessageSquare },
   { href: "/tenant/maintenance", label: "Maintenance", icon: Wrench },
-  { href: "/tenant/profile", label: "Profile", icon: User },
   { href: "/tenant/documents", label: "Documents", icon: FileText },
 ];
 
+const bottomItems: SidebarItem[] = [
+  { href: "/tenant/announcements", label: "Announcements", icon: Megaphone },
+  { href: "/tenant/settings", label: "Settings", icon: Settings },
+];
+
 export function TenantNav() {
+  const [, startTransition] = useTransition();
+
+  const handleLogout = () => {
+    startTransition(async () => {
+      await signOut();
+    });
+  };
+
   return (
     <Sidebar
       brand={{ label: "renta bed", href: "/tenant", sublabel: "Tenant Portal" }}
       items={items}
-      onLogout={() => {
-        // TODO: Implement logout
-        window.location.href = "/";
-      }}
+      bottomItems={bottomItems}
+      onLogout={handleLogout}
     />
   );
 }
