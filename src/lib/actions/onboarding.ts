@@ -387,7 +387,6 @@ export async function createOrUpdatePropertyListingAction(
   const numBedrooms = optionalStr(formData, "num_bedrooms");
   const numBathrooms = optionalStr(formData, "num_bathrooms");
   const sqft = optionalStr(formData, "sqft");
-  const wifiSpeed = optionalStr(formData, "wifi_speed");
 
   // Basic amenities (checkboxes)
   const furnished = formData.get("furnished") === "true";
@@ -483,7 +482,6 @@ export async function createOrUpdatePropertyListingAction(
       num_bedrooms: numBedrooms ? parseInt(numBedrooms, 10) : null,
       num_bathrooms: numBathrooms ? parseInt(numBathrooms, 10) : null,
       sqft: sqft ? parseInt(sqft, 10) : null,
-      wifi_speed: wifiSpeed,
       // Basic amenities
       furnished,
       utilities_included: utilitiesIncluded,

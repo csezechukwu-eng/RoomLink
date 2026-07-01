@@ -117,7 +117,6 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
     num_bedrooms: "",
     num_bathrooms: "",
     sqft: "",
-    wifi_speed: "",
     // Basic amenities
     furnished: data.furnished,
     utilities_included: data.utilitiesIncluded,
@@ -519,7 +518,7 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
                 Property Details
               </h3>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
                 <div>
                   <Label htmlFor="num_bedrooms" className="flex items-center gap-1">
                     <Bed className="h-4 w-4 text-slate-400" />
@@ -565,20 +564,6 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
                     value={propertyForm.sqft}
                     onChange={(e) => handlePropertyChange("sqft", e.target.value)}
                     placeholder="0"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="wifi_speed" className="flex items-center gap-1">
-                    <Wifi className="h-4 w-4 text-slate-400" />
-                    WiFi Speed
-                  </Label>
-                  <Input
-                    id="wifi_speed"
-                    name="wifi_speed"
-                    value={propertyForm.wifi_speed}
-                    onChange={(e) => handlePropertyChange("wifi_speed", e.target.value)}
-                    placeholder="e.g., 100 Mbps"
                     className="mt-1"
                   />
                 </div>
