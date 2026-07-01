@@ -9,12 +9,12 @@ export type AuthActionResult = {
 };
 
 /**
- * Check if a user has completed landlord onboarding.
+ * Check if a user has completed onboarding based on their role.
  * Returns the appropriate redirect URL.
  */
 async function getPostAuthRedirect(userId: string): Promise<string> {
   if (!isServiceRoleConfigured()) {
-    // Default to onboarding if we can't check
+    // Default to landlord onboarding if we can't check
     return "/onboarding/landlord";
   }
 
@@ -22,7 +22,7 @@ async function getPostAuthRedirect(userId: string): Promise<string> {
     const supabase = getServiceClient();
     const { data: userData, error } = await supabase
       .from("users")
-      .select("onboarding_completed_at")
+      .select("role, onboarding_completed_at, tenant_onboarding_completed_at")
       .eq("id", userId)
       .maybeSingle();
 
@@ -31,13 +31,27 @@ async function getPostAuthRedirect(userId: string): Promise<string> {
       return "/onboarding/landlord";
     }
 
-    // If no user row or onboarding not complete, go to onboarding
-    if (!userData || !userData.onboarding_completed_at) {
+    // If no user row, default to landlord onboarding
+    if (!userData) {
       return "/onboarding/landlord";
     }
 
-    // Onboarding complete - go to dashboard
-    return "/dashboard";
+    // Check user role and redirect accordingly
+    if (userData.role === "tenant") {
+      // Tenant flow
+      if (!userData.tenant_onboarding_completed_at) {
+        return "/onboarding/tenant";
+      }
+      // Tenant onboarding complete - go to tenant dashboard/availability
+      return "/tenant";
+    } else {
+      // Landlord flow (default)
+      if (!userData.onboarding_completed_at) {
+        return "/onboarding/landlord";
+      }
+      // Landlord onboarding complete - go to dashboard
+      return "/dashboard";
+    }
   } catch (err) {
     console.error("[getPostAuthRedirect] Unexpected error:", err);
     return "/onboarding/landlord";
@@ -48,6 +62,7 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
   const fullName = formData.get("fullName") as string;
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const role = (formData.get("role") as string) || "landlord"; // Default to landlord for backwards compatibility
 
   if (!fullName || !email || !password) {
     return { error: "All fields are required" };
@@ -62,8 +77,11 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
 
     // Get base URL for email confirmation redirect
     const baseUrl = getBaseUrl();
-    const emailRedirectTo = `${baseUrl}/auth/callback`;
+    // Redirect to appropriate onboarding based on role
+    const onboardingPath = role === "tenant" ? "/onboarding/tenant" : "/onboarding/landlord";
+    const emailRedirectTo = `${baseUrl}/auth/callback?redirect=${encodeURIComponent(onboardingPath)}`;
 
+    console.log("[signUp] Role:", role);
     console.log("[signUp] Email redirect URL:", emailRedirectTo);
 
     const { data, error } = await supabase.auth.signUp({
@@ -72,6 +90,7 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
       options: {
         data: {
           full_name: fullName,
+          role: role,
         },
         emailRedirectTo,
       },
@@ -98,8 +117,9 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
     return { error: "An unexpected error occurred. Please try again." };
   }
 
-  // Redirect to onboarding on success (new landlord signups start onboarding)
-  redirect("/onboarding/landlord");
+  // Redirect to appropriate onboarding on success
+  const redirectPath = role === "tenant" ? "/onboarding/tenant" : "/onboarding/landlord";
+  redirect(redirectPath);
 }
 
 export async function signIn(formData: FormData): Promise<AuthActionResult> {
