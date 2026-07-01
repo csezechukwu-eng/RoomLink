@@ -133,15 +133,6 @@ export function PaymentMethodStep({ state, onContinue }: PaymentMethodStepProps)
               </ul>
             </div>
 
-            {/* Fee Information */}
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <h3 className="font-medium text-amber-900 mb-2">Service Fee</h3>
-              <p className="text-sm text-amber-800">
-                A 10% service fee is applied to each rent payment to cover platform costs,
-                tenant support, and payment processing.
-              </p>
-            </div>
-
             {/* Accepted Payment Methods */}
             <div className="flex items-center justify-center gap-4 py-4">
               <div className="flex items-center gap-2 text-sm text-slate-500">
