@@ -147,7 +147,7 @@ export default async function BecomeAHostPage() {
             Built for Crash Pads and Shared Housing
           </h2>
           <p className="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">
-            Whether you house flight crews, travel nurses, or students, RENTA BED is designed for your unique needs.
+            Whether you house flight crews, travel nurses, or students, renta bed is designed for your unique needs.
           </p>
         </div>
         <div className="mt-12 flex flex-wrap justify-center gap-8 sm:gap-12">
@@ -169,12 +169,12 @@ export default async function BecomeAHostPage() {
         </div>
         <div className="mt-12 grid gap-6 lg:grid-cols-2">
           <TestimonialCard
-            quote="RENTA BED has completely changed how I run my crash pad. No more spreadsheets, no more missed payments, no more chaos."
+            quote="renta bed has completely changed how I run my crash pad. No more spreadsheets, no more missed payments, no more chaos."
             author="Marcus D."
             role="Crash Pad Owner"
           />
           <TestimonialCard
-            quote="I manage 3 properties with over 40 beds. Before RENTA BED, it was a nightmare keeping track of everything. Now it's effortless."
+            quote="I manage 3 properties with over 40 beds. Before renta bed, it was a nightmare keeping track of everything. Now it's effortless."
             author="Sarah K."
             role="Property Manager"
           />

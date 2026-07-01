@@ -204,9 +204,17 @@ function RoomLinkLogo() {
       xmlns="http://www.w3.org/2000/svg"
       className="shrink-0"
     >
-      {/* Two interlocking circles logo */}
-      <circle cx="12" cy="16" r="8" stroke="#6366F1" strokeWidth="2.5" fill="none" />
-      <circle cx="20" cy="16" r="8" stroke="#6366F1" strokeWidth="2.5" fill="none" />
+      {/* Bed icon logo */}
+      {/* Bed frame */}
+      <rect x="4" y="18" width="24" height="3" rx="1" stroke="#6366F1" strokeWidth="2" fill="none" />
+      {/* Legs */}
+      <line x1="6" y1="21" x2="6" y2="26" stroke="#6366F1" strokeWidth="2" strokeLinecap="round" />
+      <line x1="26" y1="21" x2="26" y2="26" stroke="#6366F1" strokeWidth="2" strokeLinecap="round" />
+      {/* Headboard */}
+      <path d="M4 18V12C4 10.8954 4.89543 10 6 10H26C27.1046 10 28 10.8954 28 12V18" stroke="#6366F1" strokeWidth="2" fill="none" />
+      {/* Pillows */}
+      <rect x="7" y="12" width="7" height="5" rx="1.5" fill="#818CF8" stroke="#6366F1" strokeWidth="1" />
+      <rect x="18" y="12" width="7" height="5" rx="1.5" fill="#818CF8" stroke="#6366F1" strokeWidth="1" />
     </svg>
   );
 }

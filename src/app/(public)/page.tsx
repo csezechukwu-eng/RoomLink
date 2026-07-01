@@ -36,7 +36,7 @@ export default async function LandingPage() {
               <span className="text-indigo-600">One Bed at a Time.</span>
             </h1>
             <p className="mt-6 text-lg text-slate-600 leading-relaxed max-w-xl">
-              RENTA BED connects you with affordable, fully-furnished beds in shared housing.
+              renta bed connects you with affordable, fully-furnished beds in shared housing.
               Pay less than traditional rent while getting everything you need — utilities, WiFi, and furniture included.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
@@ -104,7 +104,7 @@ export default async function LandingPage() {
             Why Rent a Bed Instead of an Apartment?
           </h2>
           <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-            The traditional rental model doesn&apos;t work for everyone. RENTA BED offers a smarter, more affordable way to live.
+            The traditional rental model doesn&apos;t work for everyone. renta bed offers a smarter, more affordable way to live.
           </p>
         </div>
 
@@ -162,7 +162,7 @@ export default async function LandingPage() {
             Perfect For
           </h2>
           <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-            RENTA BED serves professionals and individuals who need affordable, flexible housing.
+            renta bed serves professionals and individuals who need affordable, flexible housing.
           </p>
         </div>
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -196,7 +196,7 @@ export default async function LandingPage() {
             How It Works
           </h2>
           <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-            Finding your next home is simple with RENTA BED.
+            Finding your next home is simple with renta bed.
           </p>
         </div>
         <div className="mt-12 grid gap-8 lg:grid-cols-3">
@@ -227,12 +227,12 @@ export default async function LandingPage() {
         </div>
         <div className="mt-12 grid gap-6 lg:grid-cols-2">
           <TestimonialCard
-            quote="As a flight attendant, I needed somewhere affordable near the airport without a long-term commitment. RENTA BED was perfect. I save over $800 a month compared to renting my own place."
+            quote="As a flight attendant, I needed somewhere affordable near the airport without a long-term commitment. renta bed was perfect. I save over $800 a month compared to renting my own place."
             author="Jessica M."
             role="Flight Attendant, Atlanta"
           />
           <TestimonialCard
-            quote="Moving to a new city for my travel nursing contract was stressful. RENTA BED made it easy — I found a great place in 2 days and moved in the same week."
+            quote="Moving to a new city for my travel nursing contract was stressful. renta bed made it easy — I found a great place in 2 days and moved in the same week."
             author="David R."
             role="Travel Nurse, Houston"
           />

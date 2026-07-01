@@ -23,11 +23,11 @@ export function PublicNav() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5">
-            <RoomLinkLogo />
-            <span className="text-lg font-semibold tracking-tight text-slate-900">
-              RENTA BED
+          <Link href="/" className="flex items-center gap-2">
+            <span className="text-xl font-semibold tracking-tight text-slate-900">
+              renta bed
             </span>
+            <RoomLinkLogo />
           </Link>
 
           {/* Desktop Navigation */}
