@@ -12,12 +12,10 @@ import {
   Calendar,
   Wifi,
   Sofa,
-  Zap,
   Car,
   WashingMachine,
   Home,
   Bath,
-  Ruler,
   Users,
   Heart,
   Snowflake,
@@ -116,11 +114,7 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
     // Property details
     num_bedrooms: "",
     num_bathrooms: "",
-    sqft: "",
-    // Basic amenities
-    furnished: data.furnished,
-    utilities_included: data.utilitiesIncluded,
-    wifi: data.wifi,
+    // Additional details
     laundry: data.laundry || "",
     parking: data.parking || "",
     // Bathroom & Laundry
@@ -518,103 +512,86 @@ export function PropertyStep({ state, onContinue }: PropertyStepProps) {
                 Property Details
               </h3>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="num_bedrooms" className="flex items-center gap-1">
                     <Bed className="h-4 w-4 text-slate-400" />
                     Bedrooms
+                    <Badge className="bg-red-50 text-red-700 text-xs ml-1">Required</Badge>
                   </Label>
                   <Input
                     id="num_bedrooms"
                     name="num_bedrooms"
                     type="number"
-                    min="0"
+                    min="1"
                     value={propertyForm.num_bedrooms}
                     onChange={(e) => handlePropertyChange("num_bedrooms", e.target.value)}
-                    placeholder="0"
-                    className="mt-1"
+                    placeholder="1"
+                    className={cn(
+                      "mt-1",
+                      propertyState.fieldErrors?.num_bedrooms && "border-red-500"
+                    )}
                   />
+                  {propertyState.fieldErrors?.num_bedrooms && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {propertyState.fieldErrors.num_bedrooms}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="num_bathrooms" className="flex items-center gap-1">
                     <Bath className="h-4 w-4 text-slate-400" />
                     Bathrooms
+                    <Badge className="bg-red-50 text-red-700 text-xs ml-1">Required</Badge>
                   </Label>
                   <Input
                     id="num_bathrooms"
                     name="num_bathrooms"
                     type="number"
-                    min="0"
+                    min="1"
                     value={propertyForm.num_bathrooms}
                     onChange={(e) => handlePropertyChange("num_bathrooms", e.target.value)}
-                    placeholder="0"
-                    className="mt-1"
+                    placeholder="1"
+                    className={cn(
+                      "mt-1",
+                      propertyState.fieldErrors?.num_bathrooms && "border-red-500"
+                    )}
                   />
-                </div>
-                <div>
-                  <Label htmlFor="sqft" className="flex items-center gap-1">
-                    <Ruler className="h-4 w-4 text-slate-400" />
-                    Square Feet
-                  </Label>
-                  <Input
-                    id="sqft"
-                    name="sqft"
-                    type="number"
-                    min="0"
-                    value={propertyForm.sqft}
-                    onChange={(e) => handlePropertyChange("sqft", e.target.value)}
-                    placeholder="0"
-                    className="mt-1"
-                  />
+                  {propertyState.fieldErrors?.num_bathrooms && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {propertyState.fieldErrors.num_bathrooms}
+                    </p>
+                  )}
                 </div>
               </div>
 
             </div>
 
-            {/* Basic Amenities */}
-            <div>
-              <h3 className="font-medium text-slate-900 mb-4">Basic Amenities</h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                  <input
-                    type="checkbox"
-                    name="furnished"
-                    value="true"
-                    checked={propertyForm.furnished}
-                    onChange={(e) => handlePropertyChange("furnished", e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
-                  />
-                  <Sofa className="h-5 w-5 text-slate-400" />
-                  <span className="text-sm">Furnished</span>
-                </label>
-
-                <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                  <input
-                    type="checkbox"
-                    name="utilities_included"
-                    value="true"
-                    checked={propertyForm.utilities_included}
-                    onChange={(e) => handlePropertyChange("utilities_included", e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
-                  />
-                  <Zap className="h-5 w-5 text-slate-400" />
-                  <span className="text-sm">Utilities Included</span>
-                </label>
-
-                <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                  <input
-                    type="checkbox"
-                    name="wifi"
-                    value="true"
-                    checked={propertyForm.wifi}
-                    onChange={(e) => handlePropertyChange("wifi", e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
-                  />
-                  <Wifi className="h-5 w-5 text-slate-400" />
-                  <span className="text-sm">WiFi Included</span>
-                </label>
+            {/* Standard Inclusions */}
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+              <h3 className="font-medium text-emerald-900 mb-2">Included with All Room Link Properties</h3>
+              <p className="text-sm text-emerald-700 mb-3">
+                The following amenities are automatically included with all properties listed on Room Link:
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="flex items-center gap-2 text-sm text-emerald-700">
+                  <Check className="h-4 w-4" />
+                  <span>Fully Furnished</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-emerald-700">
+                  <Check className="h-4 w-4" />
+                  <span>Utilities Included</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-emerald-700">
+                  <Check className="h-4 w-4" />
+                  <span>WiFi Included</span>
+                </div>
               </div>
+            </div>
+
+            {/* Additional Amenities */}
+            <div>
+              <h3 className="font-medium text-slate-900 mb-4">Additional Details</h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>

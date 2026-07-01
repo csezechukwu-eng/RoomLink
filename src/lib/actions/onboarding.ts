@@ -383,15 +383,11 @@ export async function createOrUpdatePropertyListingAction(
   const occupancyType = optionalStr(formData, "occupancy_type");
   const defaultMinStayDays = optionalStr(formData, "default_min_stay_days");
 
-  // Property details
-  const numBedrooms = optionalStr(formData, "num_bedrooms");
-  const numBathrooms = optionalStr(formData, "num_bathrooms");
-  const sqft = optionalStr(formData, "sqft");
+  // Property details (required)
+  const numBedrooms = str(formData, "num_bedrooms");
+  const numBathrooms = str(formData, "num_bathrooms");
 
-  // Basic amenities (checkboxes)
-  const furnished = formData.get("furnished") === "true";
-  const utilitiesIncluded = formData.get("utilities_included") === "true";
-  const wifi = formData.get("wifi") === "true";
+  // Additional details
   const laundry = optionalStr(formData, "laundry");
   const parking = optionalStr(formData, "parking");
 
@@ -457,6 +453,24 @@ export async function createOrUpdatePropertyListingAction(
     fieldErrors.address = "Address is required";
   }
 
+  if (!numBedrooms) {
+    fieldErrors.num_bedrooms = "Number of bedrooms is required";
+  } else {
+    const beds = parseInt(numBedrooms, 10);
+    if (isNaN(beds) || beds < 1) {
+      fieldErrors.num_bedrooms = "Bedrooms must be at least 1";
+    }
+  }
+
+  if (!numBathrooms) {
+    fieldErrors.num_bathrooms = "Number of bathrooms is required";
+  } else {
+    const baths = parseInt(numBathrooms, 10);
+    if (isNaN(baths) || baths < 1) {
+      fieldErrors.num_bathrooms = "Bathrooms must be at least 1";
+    }
+  }
+
   if (Object.keys(fieldErrors).length > 0) {
     return errorState("Please fix the errors below.", fieldErrors);
   }
@@ -478,14 +492,14 @@ export async function createOrUpdatePropertyListingAction(
       description,
       occupancy_type: occupancyType || null,
       default_min_stay_days: defaultMinStayDays ? parseInt(defaultMinStayDays, 10) : 30,
-      // Property details
-      num_bedrooms: numBedrooms ? parseInt(numBedrooms, 10) : null,
-      num_bathrooms: numBathrooms ? parseInt(numBathrooms, 10) : null,
-      sqft: sqft ? parseInt(sqft, 10) : null,
-      // Basic amenities
-      furnished,
-      utilities_included: utilitiesIncluded,
-      wifi,
+      // Property details (required)
+      num_bedrooms: parseInt(numBedrooms, 10),
+      num_bathrooms: parseInt(numBathrooms, 10),
+      // Standard inclusions - always true for Room Link properties
+      furnished: true,
+      utilities_included: true,
+      wifi: true,
+      // Additional details
       laundry,
       parking,
       // Bathroom & Laundry
