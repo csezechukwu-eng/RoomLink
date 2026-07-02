@@ -118,22 +118,19 @@ const STAY_CATEGORIES: Array<{
 }> = [
   {
     value: "short_term",
-    label: "Short-Term",
-    description: "1 week to 1 month",
+    label: "Monthly",
+    description: "1 to 3 months",
     durations: [
-      { value: "1_week", label: "1 Week" },
-      { value: "2_weeks", label: "2 Weeks" },
-      { value: "3_weeks", label: "3 Weeks" },
       { value: "1_month", label: "1 Month" },
+      { value: "2_months", label: "2 Months" },
+      { value: "3_months", label: "3 Months" },
     ],
   },
   {
     value: "mid_term",
     label: "Mid-Term",
-    description: "1 to 6 months",
+    description: "3 to 6 months",
     durations: [
-      { value: "1_month", label: "1 Month" },
-      { value: "2_months", label: "2 Months" },
       { value: "3_months", label: "3 Months" },
       { value: "4_months", label: "4 Months" },
       { value: "5_months", label: "5 Months" },
