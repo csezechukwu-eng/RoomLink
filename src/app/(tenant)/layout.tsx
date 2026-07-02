@@ -48,7 +48,7 @@ export default async function TenantLayout({
   return (
     <div className="min-h-screen bg-slate-50">
       <TenantNav />
-      <main className="lg:pl-64">
+      <main>
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
           {children}
         </div>

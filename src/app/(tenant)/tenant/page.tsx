@@ -55,17 +55,17 @@ export default async function TenantHomePage() {
     <div className="space-y-8">
       {/* Welcome Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-slate-900">Welcome, {name}</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Welcome, {name}</h1>
+        <div className="flex items-center gap-3">
           <Link href="/availability">
             <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
               <Search className="mr-2 h-4 w-4" />
               Browse Beds
             </Button>
           </Link>
-        </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-600">
-          {name.charAt(0)}
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-600">
+            {name.charAt(0)}
+          </div>
         </div>
       </div>
 
