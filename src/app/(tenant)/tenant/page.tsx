@@ -125,7 +125,7 @@ function NoApplicationsView({
               : "Browse available beds in shared housing properties and submit your application to get started."}
           </p>
           <Link href="/availability">
-            <Button size="lg" className="bg-white text-indigo-600 hover:bg-indigo-50">
+            <Button size="md" className="h-12 px-6 bg-white text-indigo-600 hover:bg-indigo-50">
               <Search className="mr-2 h-5 w-5" />
               Browse Available Beds
             </Button>
