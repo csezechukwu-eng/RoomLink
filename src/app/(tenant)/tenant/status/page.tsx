@@ -71,7 +71,7 @@ export default async function TenantStatusPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="My Booking Status"
+        title="My Application Status"
         description="Your monthly stay request, reservation, deposit, and assigned bed."
       />
 
@@ -135,12 +135,12 @@ export default async function TenantStatusPage({
       {/* Booking Requests */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Booking Requests
+          Application Requests
         </h2>
         {applications.length === 0 ? (
           <EmptyState
             icon={<ClipboardList className="h-5 w-5" />}
-            title="No booking requests yet"
+            title="No application requests yet"
             description="Browse listings and request a monthly stay to get started."
           />
         ) : (
