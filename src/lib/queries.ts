@@ -3,7 +3,6 @@ import { getCurrentOwnerId } from "@/lib/auth";
 import { createAuthenticatedClient } from "@/lib/supabase/server";
 import { ok, fail, type Result } from "@/lib/result";
 import type {
-  Application,
   ApplicationStatus,
   Bed,
   BedStatusCounts,
@@ -586,7 +585,7 @@ export async function getApplicationDetail(
 ): Promise<Result<ApplicationWithRefs | null>> {
   try {
     // Verify the landlord owns this application's property
-    const ownerId = await getCurrentOwnerId();
+    await getCurrentOwnerId();
     const result = await getApplicationById(applicationId);
     if (result.error !== null) return fail(result.error);
     if (!result.data) return ok(null);

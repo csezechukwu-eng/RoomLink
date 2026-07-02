@@ -6,7 +6,6 @@ import { getAuthUser } from "@/lib/supabase/server";
 import { isDemoMode, DEMO_OWNER_ID } from "@/lib/auth";
 import {
   createIdentityVerificationSessionWithAttempt,
-  getIdentityVerificationStatus,
   isStripeIdentityConfigured,
   syncIdentityStatusFromStripe,
 } from "@/lib/stripe/identity";

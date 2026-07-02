@@ -1459,7 +1459,7 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
 
     // Always report the applications step result
     const totalExisting = existingApps?.length ?? 0;
-    const totalApps = summary.applicationsCreated + totalExisting;
+    const _totalApps = summary.applicationsCreated + totalExisting;
     let appStepDetail = "";
     let appStepStatus: "success" | "skipped" | "error" = "error";
 

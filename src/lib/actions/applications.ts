@@ -23,7 +23,6 @@ import {
   revalidateApp,
 } from "@/lib/actions/_shared";
 import type {
-  ApplicationStatus,
   CommuterStatus,
   EmploymentStatus,
   GovernmentIdStatus,
@@ -184,7 +183,7 @@ export async function approveApplicationAction(
 
   // Verify landlord owns this application's property
   try {
-    const ownerId = await getCurrentOwnerId();
+    await getCurrentOwnerId();
     const appResult = await getApplicationById(id);
     if (appResult.error !== null) return errorState(appResult.error);
     if (!appResult.data) return errorState("Application not found.");

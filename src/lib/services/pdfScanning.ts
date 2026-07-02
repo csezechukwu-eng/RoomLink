@@ -36,7 +36,7 @@ const SIGNATURE_PATTERNS = [
 ];
 
 // Patterns specifically for tenant signatures
-const TENANT_PATTERNS = [
+const _TENANT_PATTERNS = [
   /tenant/i,
   /lessee/i,
   /renter/i,

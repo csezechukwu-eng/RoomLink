@@ -78,7 +78,7 @@ function parseStayTypeFromLength(lengthOfStay: string | null): LeaseStayType[] {
 // Property type to stay type mapping
 // ---------------------------------------------------------------------------
 
-function getStayTypesFromPropertyType(propertyType: string | null): LeaseStayType[] {
+function _getStayTypesFromPropertyType(propertyType: string | null): LeaseStayType[] {
   switch (propertyType) {
     case "crash_pad":
       return ["crash_pad", "short_term", "bed_rental"];
