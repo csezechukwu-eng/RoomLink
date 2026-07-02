@@ -31,7 +31,7 @@ interface NavItem {
 
 const items: NavItem[] = [
   { href: "/tenant", label: "Home", icon: Home, exact: true },
-  { href: "/tenant/status", label: "My Applications", icon: ClipboardList },
+  { href: "/tenant/status", label: "My Booking Status", icon: ClipboardList },
   { href: "/tenant/bed", label: "My Bed", icon: BedDouble },
   { href: "/tenant/rent", label: "Rent & Payments", icon: DollarSign },
   { href: "/tenant/messages", label: "Messages", icon: MessageSquare },
