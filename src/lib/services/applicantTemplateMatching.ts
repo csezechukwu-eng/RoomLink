@@ -78,6 +78,7 @@ function parseStayTypeFromLength(lengthOfStay: string | null): LeaseStayType[] {
 // Property type to stay type mapping
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function _getStayTypesFromPropertyType(propertyType: string | null): LeaseStayType[] {
   switch (propertyType) {
     case "crash_pad":

@@ -36,6 +36,7 @@ const SIGNATURE_PATTERNS = [
 ];
 
 // Patterns specifically for tenant signatures
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _TENANT_PATTERNS = [
   /tenant/i,
   /lessee/i,

@@ -270,9 +270,9 @@ function ApplicationProgressView({
               <MessageSquare className="h-4 w-4 text-slate-400" />
             </div>
             <div>
-              <p className="font-medium text-slate-900">You'll Be Notified</p>
+              <p className="font-medium text-slate-900">You&apos;ll Be Notified</p>
               <p className="text-sm text-slate-500">
-                We'll send you an email when there's an update on your application.
+                We&apos;ll send you an email when there&apos;s an update on your application.
               </p>
             </div>
           </div>
@@ -283,7 +283,7 @@ function ApplicationProgressView({
             <div>
               <p className="font-medium text-slate-900">If Approved</p>
               <p className="text-sm text-slate-500">
-                You'll be able to pay your deposit and sign your lease agreement.
+                You&apos;ll be able to pay your deposit and sign your lease agreement.
               </p>
             </div>
           </div>

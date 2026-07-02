@@ -1459,6 +1459,7 @@ export async function seedFullDemoData(): Promise<Result<DemoSeedResult>> {
 
     // Always report the applications step result
     const totalExisting = existingApps?.length ?? 0;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _totalApps = summary.applicationsCreated + totalExisting;
     let appStepDetail = "";
     let appStepStatus: "success" | "skipped" | "error" = "error";
